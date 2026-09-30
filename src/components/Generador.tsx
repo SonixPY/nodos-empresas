@@ -6,7 +6,7 @@ import { Download, Printer, Save } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAccionistas } from "@/lib/data";
 import { calcularParticipaciones } from "@/lib/accionistas";
-import { PLANTILLAS, getPlantilla, renderDocumento, valoresIniciales, type Campo, type Contexto, type Datos } from "@/lib/plantillas";
+import { GRUPO_LABELS, PLANTILLAS, getPlantilla, grupoDe, type GrupoPlantilla, renderDocumento, valoresIniciales, type Campo, type Contexto, type Datos } from "@/lib/plantillas";
 import { descargarWord, imprimir } from "@/lib/descargas";
 import { todayIso } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
@@ -187,18 +187,26 @@ export default function Generador({
           <div>
             <label className="field-label">Plantilla</label>
             <select className="input" value={plantilla.key} onChange={(e) => setPlantillaKey(e.target.value)}>
-              {disponibles.map((p) => (
-                <option key={p.key} value={p.key}>
-                  {p.numero} · {p.titulo}
-                </option>
-              ))}
+              {(Object.keys(GRUPO_LABELS) as GrupoPlantilla[]).map((g) => {
+                const del = disponibles.filter((p) => grupoDe(p) === g);
+                if (del.length === 0) return null;
+                return (
+                  <optgroup key={g} label={GRUPO_LABELS[g]}>
+                    {del.map((p) => (
+                      <option key={p.key} value={p.key}>
+                        {p.numero} · {p.titulo}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
             </select>
             <p className="mt-1.5 text-xs text-carbon/60">{plantilla.descripcion}</p>
           </div>
         </div>
 
         <div className="card space-y-3">
-          <h3 className="text-base">Datos del documento</h3>
+          <h3>Datos del documento</h3>
           {campos.map((c) => (
             <CampoInput key={c.key} campo={c} value={datos[c.key] ?? ""} onChange={(v) => set(c.key, v)} ctx={ctx} />
           ))}

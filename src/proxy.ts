@@ -1,23 +1,48 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { APP_ID } from "@/lib/nodos/app";
+import { SSO_FLAG, cookieDomainFor } from "@/lib/nodos/sitios";
 
-// Gate por sesión de Supabase Auth: cada usuario tiene su propia cuenta y
-// solo ve/carga sus propios datos (vía RLS). Reemplaza el gate anterior de
-// contraseña única compartida.
+// Rutas que se ven sin sesión.
+const PUBLICAS = ["/login", "/signup", "/recuperar", "/nueva-clave", "/auth/callback", "/soporte", "/sin-acceso"];
+// Rutas de ingreso: con sesión abierta no tienen sentido.
+const INGRESO = ["/login", "/signup", "/recuperar"];
+
+const empiezaCon = (pathname: string, rutas: string[]) =>
+  rutas.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+
+/**
+ * Gate por sesión de Supabase Auth, compartida entre las apps NODOS:
+ * - sin sesión → /login
+ * - con sesión pero sin permiso para esta app (o cuenta suspendida) → /sin-acceso
+ * Los datos de cada usuario los protege RLS en la base.
+ */
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) {
-    // Si faltan las variables de entorno, no bloqueamos (evita dejar la app
-    // inaccesible por un typo de config); Supabase igual va a fallar y
-    // avisar en la UI.
-    return response;
+  if (!supabaseUrl || !supabaseAnonKey) return response;
+
+  const { pathname } = request.nextUrl;
+  const domain = cookieDomainFor(request.headers.get("host"));
+
+  // Paso único al inicio de sesión compartido: borra las cookies de sesión
+  // viejas de este subdominio (sin Domain) y marca el navegador. Quien tenía
+  // la sesión abierta vuelve a ingresar una vez, y de ahí en más la sesión
+  // sirve para las dos apps.
+  if (domain && request.method === "GET" && !request.cookies.has(SSO_FLAG)) {
+    const res = NextResponse.redirect(request.nextUrl);
+    for (const c of request.cookies.getAll()) {
+      if (c.name.startsWith("sb-")) res.cookies.set(c.name, "", { path: "/", maxAge: 0 });
+    }
+    res.cookies.set(SSO_FLAG, "1", { domain, path: "/", maxAge: 60 * 60 * 24 * 400, sameSite: "lax", secure: true });
+    return res;
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    ...(domain ? { cookieOptions: { domain, path: "/", sameSite: "lax" as const, secure: true } } : {}),
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -34,24 +59,38 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
-  const isAuthPage = pathname === "/login" || pathname === "/signup";
+  // Redirección que conserva las cookies que Supabase haya refrescado.
+  const redirigir = (destino: string) => {
+    const res = NextResponse.redirect(new URL(destino, request.url));
+    response.cookies.getAll().forEach((c) => res.cookies.set(c));
+    return res;
+  };
 
-  if (!user && !isAuthPage) {
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+  if (pathname.startsWith("/api/")) return response; // cada endpoint valida por su cuenta
+
+  if (!user) {
+    if (empiezaCon(pathname, PUBLICAS)) return response;
+    const destino = pathname === "/" ? "/login" : `/login?next=${encodeURIComponent(pathname)}`;
+    return redirigir(destino);
   }
 
-  if (user && isAuthPage) {
-    return NextResponse.redirect(new URL("/", request.url));
+  if (empiezaCon(pathname, INGRESO)) return redirigir("/");
+  if (empiezaCon(pathname, PUBLICAS)) return response;
+
+  // Permisos por app (los define el panel de administración).
+  const { data: perfil, error } = await supabase
+    .from("profiles")
+    .select(`acceso_${APP_ID}, suspendido`)
+    .eq("id", user.id)
+    .maybeSingle<Record<string, boolean | null>>();
+  // Si la migración de cuentas todavía no corrió, no bloqueamos a nadie.
+  if (!error && perfil && (perfil.suspendido === true || perfil[`acceso_${APP_ID}`] === false)) {
+    return redirigir("/sin-acceso");
   }
 
   return response;
 }
 
 export const config = {
-  matcher: [
-    // Todo excepto los assets estáticos.
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|isotipo.svg).*)"],
 };

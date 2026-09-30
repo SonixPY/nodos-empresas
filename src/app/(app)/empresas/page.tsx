@@ -31,7 +31,7 @@ function EmpresasContenido() {
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl">Empresas</h1>
+          <h1>Empresas</h1>
           <p className="mt-1 text-sm text-carbon/60">Las sociedades que administrás: datos, accionistas, vencimientos y documentos.</p>
         </div>
         {!creando && (
@@ -73,7 +73,7 @@ function EmpresasContenido() {
               {empresas.map((e) => (
                 <tr key={e.id} className="cursor-pointer" onClick={() => router.push(`/empresas/${e.id}`)}>
                   <td className="font-medium">
-                    <Link href={`/empresas/${e.id}`} className="hover:text-cobre">
+                    <Link href={`/empresas/${e.id}`} className="hover:text-cobre-hover">
                       {e.denominacion}
                     </Link>
                   </td>

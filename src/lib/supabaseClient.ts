@@ -1,4 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
+import { cookieDomainFor } from "@/lib/nodos/sitios";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -10,7 +11,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// Cliente de navegador consciente de cookies: la sesión de Supabase Auth
-// queda guardada en cookies (no solo en localStorage), para que el proxy
-// del servidor pueda leerla y decidir si dejar pasar la request.
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+// La sesión vive en cookies (no solo en localStorage) para que el proxy la
+// lea. En producción la cookie es de ".nodoscompliance.com": la misma cuenta
+// queda abierta en Finanzas y en Empresas.
+const domain = typeof window !== "undefined" ? cookieDomainFor(window.location.hostname) : undefined;
+
+export const supabase = createBrowserClient(
+  supabaseUrl,
+  supabaseAnonKey,
+  domain ? { cookieOptions: { domain, path: "/", sameSite: "lax", secure: true } } : undefined
+);

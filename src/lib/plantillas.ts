@@ -39,13 +39,15 @@ export interface Plantilla {
   titulo: string;
   descripcion: string;
   tipos: TipoSociedad[];
+  /** Sección del selector; si falta se deduce del número. */
+  grupo?: "societario" | "familia" | "seprelad";
   campos: Campo[];
   tituloDoc: (d: Datos, ctx: Contexto) => string;
   render: (d: Datos, ctx: Contexto) => string;
 }
 
 export const AVISO_LEGAL =
-  "Documento generado con Nodos Empresas a partir de un modelo informativo de referencia. No constituye asesoramiento legal personalizado ni reemplaza la revisión de un profesional del derecho para el caso concreto. Verificá los estatutos de la sociedad y la normativa vigente antes de firmarlo.";
+  "Documento generado con NODOS Empresas a partir de un modelo informativo de referencia. No constituye asesoramiento legal personalizado ni reemplaza la revisión de un profesional del derecho para el caso concreto. Verificá los estatutos de la sociedad y la normativa vigente antes de firmarlo.";
 
 // ─── helpers ────────────────────────────────────────────────────────────
 
@@ -84,7 +86,7 @@ function firmas(items: { nombre: string; cargo: string }[]): string {
 }
 
 function encabezado(numero: string, titulo: string): string {
-  return `<p class="meta">Nodos Empresas · Plantilla ${numero}</p><h1>${esc(titulo)}</h1>`;
+  return `<p class="meta">NODOS Empresas · Plantilla ${numero}</p><h1>${esc(titulo)}</h1>`;
 }
 
 function fechaActa(d: Datos, key = "fecha"): string {
@@ -928,6 +930,316 @@ ${firmas([{ nombre: "&nbsp;", cargo: "Nombre, C.I. y fecha" }])}
   },
 };
 
+
+// ─── SEPRELAD (PLA/FT) ──────────────────────────────────────────────────
+// Para empresas que son sujetos obligados (Ley 1015/97, art. 13). Nunca
+// incluyen contenido de un ROS: ese reporte es confidencial y va solo por SIRO.
+
+const TODAS: TipoSociedad[] = ["sa", "eas", "srl"];
+
+const SECTOR_OPCIONES = [
+  { value: "201", label: "Inmobiliaria (Res. 201/2020)" },
+  { value: "176", label: "Remesas (Res. 176/2020)" },
+  { value: "490", label: "OSFL / fundación (Res. 490/2022)" },
+];
+
+function baseSector(d: Datos, art: Record<string, string>): string {
+  const s = str(d, "sector") || "201";
+  const norma = s === "176" ? "Resolución SEPRELAD N° 176/2020" : s === "490" ? "Resolución SEPRELAD N° 490/2022" : "Resolución SEPRELAD N° 201/2020";
+  return `${norma}${art[s] ? `, ${art[s]}` : ""}`;
+}
+
+function organo(ctx: Contexto): string {
+  return ctx.empresa.tipo === "eas" ? "ÓRGANO DE ADMINISTRACIÓN" : ctx.empresa.tipo === "srl" ? "GERENCIA" : "DIRECTORIO";
+}
+
+const actaOficialCumplimiento: Plantilla = {
+  key: "sep-acta-oficial-cumplimiento",
+  numero: "S1",
+  grupo: "seprelad",
+  titulo: "Acta de designación del oficial de cumplimiento",
+  descripcion: "La máxima autoridad designa al oficial de cumplimiento titular (y su interino), con autonomía y recursos.",
+  tipos: TODAS,
+  campos: [
+    ...CAMPOS_BASE,
+    { key: "sector", label: "Normativa que aplica", type: "select", options: SECTOR_OPCIONES, default: () => "201" },
+    { key: "oc_nombre", label: "Oficial de cumplimiento titular", type: "text", required: true },
+    { key: "oc_ci", label: "C.I. del titular", type: "text" },
+    { key: "oc_cargo", label: "Cargo / jerarquía en la empresa", type: "text", help: "Debe tener jerarquía suficiente y reportar a la máxima autoridad." },
+    { key: "interino_nombre", label: "Oficial de cumplimiento interino", type: "text" },
+    { key: "interino_ci", label: "C.I. del interino", type: "text" },
+    { key: "recursos", label: "Recursos asignados", type: "text", default: () => "los recursos humanos, técnicos y presupuestarios necesarios para el cumplimiento de sus funciones" },
+    { key: "firmantes", label: "Quienes firman (uno por línea)", type: "textarea", default: presidenteDefault },
+  ],
+  tituloDoc: (d) => `Acta — designación del oficial de cumplimiento ${str(d, "oc_nombre")}`.trim(),
+  render: (d, ctx) => {
+    const fs = lines(d, "firmantes");
+    return `
+${encabezado("S1", "Designación del oficial de cumplimiento")}
+<p class="center"><strong>ACTA DE ${organo(ctx)} N° ${v(d, "numero_acta", "__")}</strong></p>
+<p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, siendo las ${horaTexto(str(d, "hora"))}, se reúnen en la sede social de ${denom(ctx)}${ctx.empresa.ruc ? `, RUC ${esc(ctx.empresa.ruc)}` : ""}, sita en ${domicilio(ctx)}, los miembros que firman al pie, con quórum suficiente, para tratar el siguiente orden del día:</p>
+<p><strong>1. Designación del oficial de cumplimiento.</strong> En su carácter de sujeto obligado conforme al artículo 13 de la Ley N° 1015/97 y a la ${baseSector(d, { "201": "artículos 7, 8 y 10", "176": "artículos 13 y 14", "490": "artículos 25 a 29" })}, se resuelve por unanimidad designar como oficial de cumplimiento titular a ${v(d, "oc_nombre", "NOMBRE")}${str(d, "oc_ci") ? `, C.I. N° ${esc(str(d, "oc_ci"))}` : ""}${str(d, "oc_cargo") ? `, quien ocupa el cargo de ${esc(str(d, "oc_cargo"))}` : ""}.${str(d, "interino_nombre") ? ` Se designa como oficial de cumplimiento interino, para los casos de ausencia, renuncia o remoción del titular, a ${esc(str(d, "interino_nombre"))}${str(d, "interino_ci") ? `, C.I. N° ${esc(str(d, "interino_ci"))}` : ""}.` : ""}</p>
+<p><strong>2. Autonomía y recursos.</strong> El oficial de cumplimiento reportará directamente a este órgano, actuará con autonomía e independencia en el ejercicio de sus funciones y contará con ${v(d, "recursos", "RECURSOS")}. Tendrá acceso irrestricto a la información de la empresa necesaria para su labor.</p>
+<p><strong>3. Declaración.</strong> El designado declara conocer las funciones del cargo y no encontrarse alcanzado por las inhabilidades previstas en la normativa aplicable.</p>
+<p><strong>4. Comunicación a la SEPRELAD.</strong> Se instruye comunicar la presente designación a la Secretaría de Prevención de Lavado de Dinero o Bienes (SEPRELAD) dentro de los cinco (5) días hábiles siguientes, con los datos exigidos por la normativa.</p>
+<p>No habiendo más asuntos que tratar, se levanta la sesión.</p>
+${firmas([...(fs.length ? fs : [""]).map((f) => ({ nombre: f ? esc(f) : "&nbsp;", cargo: "Por la máxima autoridad" })), { nombre: str(d, "oc_nombre") ? esc(str(d, "oc_nombre")) : "&nbsp;", cargo: "Acepto el cargo — Oficial de cumplimiento" }])}`;
+  },
+};
+
+const notaOficialCumplimiento: Plantilla = {
+  key: "sep-nota-oficial-cumplimiento",
+  numero: "S2",
+  grupo: "seprelad",
+  titulo: "Nota a SEPRELAD: oficial de cumplimiento",
+  descripcion: "Comunica la designación, el cambio de datos, la remoción o el interino del oficial de cumplimiento.",
+  tipos: TODAS,
+  campos: [
+    { key: "fecha", label: "Fecha de la nota", type: "date", required: true },
+    { key: "ciudad", label: "Ciudad", type: "text", default: (c) => c.empresa.ciudad ?? "Asunción" },
+    { key: "sector", label: "Normativa que aplica", type: "select", options: SECTOR_OPCIONES, default: () => "201" },
+    {
+      key: "motivo",
+      label: "Motivo",
+      type: "select",
+      options: [
+        { value: "designacion", label: "Designación" },
+        { value: "cambio", label: "Cambio de datos" },
+        { value: "remocion", label: "Remoción" },
+        { value: "interino", label: "Oficial interino" },
+      ],
+      default: () => "designacion",
+    },
+    { key: "oc_nombre", label: "Nombre y apellido", type: "text", required: true },
+    { key: "oc_documento", label: "Tipo y N° de documento", type: "text" },
+    { key: "oc_nacionalidad", label: "Nacionalidad", type: "text", default: () => "paraguaya" },
+    { key: "oc_cargo", label: "Cargo en la empresa", type: "text" },
+    { key: "oc_telefono", label: "Teléfono", type: "text" },
+    { key: "oc_email", label: "Correo electrónico", type: "text" },
+    { key: "oc_domicilio", label: "Domicilio real", type: "text" },
+    { key: "fecha_acto", label: "Fecha del acta que lo resolvió", type: "date" },
+    { key: "motivos_remocion", label: "Motivos de la remoción", type: "textarea", help: "Solo para remoción." },
+    { key: "periodo_ausencia", label: "Período de ausencia del titular", type: "text", help: "Solo para interino." },
+    { key: "firmante", label: "Representante legal que firma", type: "text", default: presidenteDefault },
+  ],
+  tituloDoc: (d) => `Nota a SEPRELAD — ${str(d, "motivo") || "designación"} del oficial de cumplimiento`,
+  render: (d, ctx) => {
+    const motivo = str(d, "motivo") || "designacion";
+    const asunto = { designacion: "Comunicación de designación", cambio: "Comunicación de cambio de datos", remocion: "Comunicación de remoción", interino: "Comunicación de oficial de cumplimiento interino" }[motivo];
+    const art = baseSector(d, { "201": "artículo 10", "176": "artículo 14", "490": "artículos 27 a 29" });
+    return `
+${encabezado("S2", `${asunto} del oficial de cumplimiento`)}
+<p class="right">${ciudad(d, ctx)}, ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : '<span class="ph">[FECHA]</span>'}</p>
+<p>Señor/a Ministro/a Secretario/a Ejecutivo/a<br/>Secretaría de Prevención de Lavado de Dinero o Bienes (SEPRELAD)<br/>Presente</p>
+<p><strong>Ref.: ${esc(asunto ?? "")} del oficial de cumplimiento — ${esc(ctx.empresa.denominacion)}${ctx.empresa.ruc ? `, RUC ${esc(ctx.empresa.ruc)}` : ""}</strong></p>
+<p>Me dirijo a usted, en representación de ${denom(ctx)}, con domicilio en ${domicilio(ctx)}, en cumplimiento de la ${art}, a fin de ${
+      motivo === "remocion"
+        ? `comunicar la remoción de ${v(d, "oc_nombre", "NOMBRE")} como oficial de cumplimiento, resuelta por la máxima autoridad${str(d, "fecha_acto") ? ` en fecha ${formatFecha(str(d, "fecha_acto"))}` : ""}, por los siguientes motivos: ${v(d, "motivos_remocion", "MOTIVOS")}.`
+        : motivo === "interino"
+          ? `comunicar que ${v(d, "oc_nombre", "NOMBRE")} asume como oficial de cumplimiento interino durante ${v(d, "periodo_ausencia", "PERÍODO DE AUSENCIA DEL TITULAR")}.`
+          : motivo === "cambio"
+            ? `comunicar la actualización de los datos del oficial de cumplimiento, que quedan como se detalla a continuación.`
+            : `comunicar la designación de ${v(d, "oc_nombre", "NOMBRE")} como oficial de cumplimiento${str(d, "fecha_acto") ? `, resuelta en fecha ${formatFecha(str(d, "fecha_acto"))}` : ""}.`
+    }</p>
+${
+  motivo === "remocion"
+    ? ""
+    : `<table class="tabla"><tbody>
+<tr><td>Nombre y apellido</td><td>${v(d, "oc_nombre", "NOMBRE")}</td></tr>
+<tr><td>Documento</td><td>${v(d, "oc_documento", "TIPO Y N°")}</td></tr>
+<tr><td>Nacionalidad</td><td>${v(d, "oc_nacionalidad", "NACIONALIDAD")}</td></tr>
+<tr><td>Cargo</td><td>${v(d, "oc_cargo", "CARGO")}</td></tr>
+<tr><td>Teléfono</td><td>${v(d, "oc_telefono", "TELÉFONO")}</td></tr>
+<tr><td>Correo electrónico</td><td>${v(d, "oc_email", "CORREO")}</td></tr>
+<tr><td>Domicilio real</td><td>${v(d, "oc_domicilio", "DOMICILIO")}</td></tr>
+</tbody></table>
+<p>Se adjunta la documentación respaldatoria exigida por la normativa (copia del documento, constancia de domicilio con croquis y factura de servicio público, currículum vitae${str(d, "sector") !== "201" ? " y declaración jurada de no estar alcanzado por inhabilidades" : ""}).</p>`
+}
+<p>Sin otro particular, saludo a usted atentamente.</p>
+${firmas([{ nombre: str(d, "firmante") ? esc(str(d, "firmante")) : "&nbsp;", cargo: `Representante legal — ${ctx.empresa.denominacion}` }])}
+<p class="nota">Plazo: 5 días hábiles desde la designación, el cambio o la remoción; 48 horas para el interino. Verificá el canal de presentación vigente (SIRO) antes de enviarla.</p>`;
+  },
+};
+
+const debidaDiligencia: Plantilla = {
+  key: "sep-debida-diligencia",
+  numero: "S3",
+  grupo: "seprelad",
+  titulo: "Formulario de debida diligencia del cliente",
+  descripcion: "Conozca a su cliente: datos mínimos de persona física o jurídica, origen de fondos y beneficiarios finales.",
+  tipos: TODAS,
+  campos: [
+    { key: "fecha", label: "Fecha", type: "date", required: true },
+    {
+      key: "tipo_cliente",
+      label: "Tipo de cliente",
+      type: "select",
+      options: [
+        { value: "juridica", label: "Persona jurídica" },
+        { value: "fisica", label: "Persona física" },
+      ],
+      default: () => "juridica",
+    },
+    { key: "regimen", label: "Régimen", type: "select", options: [{ value: "general", label: "General" }, { value: "simplificado", label: "Simplificado" }, { value: "ampliado", label: "Ampliado (PEP, no residente, OSFL, fideicomiso)" }], default: () => "general" },
+    { key: "operacion", label: "Operación o relación", type: "text", help: "Ej.: compra del lote 12, manzana B." },
+  ],
+  tituloDoc: (d) => `Debida diligencia — ${str(d, "tipo_cliente") === "fisica" ? "persona física" : "persona jurídica"}`,
+  render: (d, ctx) => {
+    const juridica = str(d, "tipo_cliente") !== "fisica";
+    const fila = (l: string) => `<tr><td>${esc(l)}</td><td>&nbsp;</td></tr>`;
+    const filas = juridica
+      ? ["Razón social", "RUC", "Escritura de constitución y modificaciones (N°, fecha, escribano)", "Domicilio legal", "Teléfono y correo", "Representantes y apoderados (nombre, C.I., facultades)", "Actividad principal", "Origen de los fondos de la operación", "Respaldo de ingresos presentado"]
+      : ["Nombre y apellido", "Documento de identidad (tipo y N°)", "Nacionalidad", "Domicilio", "Teléfono y correo", "RUC o constancia de no contribuyente", "Profesión o actividad", "Origen de los fondos de la operación", "Respaldo de ingresos presentado", "¿Es persona expuesta políticamente (PEP)? Cargo y período"];
+    return `
+${encabezado("S3", `Formulario de debida diligencia — ${juridica ? "persona jurídica" : "persona física"}`)}
+<p><strong>Sujeto obligado:</strong> ${denom(ctx)}${ctx.empresa.ruc ? ` · RUC ${esc(ctx.empresa.ruc)}` : ""} · <strong>Fecha:</strong> ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : "____"} · <strong>Régimen:</strong> ${esc(str(d, "regimen") || "general")}</p>
+<p><strong>Operación o relación:</strong> ${v(d, "operacion", "DESCRIPCIÓN")}</p>
+<table class="tabla"><tbody>${filas.map(fila).join("")}</tbody></table>
+${
+  juridica
+    ? `<p><strong>Beneficiarios finales</strong> (personas físicas que poseen al menos el 10% del capital, más del 25% de los votos, o ejercen el control por otros medios — Ley N° 6446/2019, art. 4):</p>
+<table class="tabla"><thead><tr><th>Nombre y apellido</th><th>C.I.</th><th>% capital / votos</th><th>Forma de control</th></tr></thead><tbody>${"<tr><td>&nbsp;</td><td></td><td></td><td></td></tr>".repeat(3)}</tbody></table>
+<p>☐ Se recibió la constancia del Registro de Beneficiarios Finales (Ministerio de Economía y Finanzas), conforme a la Resolución SEPRELAD N° 202/2020.</p>`
+    : ""
+}
+<p><strong>Documentación recibida:</strong> ☐ Documento de identidad ☐ RUC ☐ Constancia de domicilio ☐ Respaldo de ingresos ${juridica ? "☐ Estatutos ☐ Poderes ☐ Constancia de beneficiarios finales" : ""}</p>
+<p><strong>Verificación en listas</strong> (ONU, GAFI, OFAC y las que indique SEPRELAD): ☐ Sin coincidencias ☐ Con coincidencia (inmovilizar y comunicar sin demora) — Fecha: ______ Responsable: ______</p>
+<p><strong>Calificación de riesgo asignada:</strong> ☐ Bajo ☐ Medio ☐ Alto — Próxima actualización del legajo: ______</p>
+<p>El cliente declara bajo fe de juramento que los datos consignados son exactos y que los fondos no provienen de actividades ilícitas, y se compromete a comunicar cualquier cambio.</p>
+${firmas([{ nombre: "&nbsp;", cargo: "Firma del cliente / representante" }, { nombre: "&nbsp;", cargo: `Por ${ctx.empresa.denominacion}` }])}
+<p class="nota">Base: Ley N° 1015/97, arts. 14 a 18; Res. SEPRELAD 201/2020, arts. 19 a 24; Res. 176/2020, arts. 30 a 35; Res. 202/2020. Conservá el legajo 5 años desde el fin de la relación. Si hay sospecha, no completes la debida diligencia de forma que alerte al cliente.</p>`;
+  },
+};
+
+const djOrigenFondos: Plantilla = {
+  key: "sep-dj-origen-fondos",
+  numero: "S4",
+  grupo: "seprelad",
+  titulo: "Declaración jurada de origen de fondos y beneficiario final",
+  descripcion: "El cliente declara de dónde vienen los fondos y quiénes son los beneficiarios finales.",
+  tipos: TODAS,
+  campos: [
+    { key: "fecha", label: "Fecha", type: "date", required: true },
+    { key: "ciudad", label: "Ciudad", type: "text", default: (c) => c.empresa.ciudad ?? "Asunción" },
+    { key: "declarante", label: "Declarante", type: "text", required: true },
+    { key: "declarante_ci", label: "C.I. del declarante", type: "text" },
+    { key: "en_representacion", label: "En representación de (si es persona jurídica)", type: "text" },
+    { key: "operacion", label: "Operación", type: "text", required: true },
+    { key: "monto", label: "Monto (en la moneda de la operación)", type: "text" },
+    { key: "origen", label: "Origen de los fondos", type: "textarea", required: true, help: "Ej.: venta de inmueble, ahorro de salarios, distribución de utilidades." },
+    { key: "beneficiarios", label: "Beneficiarios finales (Nombre | C.I. | %, uno por línea)", type: "textarea" },
+  ],
+  tituloDoc: (d) => `DJ origen de fondos — ${str(d, "declarante")}`.trim(),
+  render: (d, ctx) => {
+    const bfs = lines(d, "beneficiarios").map((l) => l.split("|").map((x) => x.trim()));
+    return `
+${encabezado("S4", "Declaración jurada de origen de fondos y beneficiario final")}
+<p>En ${ciudad(d, ctx)}, a los ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : "____"}, ${v(d, "declarante", "DECLARANTE")}${str(d, "declarante_ci") ? `, con C.I. N° ${esc(str(d, "declarante_ci"))}` : ""}${str(d, "en_representacion") ? `, en representación de ${esc(str(d, "en_representacion"))}` : ""}, declara bajo fe de juramento ante ${denom(ctx)}:</p>
+<p><strong>1.</strong> Que los fondos utilizados en la operación ${v(d, "operacion", "OPERACIÓN")}${str(d, "monto") ? `, por ${esc(str(d, "monto"))}` : ""}, provienen de: ${v(d, "origen", "ORIGEN DE LOS FONDOS")}, y no tienen relación con actividades ilícitas ni con el financiamiento del terrorismo.</p>
+<p><strong>2.</strong> Que los beneficiarios finales, entendidos como las personas físicas que poseen al menos el 10% del capital, más del 25% de los votos o ejercen el control final (Ley N° 6446/2019, art. 4), son:</p>
+<table class="tabla"><thead><tr><th>Nombre y apellido</th><th>C.I.</th><th>Participación</th></tr></thead><tbody>${(bfs.length ? bfs : [["", "", ""], ["", "", ""]]).map(([n = "", c = "", p = ""]) => `<tr><td>${esc(n) || "&nbsp;"}</td><td>${esc(c)}</td><td>${esc(p)}</td></tr>`).join("")}</tbody></table>
+<p><strong>3.</strong> Que se compromete a presentar la documentación respaldatoria que se le requiera y a comunicar cualquier cambio en lo declarado.</p>
+<p>La falsedad en esta declaración puede constituir delito conforme a la legislación penal vigente.</p>
+${firmas([{ nombre: str(d, "declarante") ? esc(str(d, "declarante")) : "&nbsp;", cargo: "Declarante" }])}`;
+  },
+};
+
+const constanciaManual: Plantilla = {
+  key: "sep-constancia-manual",
+  numero: "S5",
+  grupo: "seprelad",
+  titulo: "Constancia de conocimiento del manual y el código de ética PLA/FT",
+  descripcion: "Directores y empleados firman que recibieron y conocen el manual de prevención y el código de ética.",
+  tipos: TODAS,
+  campos: [
+    { key: "fecha", label: "Fecha", type: "date", required: true },
+    { key: "version", label: "Versión del manual", type: "text", default: () => "1.0" },
+    { key: "personas", label: "Personas (Nombre | C.I. | Cargo, una por línea)", type: "textarea", required: true },
+  ],
+  tituloDoc: (d) => `Constancia de conocimiento del manual PLA/FT v${str(d, "version") || "1.0"}`,
+  render: (d, ctx) => {
+    const ps = lines(d, "personas").map((l) => l.split("|").map((x) => x.trim()));
+    return `
+${encabezado("S5", "Constancia de toma de conocimiento")}
+<p>Quienes firman al pie, directores y empleados de ${denom(ctx)}, declaran haber recibido, leído y comprendido el <strong>Manual de Prevención de Lavado de Dinero y Financiamiento del Terrorismo</strong> (versión ${v(d, "version", "__")}) y el <strong>Código de Ética y Conducta</strong> de la empresa, y se comprometen a cumplirlos, incluido el deber de reserva sobre la información vinculada a la prevención.</p>
+<table class="tabla"><thead><tr><th>Nombre y apellido</th><th>C.I.</th><th>Cargo</th><th>Firma</th></tr></thead><tbody>${(ps.length ? ps : [["", "", ""]]).map(([n = "", c = "", g = ""]) => `<tr><td>${esc(n) || "&nbsp;"}</td><td>${esc(c)}</td><td>${esc(g)}</td><td style="width:30%"></td></tr>`).join("")}</tbody></table>
+<p>Fecha: ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : "____"}</p>
+<p class="nota">Base: Res. SEPRELAD 201/2020, arts. 11 y 12; Res. 490/2022, arts. 21 y 24. Guardá la constancia 5 años.</p>`;
+  },
+};
+
+const planCapacitacion: Plantilla = {
+  key: "sep-plan-capacitacion",
+  numero: "S6",
+  grupo: "seprelad",
+  titulo: "Plan anual y registro de capacitación PLA/FT",
+  descripcion: "Programa del año con temas, destinatarios y fechas, más la planilla de asistencia de cada sesión.",
+  tipos: TODAS,
+  campos: [
+    { key: "fecha", label: "Fecha de aprobación", type: "date", required: true },
+    { key: "anio", label: "Año del plan", type: "text", default: () => String(new Date().getFullYear()) },
+    { key: "responsable", label: "Oficial de cumplimiento responsable", type: "text" },
+    {
+      key: "sesiones",
+      label: "Sesiones (Fecha | Tema | Destinatarios | Modalidad, una por línea)",
+      type: "textarea",
+      default: () =>
+        "Marzo | Marco legal PLA/FT y obligaciones del sujeto obligado | Todo el personal | Presencial\nJunio | Debida diligencia y beneficiarios finales | Comercial y administración | Presencial\nSeptiembre | Señales de alerta y operaciones inusuales | Todo el personal | Virtual\nNoviembre | Deber de reserva y conservación de documentos | Todo el personal | Presencial",
+    },
+  ],
+  tituloDoc: (d) => `Plan de capacitación PLA/FT ${str(d, "anio")}`,
+  render: (d, ctx) => {
+    const ss = lines(d, "sesiones").map((l) => l.split("|").map((x) => x.trim()));
+    return `
+${encabezado("S6", `Plan anual de capacitación PLA/FT ${esc(str(d, "anio"))}`)}
+<p>${denom(ctx)} aprueba el siguiente programa anual de capacitación en prevención de lavado de dinero y financiamiento del terrorismo, a cargo de ${v(d, "responsable", "OFICIAL DE CUMPLIMIENTO")}.</p>
+<table class="tabla"><thead><tr><th>Fecha</th><th>Tema</th><th>Destinatarios</th><th>Modalidad</th></tr></thead><tbody>${ss.map(([f = "", t = "", de = "", m = ""]) => `<tr><td>${esc(f)}</td><td>${esc(t)}</td><td>${esc(de)}</td><td>${esc(m)}</td></tr>`).join("")}</tbody></table>
+<p>Aprobado el ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : "____"}.</p>
+${firmas([{ nombre: "&nbsp;", cargo: "Por la máxima autoridad" }, { nombre: str(d, "responsable") ? esc(str(d, "responsable")) : "&nbsp;", cargo: "Oficial de cumplimiento" }])}
+<h1 style="margin-top:28pt">Registro de asistencia</h1>
+<p>Sesión: ______________________ Fecha: ________ Duración: ______ Expositor: ______________</p>
+<table class="tabla"><thead><tr><th>Nombre y apellido</th><th>C.I.</th><th>Cargo</th><th>Firma</th></tr></thead><tbody>${"<tr><td>&nbsp;</td><td></td><td></td><td></td></tr>".repeat(8)}</tbody></table>
+<p class="nota">Base: Res. SEPRELAD 201/2020, arts. 15 y 16 (temas mínimos); Res. 176/2020, arts. 24 y 25 (remesadoras: además 2 capacitaciones especializadas del oficial por año); Res. 490/2022, Anexo X. Conservá los registros 5 años.</p>`;
+  },
+};
+
+const informeControlInterno: Plantilla = {
+  key: "sep-informe-control-interno",
+  numero: "S7",
+  grupo: "seprelad",
+  titulo: "Informe anual de control interno PLA/FT",
+  descripcion: "Estructura del informe anual con los puntos del Anexo II de la Res. 201/2020.",
+  tipos: TODAS,
+  campos: [
+    { key: "fecha", label: "Fecha del informe", type: "date", required: true },
+    { key: "ejercicio", label: "Ejercicio evaluado", type: "text", default: () => String(new Date().getFullYear() - 1) },
+    { key: "responsable", label: "Quien lo elabora", type: "text" },
+  ],
+  tituloDoc: (d) => `Informe de control interno PLA/FT ${str(d, "ejercicio")}`,
+  render: (d, ctx) => {
+    const puntos = [
+      "Conocimiento del cliente: grado de cumplimiento de la debida diligencia y actualización de legajos.",
+      "Gestión de riesgos: vigencia de la autoevaluación y de la matriz de riesgo de clientes.",
+      "Cumplimiento del manual de prevención.",
+      "Aprobación y actualizaciones del manual en el ejercicio.",
+      "Control del registro de operaciones.",
+      "Nuevas señales de alerta incorporadas.",
+      "Estadística mensual de operaciones inusuales analizadas (solo cantidades, sin datos de casos).",
+      "Cambios al manual propuestos.",
+      "Capacitación: sesiones realizadas, asistentes y temas.",
+      "Contratos con terceros terminados por incumplimiento.",
+      "Observaciones de auditorías anteriores y su seguimiento.",
+      "Otros aspectos relevantes y plan de mejoras.",
+    ];
+    return `
+${encabezado("S7", `Informe anual de control interno — ejercicio ${esc(str(d, "ejercicio"))}`)}
+<p><strong>Sujeto obligado:</strong> ${denom(ctx)}${ctx.empresa.ruc ? ` · RUC ${esc(ctx.empresa.ruc)}` : ""}<br/><strong>Elaborado por:</strong> ${v(d, "responsable", "RESPONSABLE")} · <strong>Fecha:</strong> ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : "____"}</p>
+${puntos.map((p, i) => `<p><strong>${i + 1}. ${esc(p)}</strong></p><p><span class="ph">[Desarrollo]</span></p>`).join("")}
+${firmas([{ nombre: str(d, "responsable") ? esc(str(d, "responsable")) : "&nbsp;", cargo: "Oficial de cumplimiento" }])}
+<p class="nota">Base: Res. SEPRELAD 201/2020, art. 13 y Anexo II. Se presenta dentro de los 90 días del cierre del ejercicio. No incluyas datos que permitan identificar un ROS ni a los clientes involucrados.</p>`;
+  },
+};
+
 export const PLANTILLAS: Plantilla[] = [
   actaDirectorioConvocatoria,
   edicto,
@@ -942,7 +1254,26 @@ export const PLANTILLAS: Plantilla[] = [
   contratoServicios,
   politicaFamiliares,
   actaFamiliar,
+  actaOficialCumplimiento,
+  notaOficialCumplimiento,
+  debidaDiligencia,
+  djOrigenFondos,
+  constanciaManual,
+  planCapacitacion,
+  informeControlInterno,
 ];
+
+export type GrupoPlantilla = "societario" | "familia" | "seprelad";
+
+export const GRUPO_LABELS: Record<GrupoPlantilla, string> = {
+  societario: "Sociedad y asambleas",
+  familia: "Familiares en la empresa",
+  seprelad: "Cumplimiento SEPRELAD (PLA/FT)",
+};
+
+export function grupoDe(p: Plantilla): GrupoPlantilla {
+  return p.grupo ?? (Number(p.numero) >= 10 ? "familia" : "societario");
+}
 
 export function getPlantilla(key: string | null | undefined): Plantilla | undefined {
   return PLANTILLAS.find((p) => p.key === key);

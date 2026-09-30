@@ -53,7 +53,7 @@ export default function DocumentoPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <Link href="/documentos" className="text-xs text-carbon/55 hover:text-cobre">
+      <Link href="/documentos" className="text-xs text-carbon/55 hover:text-cobre-hover">
         ← Documentos
       </Link>
       {loading ? (
@@ -64,10 +64,10 @@ export default function DocumentoPage() {
         <>
           <header className="mb-4 mt-2 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h1 className="text-xl">{doc.titulo}</h1>
+              <h1>{doc.titulo}</h1>
               <p className="mt-1 text-sm text-carbon/60">
                 {empresa ? (
-                  <Link href={`/empresas/${empresa.id}?tab=documentos`} className="hover:text-cobre">
+                  <Link href={`/empresas/${empresa.id}?tab=documentos`} className="hover:text-cobre-hover">
                     {empresa.denominacion}
                   </Link>
                 ) : null}

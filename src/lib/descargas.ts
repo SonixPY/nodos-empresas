@@ -4,10 +4,10 @@
  * para que lo que se ve sea lo que se descarga.
  */
 export const DOC_CSS = `
-.doc { font-family: "Source Serif 4", Georgia, "Times New Roman", serif; font-size: 12pt; line-height: 1.55; color: #242522; }
+.doc { font-family: "Inter", Arial, sans-serif; font-size: 12pt; line-height: 1.55; color: #242522; }
 .doc h1 { font-size: 15pt; margin: 0 0 14pt; color: #1e2f25; }
 .doc p { margin: 0 0 10pt; text-align: justify; }
-.doc .meta { font-family: "IBM Plex Sans", Arial, sans-serif; font-size: 8pt; letter-spacing: .06em; text-transform: uppercase; color: #b8734a; margin-bottom: 4pt; }
+.doc .meta { font-family: "Inter", Arial, sans-serif; font-size: 8pt; letter-spacing: .06em; text-transform: uppercase; color: #b8734a; margin-bottom: 4pt; }
 .doc .center { text-align: center; }
 .doc .right { text-align: right; }
 .doc ol, .doc ul { margin: 0 0 10pt 18pt; padding: 0; }
@@ -22,8 +22,8 @@ export const DOC_CSS = `
 .doc .firma .linea { border-top: 1px solid #242522; margin-bottom: 4pt; height: 1px; }
 .doc .firma .cargo { font-size: 9.5pt; color: #555; }
 .doc .edicto { border: 1px solid #999; padding: 12pt 14pt; margin-bottom: 12pt; }
-.doc .nota { margin-top: 18pt; font-family: "IBM Plex Sans", Arial, sans-serif; font-size: 9pt; color: #555; background: #f2eee6; padding: 6pt 8pt; border-left: 3px solid #b8734a; }
-.doc .aviso { font-family: "IBM Plex Sans", Arial, sans-serif; font-size: 8.5pt; color: #666; border-top: 1px solid #ccc; padding-top: 8pt; margin-top: 28pt; }
+.doc .nota { margin-top: 18pt; font-family: "Inter", Arial, sans-serif; font-size: 9pt; color: #555; background: #f2eee6; padding: 6pt 8pt; border-left: 3px solid #b8734a; }
+.doc .aviso { font-family: "Inter", Arial, sans-serif; font-size: 8.5pt; color: #666; border-top: 1px solid #ccc; padding-top: 8pt; margin-top: 28pt; }
 `;
 
 function documentoCompleto(titulo: string, html: string, { paraImprimir }: { paraImprimir: boolean }) {

@@ -76,7 +76,7 @@ export interface MovimientoAcciones {
   created_at: string;
 }
 
-export type CategoriaObligacion = "societario" | "registros" | "tributario" | "laboral" | "interno";
+export type CategoriaObligacion = "societario" | "registros" | "tributario" | "laboral" | "interno" | "seprelad";
 
 export const CATEGORIA_LABELS: Record<CategoriaObligacion, string> = {
   societario: "Societario",
@@ -84,6 +84,7 @@ export const CATEGORIA_LABELS: Record<CategoriaObligacion, string> = {
   tributario: "Tributario",
   laboral: "Laboral",
   interno: "Gestión interna",
+  seprelad: "SEPRELAD (PLA/FT)",
 };
 
 export const CATEGORIA_COLOR: Record<CategoriaObligacion, string> = {
@@ -92,6 +93,7 @@ export const CATEGORIA_COLOR: Record<CategoriaObligacion, string> = {
   tributario: "#5b6f8a",
   laboral: "#7a8a65",
   interno: "#8a7d6b",
+  seprelad: "#8c5934",
 };
 
 export interface Obligacion {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { generarObligacionesAnuales } from "@/lib/calendario";
+import { generarObligacionesSeprelad, type PerfilSeprelad } from "@/lib/seprelad";
 import type { Accionista, Documento, Empresa, MovimientoAcciones, Obligacion } from "@/lib/types";
 
 interface Estado<T> {
@@ -114,4 +115,39 @@ export async function marcarObligacion(id: string, hecho: boolean) {
     .from("obligaciones")
     .update({ estado: hecho ? "hecho" : "pendiente", completado_en: hecho ? new Date().toISOString() : null })
     .eq("id", id);
+}
+
+// ── SEPRELAD ──────────────────────────────────────────────────────────────
+
+export function usePerfilSeprelad(empresaId: string | null) {
+  return useQuery<PerfilSeprelad | null>(
+    `perfil_seprelad:${empresaId}`,
+    async () =>
+      empresaId
+        ? await supabase.from("perfil_seprelad").select("*").eq("empresa_id", empresaId).maybeSingle()
+        : { data: null, error: null },
+    null
+  );
+}
+
+export async function guardarPerfilSeprelad(perfil: PerfilSeprelad) {
+  return supabase
+    .from("perfil_seprelad")
+    .upsert({ ...perfil, updated_at: new Date().toISOString() }, { onConflict: "empresa_id" })
+    .select()
+    .single();
+}
+
+export async function generarCalendarioSeprelad(
+  empresa: Empresa,
+  perfil: PerfilSeprelad,
+  anio: number
+): Promise<{ nuevas: number; error: string | null }> {
+  const filas = generarObligacionesSeprelad(empresa, perfil, anio);
+  if (filas.length === 0) return { nuevas: 0, error: null };
+  const { data, error } = await supabase
+    .from("obligaciones")
+    .upsert(filas, { onConflict: "empresa_id,regla,anio", ignoreDuplicates: true })
+    .select("id");
+  return { nuevas: data?.length ?? 0, error: error?.message ?? null };
 }

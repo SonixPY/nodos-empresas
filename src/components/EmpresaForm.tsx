@@ -67,7 +67,7 @@ export default function EmpresaForm({
 
   return (
     <form onSubmit={handleSubmit} className="card animate-slide-up">
-      <h2 className="mb-4 text-lg">{empresa ? "Editar datos de la empresa" : "Nueva empresa"}</h2>
+      <h2 className="mb-4">{empresa ? "Editar datos de la empresa" : "Nueva empresa"}</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="sm:col-span-2">
           <label className="field-label">

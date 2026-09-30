@@ -1,57 +1,17 @@
 -- ═════════════════════════════════════════════════════════════════════════
--- Nodos Empresas — esquema inicial (proyecto de Supabase NUEVO)
+-- NODOS Empresas — esquema de la app (en el proyecto Supabase compartido
+-- con NODOS Finanzas).
 --
--- Correr UNA sola vez, entero, desde Supabase → SQL Editor → New query.
--- Después: registrate en /signup y corré la sección "ADMIN" del final
--- (con tu email) para marcarte como administrador.
+-- Orden: 000_cuentas_nodos.sql → 001_schema.sql → 002_seprelad.sql.
+-- Idempotente: se puede volver a correr sin romper nada.
 -- ═════════════════════════════════════════════════════════════════════════
 
 create extension if not exists pgcrypto;
 
 -- ─────────────────────────────────────────────────────────────────────────
--- 1. Perfiles (uno por usuario de auth.users) + admin
+-- 1. Perfiles y administradores: los define 000_cuentas_nodos.sql (cuentas
+--    compartidas con NODOS Finanzas). Correr ese archivo ANTES que este.
 -- ─────────────────────────────────────────────────────────────────────────
-create table if not exists profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  email text,
-  is_admin boolean not null default false,
-  created_at timestamptz not null default now()
-);
-
-alter table profiles enable row level security;
-
-create or replace function public.is_admin()
-returns boolean
-language sql
-security definer set search_path = public
-stable
-as $$
-  select coalesce((select is_admin from public.profiles where id = auth.uid()), false);
-$$;
-
--- Cada usuario ve su propio perfil; el admin ve todos. Nadie edita perfiles
--- desde el cliente (el panel de admin usa la service role key en el servidor).
-drop policy if exists "profiles: select propio o admin" on profiles;
-create policy "profiles: select propio o admin" on profiles
-  for select using (auth.uid() = id or public.is_admin());
-
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer set search_path = public
-as $$
-begin
-  insert into public.profiles (id, email)
-  values (new.id, new.email)
-  on conflict (id) do nothing;
-  return new;
-end;
-$$;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
 
 -- ─────────────────────────────────────────────────────────────────────────
 -- 2. Empresas
@@ -243,9 +203,4 @@ $$;
 
 grant execute on function public.registrar_movimiento_acciones(uuid, date, text, uuid, uuid, numeric, numeric, text) to authenticated;
 
--- ─────────────────────────────────────────────────────────────────────────
--- 8. ADMIN — correr manualmente después de registrarte en /signup.
---    Reemplazá el email y descomentá.
--- ─────────────────────────────────────────────────────────────────────────
--- update profiles set is_admin = true
--- where id = (select id from auth.users where email = 'tu-email@ejemplo.com');
+notify pgrst, 'reload schema';

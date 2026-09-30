@@ -29,54 +29,34 @@ el asesoramiento profesional.
 Next.js 16 (App Router) · Supabase (Postgres + Auth + RLS) · Tailwind CSS 4 ·
 Vercel. Paleta y tipografías de nodoscompliance.com.
 
+## Cuentas NODOS (compartidas)
+
+Finanzas y Empresas usan **el mismo proyecto de Supabase** (el de Finanzas):
+una sola cuenta sirve para las dos apps, y en producción la sesión se guarda
+en una cookie de `.nodoscompliance.com`, así que ingresar en una deja la otra
+abierta. El panel `/admin` (igual en las dos apps) maneja rol de
+administrador, acceso por app, suspensión, email y recuperación de clave.
+
 ## Puesta en marcha
 
-### 1. Supabase (proyecto nuevo)
-
-1. Creá un proyecto nuevo en [supabase.com](https://supabase.com/). No uses el
-   de la app de finanzas: el esquema es distinto.
-2. **SQL Editor → New query**: pegá y corré entero
-   [`supabase/001_schema.sql`](./supabase/001_schema.sql).
-3. **Project Settings → API**: copiá Project URL, anon key y service_role key.
-4. (Opcional) **Authentication → Providers → Email**: desactivá "Confirm email"
-   si querés que las cuentas nuevas entren sin confirmar el correo.
-
-### 2. Variables de entorno
-
-```bash
-cp .env.local.example .env.local
-```
-
-Completá `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y
-`SUPABASE_SERVICE_ROLE_KEY`.
-
-También funcionan los nombres que crea la integración de Supabase en Vercel
-(`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`): no hace
-falta duplicarlas.
-
-### 3. Local
-
-```bash
-npm install
-npm run dev
-```
-
-Abrí `http://localhost:3000`, creá tu cuenta en `/signup` y después corré en
-el SQL Editor la sección **ADMIN** del final de `001_schema.sql` con tu email
-para marcarte como administrador.
-
-### 4. Deploy en Vercel
-
-1. Subí esta carpeta a un repositorio **nuevo** de GitHub.
-2. Vercel → Add New → Project → importá el repo.
-3. Cargá las 3 variables de entorno de producción.
-4. Deploy. En Settings → Domains podés usar, por ejemplo,
-   `empresas.nodoscompliance.com`.
+1. En el SQL Editor del proyecto Supabase compartido, correr en orden:
+   `000_cuentas_nodos.sql` → `001_schema.sql` → `002_seprelad.sql`
+   (todos idempotentes). Finanzas además corre su `021_nodos_v18.sql`.
+2. Variables de entorno (Vercel y `.env.local`): `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (o los
+   nombres de la integración Supabase–Vercel) y, opcional,
+   `NEXT_PUBLIC_SOPORTE_EMAIL`.
+3. En Supabase → Authentication → URL Configuration, agregar
+   `https://empresas.nodoscompliance.com/**` y
+   `https://finanzas.nodoscompliance.com/**` a las Redirect URLs.
+4. `npm install && npm run dev`.
 
 ## Cómo está organizado
 
 | Carpeta | Qué hay |
 |---|---|
+| `src/lib/seprelad.ts` | Módulo SEPRELAD: sectores, reglas de calendario, hechos con plazo y principios, con su resolución |
+| `src/lib/nodos/` | Código compartido con Finanzas (sitios, cuentas, admin) |
 | `src/lib/calendario.ts` | Reglas del calendario anual y vencimientos por transferencia de acciones, con su base legal |
 | `src/lib/plantillas.ts` | Las plantillas del generador (campos + texto) |
 | `src/lib/accionistas.ts` | Cálculo de participaciones y alerta de beneficiarios finales |

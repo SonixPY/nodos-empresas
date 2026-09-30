@@ -1,24 +1,22 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { cookieDomainFor } from "@/lib/nodos/sitios";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 /**
- * Cliente de Supabase para usar en Server Components / Route Handlers: lee
- * la sesión de las cookies de la request en curso. Sirve para saber quién
- * es el usuario logueado del lado del servidor (por ejemplo, para el panel
- * de admin, que necesita confirmar `is_admin` antes de listar/borrar
- * usuarios).
+ * Cliente de Supabase para Server Components y Route Handlers: lee la sesión
+ * de las cookies de la request (compartidas entre las apps NODOS).
  */
 export async function createSupabaseServerClient() {
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      "Faltan las variables de entorno NEXT_PUBLIC_SUPABASE_URL y/o NEXT_PUBLIC_SUPABASE_ANON_KEY."
-    );
+    throw new Error("Faltan las variables de entorno NEXT_PUBLIC_SUPABASE_URL y/o NEXT_PUBLIC_SUPABASE_ANON_KEY.");
   }
   const cookieStore = await cookies();
+  const domain = cookieDomainFor((await headers()).get("host"));
   return createServerClient(supabaseUrl, supabaseAnonKey, {
+    ...(domain ? { cookieOptions: { domain, path: "/", sameSite: "lax" as const, secure: true } } : {}),
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -27,8 +25,8 @@ export async function createSupabaseServerClient() {
         try {
           cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
         } catch {
-          // Se puede llamar desde un Server Component, donde no se pueden
-          // escribir cookies — el proxy ya se encarga de refrescar la sesión.
+          // Desde un Server Component no se pueden escribir cookies; el proxy
+          // ya se encarga de refrescar la sesión.
         }
       },
     },

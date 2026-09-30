@@ -238,7 +238,7 @@ function MovimientoForm({
 
   return (
     <form onSubmit={submit} className="animate-slide-up mb-4 rounded-sm border p-4" style={{ borderColor: "rgba(184,115,74,0.4)", background: "rgba(184,115,74,0.05)" }}>
-      <h3 className="mb-3 text-base">Registrar movimiento de acciones</h3>
+      <h3 className="mb-3">Registrar movimiento de acciones</h3>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label className="field-label">Tipo</label>
@@ -441,7 +441,7 @@ export default function AccionistasPanel({ empresa, onChanged }: { empresa: Empr
                     <button
                       type="button"
                       title="Editar"
-                      className="rounded-full p-1 text-carbon/50 hover:text-cobre"
+                      className="rounded-full p-1 text-carbon/50 hover:text-cobre-hover"
                       onClick={() => {
                         setEditando(f);
                         setModo("editar");

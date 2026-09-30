@@ -54,7 +54,7 @@ export default function ObligacionForm({
 
   return (
     <form onSubmit={handleSubmit} className="card animate-slide-up">
-      <h3 className="mb-3 text-base">Nuevo vencimiento</h3>
+      <h3 className="mb-3">Nuevo vencimiento</h3>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {!empresaId && (
           <div>

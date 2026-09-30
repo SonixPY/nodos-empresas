@@ -126,7 +126,7 @@ export default function ObligacionesLista({
                 <Link
                   href={`/documentos?empresa=${o.empresa_id}&plantilla=${plantilla.key}`}
                   title={`Generar: ${plantilla.titulo}`}
-                  className="shrink-0 rounded-full p-1 text-carbon/40 transition hover:bg-cobre/10 hover:text-cobre"
+                  className="shrink-0 rounded-full p-1 text-carbon/40 transition hover:bg-cobre/10 hover:text-cobre-hover"
                 >
                   <FileText size={15} />
                 </Link>

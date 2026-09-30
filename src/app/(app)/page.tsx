@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Building2, CalendarPlus, FileText } from "lucide-react";
+import { AlertTriangle, ArrowRight, Building2, CalendarPlus, CalendarClock, FileText, ShieldCheck } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 import { useDocumentos, useEmpresas, useObligaciones, generarCalendario } from "@/lib/data";
-import { daysUntil, formatFecha, todayIso } from "@/lib/dates";
+import { daysUntil, formatFecha, formatFechaLarga, relativo, todayIso } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
 import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista";
 import { SkeletonStatTiles } from "@/components/Skeleton";
@@ -30,7 +31,16 @@ export default function ResumenPage() {
   const obligaciones = useObligaciones(null);
   const documentos = useDocumentos(null);
   const [generando, setGenerando] = useState(false);
+  const [nombre, setNombre] = useState<string | null>(null);
   const anio = new Date().getFullYear();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: p } = await supabase.from("profiles").select("nombre").eq("id", data.user.id).maybeSingle();
+      setNombre((p?.nombre as string | null)?.split(" ")[0] ?? data.user.email?.split("@")[0] ?? null);
+    });
+  }, []);
 
   const pendientes = useMemo(() => obligaciones.data.filter((o) => o.estado === "pendiente"), [obligaciones.data]);
   const vencidas = pendientes.filter((o) => o.fecha < todayIso());
@@ -60,17 +70,77 @@ export default function ResumenPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl">Resumen</h1>
-          <p className="mt-1 text-sm text-carbon/60">Lo que vence y lo que falta ordenar en tus empresas.</p>
+      <section className="relative mb-6 overflow-hidden rounded-2xl bg-musgo px-6 py-7 text-marfil sm:px-8">
+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <p className="t-caption uppercase tracking-[0.14em] text-cobre">{formatFechaLarga(todayIso())}</p>
+            <h1 className="mt-1 !text-marfil">{nombre ? `Hola, ${nombre}` : "Resumen"}</h1>
+            <p className="t-body-lg mt-1 max-w-xl text-marfil/75">
+              {loading
+                ? "Cargando tus empresas..."
+                : empresas.data.length === 0
+                  ? "Ordená la parte legal de tu empresa familiar en un solo lugar."
+                  : vencidas.length > 0
+                    ? `Tenés ${vencidas.length} vencimiento${vencidas.length === 1 ? "" : "s"} atrasado${vencidas.length === 1 ? "" : "s"}. Empecemos por ahí.`
+                    : proximas30.length > 0
+                      ? `${proximas30.length} vencimiento${proximas30.length === 1 ? "" : "s"} en los próximos 30 días.`
+                      : "Todo al día en tus empresas."}
+            </p>
+          </div>
+          {!loading && proximas[0] && (
+            <Link
+              href={`/empresas/${proximas[0].empresa_id}?tab=vencimientos`}
+              className="w-full max-w-sm rounded-lg bg-marfil/10 p-4 transition hover:bg-marfil/15 sm:w-auto"
+            >
+              <p className="t-caption flex items-center gap-1.5 text-marfil/60">
+                <CalendarClock size={13} /> Lo próximo · {relativo(proximas[0].fecha)}
+              </p>
+              <p className="mt-1 font-medium leading-snug text-marfil">{proximas[0].titulo}</p>
+              <p className="mt-0.5 text-xs text-marfil/60">
+                {formatFecha(proximas[0].fecha)}
+                {empresas.data.length > 1 ? ` · ${empresas.data.find((e) => e.id === proximas[0].empresa_id)?.denominacion ?? ""}` : ""}
+              </p>
+            </Link>
+          )}
         </div>
-        {empresas.data.length > 0 && (
+        <svg aria-hidden="true" viewBox="0 0 220 220" className="pointer-events-none absolute -right-10 -top-10 h-56 w-56 opacity-10">
+          <g fill="none" stroke="#b8734a" strokeWidth="6" strokeLinejoin="round">
+            <polyline points="110,118 66,118 54,106 54,64" />
+            <polyline points="110,118 64,118 50,132" />
+            <polyline points="110,118 110,74 122,62 157,62" />
+          </g>
+          <circle cx="110" cy="118" r="24" fill="#b8734a" />
+        </svg>
+      </section>
+
+      {!loading && empresas.data.length > 0 && (
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[
+            { href: "/empresas?nueva=1", icon: Building2, titulo: "Nueva empresa", texto: "S.A., EAS o S.R.L." },
+            { href: "/documentos", icon: FileText, titulo: "Generar documento", texto: "Actas, edictos, poderes" },
+            { href: "/vencimientos", icon: CalendarClock, titulo: "Vencimientos", texto: "Todo el año, mes a mes" },
+            { href: "/cumplimiento", icon: ShieldCheck, titulo: "SEPRELAD", texto: "Si sos sujeto obligado" },
+          ].map((a) => (
+            <Link key={a.href} href={a.href} className="card card-hover group flex items-start gap-3 !p-4">
+              <a.icon size={18} className="mt-0.5 shrink-0 text-cobre" />
+              <span className="min-w-0">
+                <span className="flex items-center gap-1 font-medium text-musgo">
+                  {a.titulo} <ArrowRight size={13} className="opacity-0 transition group-hover:opacity-100" />
+                </span>
+                <span className="block text-xs text-carbon/55">{a.texto}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {empresas.data.length > 0 && (
+        <div className="mb-4 flex justify-end">
           <button type="button" className="btn btn-ghost" onClick={generarTodos} disabled={generando}>
             <CalendarPlus size={15} /> {generando ? "Generando..." : `Actualizar calendarios ${anio}–${anio + 1}`}
           </button>
-        )}
-      </header>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 rounded-sm border p-4 text-sm text-bad" style={{ borderColor: "var(--color-bad)", background: "rgba(178,59,59,0.06)" }}>
@@ -83,7 +153,7 @@ export default function ResumenPage() {
       ) : empresas.data.length === 0 ? (
         <div className="card mx-auto max-w-xl text-center">
           <Building2 className="mx-auto mb-3 text-cobre" size={28} />
-          <h2 className="text-lg">Empezá cargando tu primera empresa</h2>
+          <h2>Empezá cargando tu primera empresa</h2>
           <p className="mt-2 text-sm text-carbon/65">
             Con el tipo de sociedad y el mes de cierre armamos el calendario de vencimientos del año. Después cargás el libro de accionistas y ya
             podés generar actas con los datos precargados.
@@ -101,7 +171,7 @@ export default function ResumenPage() {
             </div>
             <div className="stat-tile">
               <div className="stat-label">Vencen en 30 días</div>
-              <div className="stat-value" style={{ color: proximas30.length ? "var(--color-cobre)" : undefined }}>
+              <div className="stat-value" style={{ color: proximas30.length ? "var(--color-cobre-hover)" : undefined }}>
                 {proximas30.length}
               </div>
             </div>
@@ -120,8 +190,8 @@ export default function ResumenPage() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <section>
               <div className="mb-2 flex items-baseline justify-between">
-                <h2 className="text-lg">Próximos vencimientos</h2>
-                <Link href="/vencimientos" className="text-xs font-medium text-cobre hover:underline">
+                <h2>Próximos vencimientos</h2>
+                <Link href="/vencimientos" className="text-xs font-medium text-cobre-hover hover:underline">
                   Ver todos
                 </Link>
               </div>
@@ -135,14 +205,14 @@ export default function ResumenPage() {
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-lg">Tus empresas</h2>
+              <h2>Tus empresas</h2>
               {empresas.data.map((e) => {
                 const alertas = alertasEmpresa(e, obligaciones.data, anio);
                 return (
                   <Link key={e.id} href={`/empresas/${e.id}`} className="card card-hover block">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="font-serif text-base font-semibold text-musgo">{e.denominacion}</div>
+                        <div className="font-display text-base font-semibold text-musgo">{e.denominacion}</div>
                         <div className="text-xs text-carbon/55">
                           {TIPO_CORTO[e.tipo]}
                           {e.ruc ? ` · RUC ${e.ruc}` : ""}

@@ -1,19 +1,48 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
+import { limpiarCambios, requireAdmin } from "@/lib/nodos/adminApi";
 
-async function requireAdmin() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false as const, status: 401, message: "No autenticado.", callerId: null };
+/** Modifica una cuenta: rol, acceso por app, suspensión, nombre o email. Vale para las tres páginas NODOS. */
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const check = await requireAdmin();
+  if (!check.ok) return NextResponse.json({ message: check.message }, { status: check.status });
 
-  const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
-  if (!profile?.is_admin)
-    return { ok: false as const, status: 403, message: "No tenés permisos de administrador.", callerId: user.id };
+  const cambios = limpiarCambios(await request.json().catch(() => null));
+  if (typeof cambios === "string") return NextResponse.json({ message: cambios }, { status: 400 });
 
-  return { ok: true as const, callerId: user.id };
+  if (id === check.callerId && (cambios.is_admin === false || cambios.suspendido === true)) {
+    return NextResponse.json(
+      { message: "No podés quitarte el rol de administrador ni suspender tu propia cuenta." },
+      { status: 400 }
+    );
+  }
+
+  const admin = createSupabaseAdminClient();
+
+  if (cambios.email || cambios.suspendido !== undefined) {
+    const { error } = await admin.auth.admin.updateUserById(id, {
+      ...(cambios.email ? { email: cambios.email, email_confirm: true } : {}),
+      // Suspender también bloquea el inicio de sesión en Supabase Auth.
+      ...(cambios.suspendido !== undefined ? { ban_duration: cambios.suspendido ? "876000h" : "none" } : {}),
+    });
+    if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+  }
+
+  const { error } = await admin.from("profiles").update(cambios).eq("id", id);
+  if (error) {
+    const pendiente = /column|schema cache/i.test(error.message);
+    return NextResponse.json(
+      {
+        message: pendiente
+          ? "Falta correr la migración de cuentas NODOS (000_cuentas_nodos.sql) en Supabase."
+          : error.message,
+      },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -26,9 +55,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   }
 
   const admin = createSupabaseAdminClient();
-  // Borra el usuario de auth.users; el `on delete cascade` de los `user_id`
-  // se encarga de borrar también todos sus datos (empresas, accionistas,
-  // vencimientos, documentos) y su fila de `profiles`.
+  // Borra la cuenta de auth.users; el `on delete cascade` borra sus datos en
+  // Finanzas y en Empresas, y su fila de `profiles`.
   const { error } = await admin.auth.admin.deleteUser(id);
   if (error) return NextResponse.json({ message: error.message }, { status: 500 });
 

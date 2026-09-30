@@ -19,7 +19,7 @@ function DocumentosContenido() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-6">
-        <h1 className="text-2xl">Documentos</h1>
+        <h1>Documentos</h1>
         <p className="mt-1 text-sm text-carbon/60">
           Elegí una plantilla, completá los datos y descargalo en Word o PDF. Lo que falta completar aparece resaltado.
         </p>
@@ -57,7 +57,7 @@ function DocumentosContenido() {
                   {documentos.data.map((d) => (
                     <tr key={d.id}>
                       <td>
-                        <Link href={`/documentos/${d.id}`} className="font-medium hover:text-cobre">
+                        <Link href={`/documentos/${d.id}`} className="font-medium hover:text-cobre-hover">
                           {d.titulo}
                         </Link>
                       </td>

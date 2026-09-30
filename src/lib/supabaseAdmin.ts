@@ -1,10 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * Cliente con la Service Role key — solo para usar en Route Handlers
- * server-only (nunca importar desde un componente de cliente). Hace falta
- * para operaciones de administración de Supabase Auth (como borrar un
- * usuario), que la clave anónima no puede hacer.
+ * Cliente con la service role key: SOLO para Route Handlers del servidor
+ * (nunca importar desde un componente de cliente). Hace falta para
+ * administrar cuentas de Supabase Auth.
  */
 export function createSupabaseAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

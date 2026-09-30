@@ -49,7 +49,7 @@ export default function VencimientosPage() {
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl">Vencimientos</h1>
+          <h1>Vencimientos</h1>
           <p className="mt-1 text-sm text-carbon/60">Calendario de cumplimiento de todas tus empresas, mes por mes.</p>
         </div>
         {empresas.data.length > 0 && !nueva && (
@@ -116,9 +116,9 @@ export default function VencimientosPage() {
             const [y, m] = k.split("-").map(Number);
             return (
               <section key={k}>
-                <h2 className="mb-2 text-base capitalize">
+                <h3 className="mb-2 capitalize">
                   {MESES[m - 1]} {y} <span className="font-sans text-xs font-normal text-carbon/50">· {lista.length}</span>
-                </h2>
+                </h3>
                 <ObligacionesLista
                   obligaciones={lista}
                   empresas={empresas.data}

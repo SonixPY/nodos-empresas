@@ -190,7 +190,7 @@ function FichaEmpresa() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <Link href="/empresas" className="text-xs text-carbon/55 hover:text-cobre">
+      <Link href="/empresas" className="text-xs text-carbon/55 hover:text-cobre-hover">
         ← Empresas
       </Link>
       {loading ? (
@@ -200,7 +200,7 @@ function FichaEmpresa() {
       ) : (
         <>
           <header className="mb-5 mt-2">
-            <h1 className="text-2xl">{empresa.denominacion}</h1>
+            <h1>{empresa.denominacion}</h1>
             <p className="mt-1 text-sm text-carbon/60">
               {TIPO_LABELS[empresa.tipo]}
               {empresa.ruc ? ` · RUC ${empresa.ruc}` : ""}
