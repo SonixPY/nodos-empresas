@@ -1,0 +1,545 @@
+@import "tailwindcss";
+
+/*
+ * Paleta y tipografía tomadas de nodoscompliance.com, para que esta app
+ * se sienta parte de la misma familia visual.
+ */
+@theme inline {
+  --color-musgo: #1e2f25; /* verde oscuro — header, títulos sobre fondo claro */
+  --color-bosque: #34483a; /* verde medio — hover, acentos secundarios */
+  --color-cobre: #b8734a; /* cobre — acento primario, botones, links activos */
+  --color-marfil: #f2eee6; /* marfil — fondo de página */
+  --color-carbon: #242522; /* texto principal */
+  --color-good: #3f6b52; /* verde para PnL/disponible positivo */
+  --color-bad: #b23b3b; /* rojo para PnL/disponible negativo */
+  --color-gold: #b8934a; /* dorado — SOLO para gamificación (XP, insignias, streaks en Aprender), nunca en el "modo real" */
+
+  --font-sans: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4", Georgia, serif;
+}
+
+:root {
+  --line: rgba(36, 37, 34, 0.14);
+}
+
+body {
+  background: var(--color-marfil);
+  color: var(--color-carbon);
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+  color: var(--color-musgo);
+  font-weight: 600;
+}
+
+@layer components {
+  /* Tarjeta de contenido: fondo blanco sobre el marfil de la página */
+  .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1.25rem;
+  }
+
+  /* Campos de formulario */
+  .field-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-carbon);
+    opacity: 0.75;
+  }
+
+  /* Asterisco de "campo obligatorio" — reemplaza el texto "(opcional)" en
+     los campos que no lo llevan: más corto, no rompe el layout en línea, y
+     es una convención visual estándar. */
+  .required-mark {
+    color: var(--color-cobre);
+    margin-left: 0.15rem;
+  }
+
+  .input {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    background: #fff;
+    color: var(--color-carbon);
+    transition:
+      border-color 0.15s ease-out,
+      box-shadow 0.15s ease-out;
+  }
+  .input:hover:not(:focus):not(:disabled) {
+    border-color: color-mix(in srgb, var(--color-cobre) 45%, var(--line));
+  }
+  .input:focus {
+    outline: 2px solid var(--color-cobre);
+    outline-offset: 1px;
+  }
+
+  /* Slider (input type=range) con acento cobre — usado en la Calculadora. */
+  .slider-cobre {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 5px;
+    border-radius: 9999px;
+    background: var(--line);
+    outline: none;
+  }
+  .slider-cobre::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    background: var(--color-cobre);
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px var(--color-cobre);
+    cursor: pointer;
+  }
+  .slider-cobre::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    background: var(--color-cobre);
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px var(--color-cobre);
+    cursor: pointer;
+  }
+
+  /* Botones, mismo espíritu que .btn/.btn-primary/.btn-ghost de nodoscompliance */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.875rem;
+    padding: 0.6rem 1.1rem;
+    border-radius: 2px;
+    transition:
+      background 0.15s,
+      opacity 0.15s,
+      border-color 0.15s,
+      transform 0.1s ease-out;
+    cursor: pointer;
+  }
+  /* Micro-feedback táctil en cada click — sutil a propósito, para que se
+     sienta "vivo" sin distraer del contenido (toda la app comparte .btn). */
+  .btn:active:not(:disabled) {
+    transform: scale(0.96);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--color-cobre);
+    color: var(--color-marfil);
+  }
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.88;
+  }
+  .btn-ghost {
+    border: 1px solid var(--line);
+    color: var(--color-carbon);
+    background: transparent;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    border-color: var(--color-cobre);
+  }
+
+  /* Tabla */
+  .table-shell {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: #fff;
+  }
+  .table-shell table {
+    min-width: 100%;
+    font-size: 0.875rem;
+  }
+  .table-shell thead {
+    background: var(--color-marfil);
+  }
+  .table-shell th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--color-carbon);
+    opacity: 0.6;
+  }
+  .table-shell td {
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--line);
+  }
+  /* Feedback sutil de fila al pasar el mouse — mismo criterio en toda tabla
+     de la app. */
+  .table-shell tbody tr {
+    transition: background 0.12s ease-out;
+  }
+  .table-shell tbody tr:hover {
+    background: rgba(122, 138, 101, 0.05);
+  }
+
+  .stat-tile {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1rem;
+  }
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--color-carbon);
+    opacity: 0.6;
+  }
+  .stat-value {
+    margin-top: 0.25rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-carbon);
+  }
+
+  /* Filtro tipo "segmented control" (filtros de estado) */
+  .segmented {
+    display: inline-flex;
+    overflow: hidden;
+    border-radius: 3px;
+    border: 1px solid var(--line);
+    width: fit-content;
+  }
+  .segmented button {
+    padding: 0.45rem 0.9rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-carbon);
+    opacity: 0.7;
+    background: #fff;
+    transition:
+      background 0.15s,
+      opacity 0.15s,
+      color 0.15s;
+  }
+  .segmented button:not(:last-child) {
+    border-right: 1px solid var(--line);
+  }
+  .segmented button.active {
+    background: var(--color-musgo);
+    color: var(--color-marfil);
+    opacity: 1;
+  }
+  .segmented button:hover:not(.active) {
+    opacity: 1;
+    background: var(--color-marfil);
+  }
+
+  /* Tarjeta/tile clickeable: leve elevación al pasar el mouse, para dar
+     feedback de que responde antes incluso de hacer click (tiles de
+     Aprender, plantillas de tracker, tabs de "Otras inversiones"). */
+  .card-hover {
+    transition:
+      transform 0.15s ease-out,
+      box-shadow 0.15s ease-out,
+      border-color 0.15s ease-out;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(36, 37, 34, 0.08);
+  }
+
+  /* Barra de acciones masivas (seleccionar + eliminar) */
+  .bulk-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 0.75rem;
+    background: rgba(184, 115, 74, 0.08);
+    border: 1px solid rgba(184, 115, 74, 0.3);
+    border-radius: 3px;
+    font-size: 0.8125rem;
+    color: var(--color-carbon);
+    animation: slide-down 0.18s ease-out;
+  }
+}
+
+/* ---------- Animaciones ---------- */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+@keyframes check-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200px 0;
+  }
+  to {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* "Ping" dorado al ganar XP — el mismo resorte que .animate-check-pop,
+ * pero con el acento gold reservado para gamificación. */
+@keyframes xp-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes xp-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(184, 147, 74, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 8px rgba(184, 147, 74, 0);
+  }
+}
+
+/* "Aprender v2" — mecánicas más arcade (ver doc de diseño). */
+
+/* Número de XP flotante que sube y se desvanece al acertar una pregunta. */
+@keyframes float-up-fade {
+  0% {
+    transform: translateY(0) scale(0.9);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(-4px) scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-34px) scale(1);
+    opacity: 0;
+  }
+}
+.animate-float-xp {
+  animation: float-up-fade 0.9s ease-out both;
+}
+
+/* Sacudida horizontal corta al elegir una respuesta incorrecta. */
+@keyframes wobble {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+.animate-wobble {
+  animation: wobble 0.4s ease-in-out both;
+}
+
+/* Animación de finalización de lección: más grande y con más resorte que
+   el "check pop" normal, reservada para la pantalla de cierre. */
+@keyframes finish-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.animate-finish-pop {
+  animation: finish-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* "Estás acá" pulsante en el nodo actual del camino de Aprender. */
+@keyframes pulse-node {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(184, 115, 74, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(184, 115, 74, 0);
+  }
+}
+.animate-pulse-node {
+  animation: pulse-node 1.8s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out both;
+}
+
+.animate-slide-up {
+  animation: slide-up-fade 0.22s ease-out both;
+}
+
+.animate-row-in {
+  animation: slide-up-fade 0.18s ease-out both;
+}
+
+.animate-check-pop {
+  animation: check-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.animate-xp-pop {
+  animation:
+    xp-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    xp-glow 0.6s ease-out both;
+  border-radius: 9999px;
+}
+
+.toast-enter {
+  animation: toast-in 0.2s ease-out both;
+}
+.toast-exit {
+  animation: toast-out 0.15s ease-in both;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--line);
+  border-radius: 3px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-row-in,
+  .animate-check-pop,
+  .animate-xp-pop,
+  .animate-float-xp,
+  .animate-wobble,
+  .animate-finish-pop,
+  .animate-pulse-node,
+  .toast-enter,
+  .toast-exit,
+  .bulk-bar {
+    animation: none !important;
+  }
+  .skeleton::after {
+    animation: none !important;
+  }
+  .spinner {
+    animation: spin 1s linear infinite;
+  }
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
+  .card-hover:hover {
+    transform: none;
+  }
+}
