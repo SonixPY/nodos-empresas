@@ -50,6 +50,10 @@ cp .env.local.example .env.local
 Completá `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y
 `SUPABASE_SERVICE_ROLE_KEY`.
 
+También funcionan los nombres que crea la integración de Supabase en Vercel
+(`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`): no hace
+falta duplicarlas.
+
 ### 3. Local
 
 ```bash
