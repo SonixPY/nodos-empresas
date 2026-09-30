@@ -21,6 +21,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Infraestructura aparte (servidor de Chatwoot), no es parte de la app.
+    "infra/**",
   ]),
 ]);
 
