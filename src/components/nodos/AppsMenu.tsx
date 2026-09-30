@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Building2, Globe, LayoutGrid, LifeBuoy, ShieldCheck, Wallet } from "lucide-react";
+import { Building2, Gauge, Globe, LayoutGrid, LifeBuoy, ShieldCheck, Wallet } from "lucide-react";
 import { APP_ID } from "@/lib/nodos/app";
 import { SITIOS } from "@/lib/nodos/sitios";
 
@@ -77,6 +77,15 @@ export default function AppsMenu({ isAdmin, email }: { isAdmin: boolean; email: 
             })}
           </ul>
           <div className="border-t border-[var(--line)] p-1.5">
+            {isAdmin && (
+              <a
+                href={APP_ID === "empresas" ? "/panel" : `${SITIOS.empresas.url}/panel`}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-marfil"
+              >
+                <Gauge size={16} className="text-musgo" /> NODOS Panel (centro de comandos)
+              </a>
+            )}
             {isAdmin && (
               <Link href="/admin" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-marfil">
                 <ShieldCheck size={16} className="text-musgo" /> Administración de cuentas

@@ -284,7 +284,8 @@ body {
     border: 1px solid var(--line);
     width: fit-content;
   }
-  .segmented button {
+  .segmented button,
+  .segmented > a {
     padding: 0.45rem 0.9rem;
     font-size: 0.8125rem;
     font-weight: 500;
@@ -296,14 +297,17 @@ body {
       opacity 0.15s,
       color 0.15s;
   }
+  .segmented > a:not(:last-child),
   .segmented button:not(:last-child) {
     border-right: 1px solid var(--line);
   }
+  .segmented > a.active,
   .segmented button.active {
     background: var(--color-musgo);
     color: var(--color-marfil);
     opacity: 1;
   }
+  .segmented > a:hover:not(.active),
   .segmented button:hover:not(.active) {
     opacity: 1;
     background: var(--color-marfil);
