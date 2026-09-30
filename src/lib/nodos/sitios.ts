@@ -41,3 +41,28 @@ export function cookieDomainFor(host?: string | null): string | undefined {
   const h = host.split(":")[0].toLowerCase();
   return h === DOMINIO_RAIZ || h.endsWith(`.${DOMINIO_RAIZ}`) ? `.${DOMINIO_RAIZ}` : undefined;
 }
+
+/**
+ * URL del proyecto Supabase, siempre como origen limpio. Tolera una variable
+ * de Vercel pegada con "/rest/v1/", barras o espacios de más (en el servidor
+ * se lee la variable tal cual está cargada, no la normalizada del build).
+ */
+export function supabaseUrl(): string {
+  const crudo = (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
+  if (!crudo) return "";
+  try {
+    return new URL(crudo).origin;
+  } catch {
+    return crudo.replace(/\/+$/, "");
+  }
+}
+
+export function supabaseAnonKey(): string {
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    ""
+  ).trim();
+}

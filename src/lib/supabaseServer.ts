@@ -1,9 +1,10 @@
 import { cookies, headers } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { cookieDomainFor } from "@/lib/nodos/sitios";
+import { supabaseAnonKey as supabaseAnonKey_, supabaseUrl as supabaseUrlLimpia } from "@/lib/nodos/sitios";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = supabaseUrlLimpia();
+const supabaseAnonKey = supabaseAnonKey_();
 
 /**
  * Cliente de Supabase para Server Components y Route Handlers: lee la sesión

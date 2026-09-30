@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { requireAdmin } from "@/lib/nodos/adminApi";
+import { supabaseAnonKey as supabaseAnonKey_, supabaseUrl as supabaseUrlLimpia } from "@/lib/nodos/sitios";
 
 /** Envía a la cuenta un email para elegir una contraseña nueva. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -15,7 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   // Cliente público con flujo implícito: el link del email trae la sesión en
   // el fragmento de la URL, y /nueva-clave la toma sin depender de este navegador.
-  const publico = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  const publico = createClient(supabaseUrlLimpia(), supabaseAnonKey_(), {
     auth: { flowType: "implicit", persistSession: false, autoRefreshToken: false },
   });
   const origen = new URL(request.url).origin;

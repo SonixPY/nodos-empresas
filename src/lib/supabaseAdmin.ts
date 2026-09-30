@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { supabaseUrl as supabaseUrlLimpia } from "@/lib/nodos/sitios";
 
 /**
  * Cliente con la service role key: SOLO para Route Handlers del servidor
@@ -6,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
  * administrar cuentas de Supabase Auth.
  */
 export function createSupabaseAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = supabaseUrlLimpia();
   // Acepta el nombre clásico o el que crea la integración de Supabase en Vercel.
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
   if (!supabaseUrl || !serviceRoleKey) {

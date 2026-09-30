@@ -1,8 +1,9 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { cookieDomainFor } from "@/lib/nodos/sitios";
+import { supabaseAnonKey as supabaseAnonKey_, supabaseUrl as supabaseUrlLimpia } from "@/lib/nodos/sitios";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = supabaseUrlLimpia();
+const supabaseAnonKey = supabaseAnonKey_();
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(

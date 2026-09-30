@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { APP_ID } from "@/lib/nodos/app";
 import { SSO_FLAG, cookieDomainFor } from "@/lib/nodos/sitios";
+import { supabaseAnonKey as supabaseAnonKey_, supabaseUrl as supabaseUrlLimpia } from "@/lib/nodos/sitios";
 
 // Rutas que se ven sin sesión.
 const PUBLICAS = ["/login", "/signup", "/recuperar", "/nueva-clave", "/auth/callback", "/soporte", "/sin-acceso"];
@@ -21,8 +22,8 @@ const empiezaCon = (pathname: string, rutas: string[]) =>
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = supabaseUrlLimpia();
+  const supabaseAnonKey = supabaseAnonKey_();
   if (!supabaseUrl || !supabaseAnonKey) return response;
 
   const { pathname } = request.nextUrl;
