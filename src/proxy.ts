@@ -32,13 +32,19 @@ export async function proxy(request: NextRequest) {
   // viejas de este subdominio (sin Domain) y marca el navegador. Quien tenía
   // la sesión abierta vuelve a ingresar una vez, y de ahí en más la sesión
   // sirve para las dos apps.
-  if (domain && request.method === "GET" && !request.cookies.has(SSO_FLAG)) {
-    const res = NextResponse.redirect(request.nextUrl);
-    for (const c of request.cookies.getAll()) {
-      if (c.name.startsWith("sb-")) res.cookies.set(c.name, "", { path: "/", maxAge: 0 });
+  // Solo redirige si hay cookies viejas que limpiar: un cliente sin cookies
+  // (bots, lectores) nunca entra en un bucle de redirecciones.
+  const marcarSso = (res: NextResponse) => {
+    if (domain && !request.cookies.has(SSO_FLAG)) {
+      res.cookies.set(SSO_FLAG, "1", { domain, path: "/", maxAge: 60 * 60 * 24 * 400, sameSite: "lax", secure: true });
     }
-    res.cookies.set(SSO_FLAG, "1", { domain, path: "/", maxAge: 60 * 60 * 24 * 400, sameSite: "lax", secure: true });
     return res;
+  };
+  const viejas = request.cookies.getAll().filter((c) => c.name.startsWith("sb-"));
+  if (domain && request.method === "GET" && !request.cookies.has(SSO_FLAG) && viejas.length > 0) {
+    const res = NextResponse.redirect(request.nextUrl);
+    for (const c of viejas) res.cookies.set(c.name, "", { path: "/", maxAge: 0 });
+    return marcarSso(res);
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -63,19 +69,19 @@ export async function proxy(request: NextRequest) {
   const redirigir = (destino: string) => {
     const res = NextResponse.redirect(new URL(destino, request.url));
     response.cookies.getAll().forEach((c) => res.cookies.set(c));
-    return res;
+    return marcarSso(res);
   };
 
   if (pathname.startsWith("/api/")) return response; // cada endpoint valida por su cuenta
 
   if (!user) {
-    if (empiezaCon(pathname, PUBLICAS)) return response;
+    if (empiezaCon(pathname, PUBLICAS)) return marcarSso(response);
     const destino = pathname === "/" ? "/login" : `/login?next=${encodeURIComponent(pathname)}`;
     return redirigir(destino);
   }
 
   if (empiezaCon(pathname, INGRESO)) return redirigir("/");
-  if (empiezaCon(pathname, PUBLICAS)) return response;
+  if (empiezaCon(pathname, PUBLICAS)) return marcarSso(response);
 
   // Permisos por app (los define el panel de administración).
   const { data: perfil, error } = await supabase
@@ -88,9 +94,9 @@ export async function proxy(request: NextRequest) {
     return redirigir("/sin-acceso");
   }
 
-  return response;
+  return marcarSso(response);
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|isotipo.svg).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|isotipo.svg|robots.txt).*)"],
 };
