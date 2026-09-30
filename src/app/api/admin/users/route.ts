@@ -7,30 +7,35 @@ async function requireAdmin() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false as const, status: 401, message: "No autenticado.", callerId: null };
+  if (!user) return { ok: false as const, status: 401, message: "No autenticado." };
 
   const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
-  if (!profile?.is_admin)
-    return { ok: false as const, status: 403, message: "No tenés permisos de administrador.", callerId: user.id };
+  if (!profile?.is_admin) return { ok: false as const, status: 403, message: "No tenés permisos de administrador." };
 
-  return { ok: true as const, callerId: user.id };
+  return { ok: true as const };
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export async function GET() {
   const check = await requireAdmin();
   if (!check.ok) return NextResponse.json({ message: check.message }, { status: check.status });
 
-  if (id === check.callerId) {
-    return NextResponse.json({ message: "No te podés eliminar a vos mismo desde acá." }, { status: 400 });
-  }
-
   const admin = createSupabaseAdminClient();
-  // Borra el usuario de auth.users; el `on delete cascade` de los `user_id`
-  // se encarga de borrar también todos sus datos (empresas, accionistas,
-  // vencimientos, documentos) y su fila de `profiles`.
-  const { error } = await admin.auth.admin.deleteUser(id);
-  if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+  const { data: usersData, error: usersError } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  if (usersError) return NextResponse.json({ message: usersError.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true });
+  const { data: profiles } = await admin.from("profiles").select("id, is_admin");
+  const adminIds = new Set((profiles ?? []).filter((p) => p.is_admin).map((p) => p.id));
+
+  const users = usersData.users
+    .map((u) => ({
+      id: u.id,
+      email: u.email ?? "",
+      created_at: u.created_at,
+      last_sign_in_at: u.last_sign_in_at ?? null,
+      confirmed_at: u.email_confirmed_at ?? null,
+      is_admin: adminIds.has(u.id),
+    }))
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
+  return NextResponse.json({ users });
 }

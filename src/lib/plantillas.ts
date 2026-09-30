@@ -645,7 +645,7 @@ const actaFamiliar: Plantilla = {
   numero: "13",
   titulo: "Acta que aprueba la contratación de un familiar",
   descripcion: "Deja constancia de que la contratación de un pariente se decidió con reglas objetivas.",
-  tipos: ["sa", "eas"],
+  tipos: ["sa", "eas", "srl"],
   campos: [
     ...CAMPOS_BASE,
     { key: "candidato", label: "Familiar a contratar", type: "text", required: true },
@@ -673,13 +673,258 @@ const actaFamiliar: Plantilla = {
     const fs = lines(d, "firmantes");
     return `
 ${encabezado("13", "Aprobación de contratación de un familiar")}
-<p class="center"><strong>ACTA DE ${ctx.empresa.tipo === "eas" ? "ÓRGANO DE ADMINISTRACIÓN" : "DIRECTORIO"} N° ${v(d, "numero_acta", "__")}</strong></p>
+<p class="center"><strong>ACTA DE ${ctx.empresa.tipo === "eas" ? "ÓRGANO DE ADMINISTRACIÓN" : ctx.empresa.tipo === "srl" ? "GERENCIA" : "DIRECTORIO"} N° ${v(d, "numero_acta", "__")}</strong></p>
 <p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, siendo las ${horaTexto(str(d, "hora"))}, se reúnen en la sede social de ${denom(ctx)}, sita en ${domicilio(ctx)}, los miembros que firman al pie. Habiendo quórum suficiente, se considera el siguiente orden del día:</p>
 <p><strong>1. Declaración de interés.</strong> ${str(d, "director_vinculado") ? `${esc(str(d, "director_vinculado"))} declara que ${v(d, "candidato", "CANDIDATO")} es su ${v(d, "parentesco", "PARENTESCO")} y, en consecuencia, manifiesta que se abstendrá de deliberar y votar en el punto siguiente, retirándose de la sala durante su tratamiento.` : `Ningún miembro presente declara vínculo familiar con ${v(d, "candidato", "CANDIDATO")}.`}</p>
 <p><strong>2. Contratación de ${v(d, "candidato", "CANDIDATO")} como ${v(d, "puesto", "CARGO")}.</strong> Se informa que existe una necesidad real del puesto, que el candidato reúne los requisitos de la política interna de incorporación de familiares, que ${v(d, "comparacion", "COMPARACIÓN CON EL MERCADO")}, y que la remuneración propuesta de ${str(d, "remuneracion") ? montoGs(str(d, "remuneracion")) : '<span class="ph">[MONTO]</span>'} mensuales se encuentra dentro de los valores de mercado del puesto. Los miembros no vinculados resuelven por unanimidad aprobar la contratación bajo la modalidad de ${esc(str(d, "modalidad"))}${str(d, "inicio") ? `, con inicio el ${formatFecha(str(d, "inicio"))}` : ""}. El candidato reportará a ${v(d, "reporta_a", "CARGO DEL SUPERIOR")}, sin vínculo familiar directo con él.</p>
 <p><strong>3. Autorización.</strong> Se autoriza a suscribir el contrato correspondiente y a realizar las inscripciones y registros que correspondan, incluida la inscripción en el Instituto de Previsión Social cuando se trate de un contrato de trabajo.</p>
 <p>No habiendo más asuntos que tratar, se levanta la sesión.</p>
 ${firmas((fs.length ? fs : ["", ""]).map((f) => ({ nombre: f ? esc(f) : "&nbsp;", cargo: f && f === str(d, "director_vinculado") ? "Director (se abstuvo en el punto 2)" : "Director" })))}`;
+  },
+};
+
+const TODOS_TIPOS: TipoSociedad[] = ["sa", "eas", "srl"];
+
+const CAMPOS_EMPLEADOR: Campo[] = [
+  { key: "fecha", label: "Fecha de firma", type: "date", required: true },
+  { key: "ciudad", label: "Ciudad", type: "text", default: (c) => c.empresa.ciudad ?? "" },
+  { key: "representante", label: "Firma por la empresa", type: "text", default: presidenteDefault, required: true },
+  { key: "representante_ci", label: "C.I. del representante", type: "text", default: (c) => c.accionistas.find((a) => a.nombre === presidenteDefault(c))?.documento ?? "" },
+  { key: "representante_cargo", label: "Cargo del representante", type: "text", default: (c) => (c.empresa.tipo === "srl" ? "Gerente" : "Presidente") },
+];
+
+function partesEmpresa(d: Datos, ctx: Contexto, rol: string): string {
+  return `${denom(ctx)}${ctx.empresa.ruc ? `, RUC N° ${esc(ctx.empresa.ruc)}` : ""}, con domicilio en ${domicilio(ctx)}${ctx.empresa.ciudad ? `, ${esc(ctx.empresa.ciudad)}` : ""}, representada en este acto por ${v(d, "representante", "REPRESENTANTE")}${str(d, "representante_ci") ? `, C.I. N° ${esc(str(d, "representante_ci"))}` : ""}, en su carácter de ${v(d, "representante_cargo", "CARGO")}, en adelante "${rol}"`;
+}
+
+const contratoTrabajo: Plantilla = {
+  key: "contrato-trabajo-familiar",
+  numero: "10",
+  titulo: "Contrato de trabajo para un familiar que trabaja en la empresa",
+  descripcion: "Formaliza la relación laboral de un hijo, sobrino o cónyuge como la de cualquier empleado. Cubre el contenido del art. 46 del Código del Trabajo.",
+  tipos: TODOS_TIPOS,
+  campos: [
+    ...CAMPOS_EMPLEADOR,
+    { key: "trabajador", label: "Nombre completo del trabajador", type: "text", required: true },
+    { key: "trabajador_ci", label: "C.I. del trabajador", type: "text", required: true },
+    { key: "edad", label: "Edad", type: "number", help: "Si es menor de 18 años no uses este modelo sin asesoramiento: el trabajo adolescente tiene reglas propias." },
+    { key: "sexo", label: "Sexo", type: "text" },
+    { key: "estado_civil", label: "Estado civil", type: "text" },
+    { key: "profesion", label: "Profesión u oficio", type: "text" },
+    { key: "nacionalidad", label: "Nacionalidad", type: "text", default: () => "paraguaya" },
+    { key: "trabajador_domicilio", label: "Domicilio del trabajador", type: "text" },
+    { key: "parentesco", label: "Parentesco", type: "text", required: true, help: "Ej.: hijo del accionista Ramón López" },
+    { key: "cargo", label: "Cargo", type: "text", required: true },
+    { key: "reporta_a", label: "Reporta a (cargo)", type: "text", help: "Recomendado: que no sea el padre, madre o cónyuge." },
+    { key: "funciones", label: "Funciones principales (una por línea)", type: "textarea", required: true },
+    { key: "lugar", label: "Lugar de prestación", type: "text", default: (c) => [c.empresa.domicilio, c.empresa.ciudad].filter(Boolean).join(", ") },
+    { key: "salario", label: "Salario mensual (Gs.)", type: "number", required: true },
+    { key: "forma_pago", label: "Forma y fecha de pago", type: "text", default: () => "mensualmente, dentro de los primeros cinco días del mes siguiente, por transferencia bancaria" },
+    { key: "jornada", label: "Jornada", type: "text", default: () => "de lunes a viernes de 08:00 a 17:00 horas, con una hora de descanso" },
+    { key: "beneficios", label: "Beneficios adicionales", type: "text", help: "Uniforme, alimentación, etc. Vacío = solo los legales." },
+    {
+      key: "prueba",
+      label: "Período de prueba",
+      type: "select",
+      options: [
+        { value: "30", label: "30 días (trabajador no calificado)" },
+        { value: "60", label: "60 días (trabajador calificado)" },
+      ],
+      default: () => "60",
+    },
+    {
+      key: "duracion",
+      label: "Duración",
+      type: "select",
+      options: [
+        { value: "indefinido", label: "Por tiempo indefinido" },
+        { value: "determinado", label: "Por tiempo determinado" },
+      ],
+      default: () => "indefinido",
+    },
+    { key: "fin", label: "Fecha de finalización", type: "date", help: "Solo si es por tiempo determinado." },
+    { key: "inicio", label: "Fecha de inicio", type: "date", required: true },
+    { key: "adicionales", label: "Cláusulas adicionales (opcional)", type: "textarea" },
+  ],
+  tituloDoc: (d) => `Contrato de trabajo — ${str(d, "trabajador") || "familiar"}`,
+  render: (d, ctx) => {
+    const funciones = lines(d, "funciones");
+    const datosTrab = [
+      str(d, "edad") ? `de ${esc(str(d, "edad"))} años de edad` : "",
+      str(d, "sexo") ? `sexo ${esc(str(d, "sexo"))}` : "",
+      str(d, "estado_civil") ? `estado civil ${esc(str(d, "estado_civil"))}` : "",
+      str(d, "profesion") ? `de profesión u oficio ${esc(str(d, "profesion"))}` : "",
+      str(d, "nacionalidad") ? `de nacionalidad ${esc(str(d, "nacionalidad"))}` : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const duracion =
+      str(d, "duracion") === "determinado"
+        ? `por tiempo determinado, hasta el ${str(d, "fin") ? formatFecha(str(d, "fin")) : '<span class="ph">[FECHA DE FINALIZACIÓN]</span>'}`
+        : "por tiempo indefinido";
+    return `
+${encabezado("10", "Contrato de trabajo")}
+<p class="center"><strong>CONTRATO INDIVIDUAL DE TRABAJO</strong></p>
+<p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, entre:</p>
+<p>${partesEmpresa(d, ctx, "EL EMPLEADOR")}; y</p>
+<p>${v(d, "trabajador", "NOMBRE DEL TRABAJADOR")}${datosTrab ? `, ${datosTrab}` : ""}, con C.I. N° ${v(d, "trabajador_ci", "C.I.")}, con domicilio en ${v(d, "trabajador_domicilio", "DOMICILIO")}, en adelante "EL TRABAJADOR";</p>
+<p>convienen en celebrar el presente contrato individual de trabajo, que se regirá por el Código del Trabajo y las siguientes cláusulas:</p>
+<p><strong>PRIMERA – Declaración sobre el vínculo familiar.</strong> Las partes dejan constancia de que EL TRABAJADOR es ${v(d, "parentesco", "PARENTESCO")}. El vínculo no otorga a EL TRABAJADOR derechos, privilegios ni obligaciones distintos de los que surgen de este contrato, de la ley laboral y de los reglamentos internos aplicables a todo el personal.</p>
+<p><strong>SEGUNDA – Cargo y funciones.</strong> EL TRABAJADOR se desempeñará en el cargo de ${v(d, "cargo", "CARGO")}${str(d, "reporta_a") ? `, reportando a ${esc(str(d, "reporta_a"))}` : ""}. Sus funciones principales serán:</p>
+<ul>${funciones.length ? funciones.map((f) => `<li>${esc(f)}</li>`).join("") : '<li><span class="ph">[FUNCIONES]</span></li>'}<li>Las demás tareas propias del cargo.</li></ul>
+<p>Prestará sus servicios en ${v(d, "lugar", "LUGAR DE PRESTACIÓN")}.</p>
+<p><strong>TERCERA – Remuneración.</strong> EL EMPLEADOR abonará a EL TRABAJADOR un salario mensual de ${str(d, "salario") ? montoGs(str(d, "salario")) : '<span class="ph">[MONTO]</span>'}, pagadero ${v(d, "forma_pago", "FORMA Y FECHA DE PAGO")}. La remuneración fue fijada en condiciones equivalentes a las de un trabajador sin vínculo familiar y es independiente de cualquier dividendo o utilidad que EL TRABAJADOR pudiera percibir como accionista o socio.</p>
+<p><strong>CUARTA – Jornada.</strong> La jornada de trabajo será ${v(d, "jornada", "JORNADA")}, dentro de los límites establecidos por la ley.</p>
+<p><strong>QUINTA – Beneficios.</strong> ${str(d, "beneficios") ? `EL EMPLEADOR proporcionará los siguientes beneficios: ${esc(str(d, "beneficios"))}.` : "No se pactan beneficios adicionales a los establecidos por la ley."}</p>
+<p><strong>SEXTA – Período de prueba.</strong> Se establece un período de prueba de ${str(d, "prueba") === "30" ? "treinta (30)" : "sesenta (60)"} días, conforme al Código del Trabajo.</p>
+<p><strong>SÉPTIMA – Duración.</strong> El presente contrato se celebra ${duracion}, con fecha de inicio el ${str(d, "inicio") ? formatFecha(str(d, "inicio")) : '<span class="ph">[FECHA DE INICIO]</span>'}.</p>
+<p><strong>OCTAVA – Seguridad social.</strong> EL EMPLEADOR inscribirá a EL TRABAJADOR en el Instituto de Previsión Social y lo registrará ante el Ministerio de Trabajo, Empleo y Seguridad Social, realizando los aportes que correspondan.</p>
+<p><strong>NOVENA – Confidencialidad.</strong> EL TRABAJADOR guardará reserva sobre la información de EL EMPLEADOR a la que acceda con motivo de su trabajo, incluida la que conozca por su condición de familiar de los propietarios, durante la vigencia del contrato y después de su terminación.</p>
+<p><strong>DÉCIMA – Evaluación de desempeño.</strong> EL TRABAJADOR será evaluado con los mismos criterios y periodicidad que el resto del personal.</p>
+${str(d, "adicionales") ? `<p><strong>DÉCIMA PRIMERA – Estipulaciones adicionales.</strong> ${esc(str(d, "adicionales"))}</p>` : ""}
+<p>En prueba de conformidad, se firman dos ejemplares de un mismo tenor y a un solo efecto, quedando uno en poder de cada parte.</p>
+${firmas([
+  { nombre: str(d, "representante") ? `${esc(str(d, "representante"))}<br/><span class="cargo">por ${esc(ctx.empresa.denominacion)}</span>` : "&nbsp;", cargo: "EL EMPLEADOR" },
+  { nombre: str(d, "trabajador") ? esc(str(d, "trabajador")) : "&nbsp;", cargo: "EL TRABAJADOR" },
+])}
+<p class="nota">Antes de firmar: aprobá la contratación con el acta de la plantilla 13 y respetá la política de familiares (plantilla 12). No pagues "sueldos" a familiares que en la práctica no trabajan.</p>`;
+  },
+};
+
+const contratoServicios: Plantilla = {
+  key: "contrato-servicios-familiar",
+  numero: "11",
+  titulo: "Contrato de prestación de servicios con un familiar independiente",
+  descripcion: "Para el familiar profesional (contador, arquitecto, diseñador) que factura con su propio RUC, sin horario ni subordinación.",
+  tipos: TODOS_TIPOS,
+  campos: [
+    ...CAMPOS_EMPLEADOR,
+    { key: "prestador", label: "Nombre del prestador", type: "text", required: true },
+    { key: "prestador_ci", label: "C.I.", type: "text" },
+    { key: "prestador_ruc", label: "RUC", type: "text", required: true },
+    { key: "profesion", label: "Profesión", type: "text" },
+    { key: "prestador_domicilio", label: "Domicilio", type: "text" },
+    { key: "parentesco", label: "Parentesco", type: "text", required: true },
+    { key: "fecha_aprobacion", label: "Fecha en que se aprobó la contratación", type: "date" },
+    { key: "comparacion", label: "Comparación con el mercado", type: "text", default: () => "luego de comparar las condiciones con dos cotizaciones de mercado" },
+    { key: "servicios", label: "Servicios y entregables (uno por línea)", type: "textarea", required: true },
+    { key: "honorarios", label: "Honorarios (Gs.)", type: "number", required: true },
+    {
+      key: "base_honorarios",
+      label: "Base de los honorarios",
+      type: "select",
+      options: [
+        { value: "por mes de servicio", label: "Por mes" },
+        { value: "por entregable", label: "Por entregable" },
+        { value: "por hora", label: "Por hora" },
+      ],
+      default: () => "por mes de servicio",
+    },
+    { key: "dias_pago", label: "Días para pagar la factura", type: "number", default: () => "10" },
+    { key: "desde", label: "Vigente desde", type: "date", required: true },
+    { key: "hasta", label: "Vigente hasta", type: "date", help: "Vacío = plazo indeterminado." },
+    { key: "preaviso", label: "Días de preaviso para rescindir", type: "number", default: () => "30" },
+    { key: "confidencialidad_anios", label: "Años de confidencialidad posteriores", type: "number", default: () => "2" },
+    { key: "jurisdiccion", label: "Jurisdicción", type: "text", default: (c) => `los tribunales de la ciudad de ${c.empresa.ciudad ?? "Asunción"}` },
+  ],
+  tituloDoc: (d) => `Contrato de servicios — ${str(d, "prestador") || "familiar"}`,
+  render: (d, ctx) => {
+    const servicios = lines(d, "servicios");
+    return `
+${encabezado("11", "Contrato de prestación de servicios")}
+<p class="center"><strong>CONTRATO DE PRESTACIÓN DE SERVICIOS PROFESIONALES</strong></p>
+<p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, entre:</p>
+<p>${partesEmpresa(d, ctx, "LA EMPRESA")}; y</p>
+<p>${v(d, "prestador", "PRESTADOR")}${str(d, "prestador_ci") ? `, C.I. N° ${esc(str(d, "prestador_ci"))}` : ""}, RUC N° ${v(d, "prestador_ruc", "RUC")}${str(d, "profesion") ? `, de profesión ${esc(str(d, "profesion"))}` : ""}, con domicilio en ${v(d, "prestador_domicilio", "DOMICILIO")}, en adelante "EL PRESTADOR";</p>
+<p>convienen en celebrar el presente contrato de prestación de servicios, sujeto a las siguientes cláusulas:</p>
+<p><strong>PRIMERA – Vínculo familiar y conflicto de interés.</strong> EL PRESTADOR declara ser ${v(d, "parentesco", "PARENTESCO")}. La contratación fue aprobada por el órgano de administración${str(d, "fecha_aprobacion") ? ` en fecha ${formatFecha(str(d, "fecha_aprobacion"))}` : ""}, con abstención de los miembros vinculados, ${v(d, "comparacion", "COMPARACIÓN CON EL MERCADO")}.</p>
+<p><strong>SEGUNDA – Objeto.</strong> EL PRESTADOR se obliga a prestar a LA EMPRESA los siguientes servicios profesionales:</p>
+<ul>${servicios.length ? servicios.map((s) => `<li>${esc(s)}</li>`).join("") : '<li><span class="ph">[SERVICIOS Y ENTREGABLES]</span></li>'}</ul>
+<p><strong>TERCERA – Autonomía.</strong> EL PRESTADOR ejecutará los servicios con autonomía técnica y organizativa, con sus propios medios, sin sujeción a horario ni subordinación jurídica respecto de LA EMPRESA, pudiendo prestar servicios a terceros. Nada de lo dispuesto en este contrato crea una relación laboral entre las partes.</p>
+<p><strong>CUARTA – Honorarios.</strong> LA EMPRESA pagará a EL PRESTADOR honorarios de ${str(d, "honorarios") ? montoGs(str(d, "honorarios")) : '<span class="ph">[MONTO]</span>'} ${esc(str(d, "base_honorarios") || "por mes de servicio")}, más el IVA que corresponda, contra presentación de la factura legal, dentro de los ${v(d, "dias_pago", "__")} días de recibida.</p>
+<p><strong>QUINTA – Plazo.</strong> El contrato rige desde el ${str(d, "desde") ? formatFecha(str(d, "desde")) : '<span class="ph">[FECHA]</span>'} ${str(d, "hasta") ? `hasta el ${formatFecha(str(d, "hasta"))}` : "por tiempo indeterminado"}. Cualquiera de las partes podrá rescindirlo sin causa con un preaviso escrito de ${v(d, "preaviso", "__")} días, abonándose los servicios efectivamente prestados hasta esa fecha.</p>
+<p><strong>SEXTA – Confidencialidad.</strong> EL PRESTADOR guardará reserva sobre toda la información de LA EMPRESA a la que acceda con motivo de los servicios, durante la vigencia del contrato y por ${v(d, "confidencialidad_anios", "__")} años después de su terminación.</p>
+<p><strong>SÉPTIMA – Propiedad de los trabajos.</strong> Los informes, documentos y demás resultados producidos por EL PRESTADOR en ejecución de este contrato serán de propiedad de LA EMPRESA una vez pagados los honorarios correspondientes.</p>
+<p><strong>OCTAVA – Evaluación.</strong> LA EMPRESA evaluará los servicios con los mismos criterios que aplica a sus proveedores externos, a cargo de una persona sin vínculo familiar con EL PRESTADOR.</p>
+<p><strong>NOVENA – Obligaciones tributarias.</strong> EL PRESTADOR es el único responsable del cumplimiento de sus obligaciones tributarias y previsionales derivadas de los honorarios percibidos.</p>
+<p><strong>DÉCIMA – Jurisdicción.</strong> Para cualquier controversia, las partes se someten a ${v(d, "jurisdiccion", "JURISDICCIÓN")}, renunciando a cualquier otra.</p>
+<p>En prueba de conformidad, se firman dos ejemplares de un mismo tenor.</p>
+${firmas([
+  { nombre: str(d, "representante") ? `${esc(str(d, "representante"))}<br/><span class="cargo">por ${esc(ctx.empresa.denominacion)}</span>` : "&nbsp;", cargo: "LA EMPRESA" },
+  { nombre: str(d, "prestador") ? esc(str(d, "prestador")) : "&nbsp;", cargo: "EL PRESTADOR" },
+])}
+<p class="nota">Este contrato no sirve para "disfrazar" una relación laboral: si en la práctica el familiar cumple horario, recibe órdenes y cobra un monto fijo mensual, la ley puede presumir un contrato de trabajo (Código del Trabajo, art. 48). En ese caso usá la plantilla 10.</p>`;
+  },
+};
+
+const politicaFamiliares: Plantilla = {
+  key: "politica-familiares",
+  numero: "12",
+  titulo: "Política de incorporación y remuneración de familiares",
+  descripcion: "Reglamento interno corto: quién puede entrar, con qué requisitos, cómo se paga y quién evalúa. Primer paso hacia un protocolo familiar.",
+  tipos: TODOS_TIPOS,
+  campos: [
+    { key: "fecha", label: "Fecha de aprobación", type: "date", required: true },
+    {
+      key: "organo",
+      label: "Aprobada por",
+      type: "select",
+      options: [
+        { value: "la Asamblea de Accionistas", label: "Asamblea de accionistas" },
+        { value: "el Directorio", label: "Directorio" },
+        { value: "la reunión de socios", label: "Reunión de socios (S.R.L.)" },
+        { value: "el órgano de administración", label: "Órgano de administración (EAS)" },
+      ],
+      default: (c) => (c.empresa.tipo === "srl" ? "la reunión de socios" : "la Asamblea de Accionistas"),
+    },
+    {
+      key: "alcance",
+      label: "Quiénes son \"familiares\"",
+      type: "textarea",
+      default: () => "los cónyuges o convivientes de los accionistas, sus descendientes, ascendientes, hermanos y sobrinos, y los cónyuges de todos ellos",
+    },
+    {
+      key: "requisitos",
+      label: "Requisitos de ingreso (uno por línea)",
+      type: "textarea",
+      default: () =>
+        "Tener título universitario o terciario relacionado con el puesto, o experiencia equivalente.\nAcreditar al menos dos años de experiencia laboral fuera de la empresa familiar.\nPostularse a un puesto vacante descrito por escrito.\nSer evaluado sin participación decisiva de sus padres o cónyuge.",
+    },
+    { key: "pasantias", label: "Permitir pasantías de estudiantes", type: "checkbox", default: () => true },
+    { key: "pasantia_meses", label: "Duración máxima de la pasantía (meses)", type: "number", default: () => "3", showIf: "pasantias" },
+    { key: "anios_gerencia", label: "Años en la empresa para acceder a cargos gerenciales", type: "number", default: () => "3" },
+    { key: "aprueba", label: "Quién aprueba excepciones y pagos extra", type: "text", default: (c) => (c.empresa.tipo === "srl" ? "la reunión de socios" : "el Directorio") },
+    { key: "desacuerdos", label: "Cómo se resuelven desacuerdos", type: "text", default: () => "se tratarán primero en una reunión familiar y, si no se resuelven, se someterán a mediación" },
+    { key: "revision_anios", label: "Revisión cada (años)", type: "number", default: () => "2" },
+  ],
+  tituloDoc: (d) => `Política de familiares ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : ""}`.trim(),
+  render: (d, ctx) => {
+    const req = lines(d, "requisitos");
+    let n = 5;
+    const pas = on(d, "pasantias")
+      ? `<p><strong>${++n}. Pasantías.</strong> Los familiares estudiantes podrán realizar pasantías por un plazo máximo de ${v(d, "pasantia_meses", "__")} meses, con tareas y horario definidos por escrito y respetando la normativa laboral aplicable a su edad.</p>`
+      : "";
+    const sec = (t: string, body: string) => `<p><strong>${++n}. ${t}.</strong> ${body}</p>`;
+    return `
+${encabezado("12", "Política de familiares")}
+<p class="center"><strong>${esc(ctx.empresa.denominacion.toUpperCase())}</strong><br/><strong>POLÍTICA DE INCORPORACIÓN Y REMUNERACIÓN DE FAMILIARES</strong><br/>Aprobada por ${esc(str(d, "organo") || "[ÓRGANO]")} en fecha ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : '<span class="ph">[FECHA]</span>'}</p>
+<p><strong>1. Objetivo.</strong> Establecer reglas claras, objetivas e iguales para la incorporación, remuneración, evaluación y salida de los familiares de los propietarios que trabajen en la empresa, para proteger tanto a la empresa como a las relaciones familiares.</p>
+<p><strong>2. Alcance.</strong> Se consideran "familiares" a los fines de esta política: ${v(d, "alcance", "ALCANCE")}.</p>
+<p><strong>3. Principio general.</strong> Trabajar en la empresa no es un derecho derivado de ser familiar o propietario. Los familiares se incorporan cuando existe un puesto vacante real y reúnen sus requisitos, en igualdad de condiciones con candidatos externos.</p>
+<p><strong>4. Requisitos de ingreso.</strong> Para incorporarse, el familiar deberá:</p>
+<ul>${req.map((r) => `<li>${esc(r)}</li>`).join("") || '<li><span class="ph">[REQUISITOS]</span></li>'}</ul>
+<p><strong>5. Remuneración.</strong> La remuneración de cada familiar será la que corresponda a la banda salarial del puesto, igual a la que se pagaría a un profesional externo con la misma experiencia. El sueldo retribuye el trabajo y los dividendos retribuyen la propiedad: se pagan y registran por separado. Ningún familiar recibirá pagos, adelantos o beneficios fuera de su contrato y de esta política sin aprobación de ${v(d, "aprueba", "ÓRGANO")}.</p>
+${pas}
+${sec("Reporte y evaluación", "Ningún familiar reportará directamente a su padre, madre, cónyuge o hermano, salvo aprobación expresa cuando no exista alternativa. Los familiares serán evaluados con los mismos criterios y periodicidad que el resto del personal.")}
+${sec("Formalización", "Todo familiar que trabaje en la empresa tendrá contrato de trabajo escrito e inscripción en el Instituto de Previsión Social o, si es independiente, contrato de prestación de servicios con factura. No se admiten relaciones informales.")}
+${sec("Cargos gerenciales", `El acceso de familiares a cargos gerenciales requerirá al menos ${v(d, "anios_gerencia", "__")} años en la empresa y evaluación favorable de desempeño. La designación de autoridades corresponde al órgano que fijen los estatutos.`)}
+${sec("Desempeño insuficiente y salida", "Si un familiar no cumple con las expectativas del puesto, se aplicarán los mismos procedimientos que al resto del personal, respetando la legislación laboral. La desvinculación laboral no afecta su condición de accionista o socio ni sus derechos como tal.")}
+${sec("Conflictos de interés", "Toda contratación de un familiar como empleado o proveedor será aprobada con abstención de los miembros vinculados y quedará registrada en acta.")}
+${sec("Resolución de desacuerdos", `Los desacuerdos sobre la aplicación de esta política ${v(d, "desacuerdos", "PROCEDIMIENTO")}.`)}
+${sec("Vigencia y revisión", `Esta política rige desde su aprobación y será revisada cada ${v(d, "revision_anios", "__")} años.`)}
+<p style="margin-top:24pt"><strong>Constancia de recepción:</strong> Declaro haber recibido y leído esta política y me comprometo a respetarla.</p>
+${firmas([{ nombre: "&nbsp;", cargo: "Nombre, C.I. y fecha" }])}
+<p class="nota">Es un documento de gobierno interno: su fuerza viene de la aprobación societaria. Ninguna regla puede contradecir el Código del Trabajo (por ejemplo, el preaviso y las indemnizaciones de ley). Entregá una copia firmada a cada familiar que trabaje o quiera trabajar en la empresa.</p>`;
   },
 };
 
@@ -693,6 +938,9 @@ export const PLANTILLAS: Plantilla[] = [
   cartaPoder,
   actaEas,
   actaUnico,
+  contratoTrabajo,
+  contratoServicios,
+  politicaFamiliares,
   actaFamiliar,
 ];
 
