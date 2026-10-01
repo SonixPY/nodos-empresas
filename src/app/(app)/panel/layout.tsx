@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
-import PanelNav from "@/components/panel/PanelNav";
+import PanelNav from "@/components/nodos/PanelNav";
 
 // El Panel es solo para administradores: se verifica en el servidor, y además
 // la base (RLS) solo les entrega datos a ellos.

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { Check, Info, TriangleAlert, type LucideIcon } from "lucide-react";
 
 type ToastKind = "success" | "error" | "info";
 
@@ -17,10 +18,10 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const ICON: Record<ToastKind, string> = {
-  success: "✓",
-  error: "!",
-  info: "i",
+const ICON: Record<ToastKind, LucideIcon> = {
+  success: Check,
+  error: TriangleAlert,
+  info: Info,
 };
 
 const COLOR: Record<ToastKind, string> = {
@@ -66,7 +67,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
               style={{ background: COLOR[t.kind] }}
             >
-              {ICON[t.kind]}
+              {(() => { const Icono = ICON[t.kind]; return <Icono size={13} strokeWidth={2.5} />; })()}
             </span>
             <span className="text-carbon">{t.message}</span>
           </div>

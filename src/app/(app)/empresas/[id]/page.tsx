@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { CalendarPlus, FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarPlus, FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { generarCalendario, useDocumentos, useEmpresa, useObligaciones } from "@/lib/data";
 import { formatFecha, MESES } from "@/lib/dates";
@@ -229,8 +229,8 @@ function FichaEmpresa() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <Link href="/empresas" className="text-xs text-carbon/55 hover:text-cobre-hover">
-        ← Empresas
+      <Link href="/empresas" className="inline-flex items-center gap-1 text-xs text-carbon/55 hover:text-cobre-hover">
+        <ArrowLeft size={13} aria-hidden /> Empresas
       </Link>
       {loading ? (
         <SkeletonBlock className="mt-3 h-10 w-80" />

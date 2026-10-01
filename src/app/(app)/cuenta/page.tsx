@@ -141,7 +141,7 @@ export default function CuentaPage() {
                 />
               </div>
               <p className="mt-1.5 text-xs text-carbon/55">
-                {estado === "libre" && <span className="text-good">✓ Disponible</span>}
+                {estado === "libre" && <span className="inline-flex items-center gap-1 text-good"><Check size={13} /> Disponible</span>}
                 {estado === "tomado" && <span className="text-bad">Ese usuario ya está tomado.</span>}
                 {estado === "invalido" && <span className="text-bad">De 3 a 20 caracteres: minúsculas, números, punto o guion bajo.</span>}
                 {estado === "verificando" && "Verificando…"}

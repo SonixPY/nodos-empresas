@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Columns3, List, MessageCircle, Plus, Search } from "lucide-react";
+import { AlertTriangle, Columns3, List, MessageCircle, Plus, Search, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatFecha, todayIso } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
@@ -70,7 +70,7 @@ function LeadsContenido() {
       setLeads((prev) => (prev ?? []).map((x) => (x.id === l.id ? { ...x, etapa: l.etapa } : x)));
       return showToast(`No se pudo mover: ${err.message}`, "error");
     }
-    await supabase.from("lead_actividades").insert({ lead_id: l.id, tipo: "etapa", texto: `${ETAPA_LABEL[l.etapa]} → ${ETAPA_LABEL[etapa]}` });
+    await supabase.from("lead_actividades").insert({ lead_id: l.id, tipo: "etapa", texto: `${ETAPA_LABEL[l.etapa]} › ${ETAPA_LABEL[etapa]}` });
   }
 
   if (migracionPendiente(error)) {
@@ -123,7 +123,7 @@ function LeadsContenido() {
         </select>
         {etapaFiltro && (
           <button type="button" className="btn btn-ghost py-1.5 text-xs" onClick={() => router.push("/panel/leads")}>
-            Etapa: {ETAPA_LABEL[etapaFiltro]} ✕
+            Etapa: {ETAPA_LABEL[etapaFiltro]} <X size={12} />
           </button>
         )}
         <div className="segmented ml-auto">

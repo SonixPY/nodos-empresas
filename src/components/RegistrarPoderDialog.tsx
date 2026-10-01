@@ -84,7 +84,7 @@ export function RegistrarPoderDialog({
         cancelLabel="Ahora no"
         onCancel={onClose}
         onSaved={() => {
-          showToast("Poder registrado en Documentos → Poderes.");
+          showToast("Poder registrado en Documentos › Poderes.");
           onClose();
         }}
       />

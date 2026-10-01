@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Plus, Trash2, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { addDays, MESES, todayIso } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
@@ -347,7 +347,7 @@ export default function ContenidoPage() {
                           className={`mb-0.5 block w-full truncate rounded px-1 py-0.5 text-left text-[11px] text-marfil ${c.estado === "publicado" ? "opacity-60" : ""}`}
                           style={{ background: PILAR_COLOR[c.pilar] }}
                         >
-                          {c.estado === "publicado" ? "✓ " : ""}
+                          {c.estado === "publicado" && <Check size={10} strokeWidth={3} className="mr-0.5 inline -mt-0.5" />}
                           {c.titulo}
                         </button>
                       ))}
@@ -377,8 +377,8 @@ export default function ContenidoPage() {
                       <button type="button" className="min-w-0 truncate text-left hover:text-cobre-hover" onClick={() => setEditando(c)}>
                         {c.titulo}
                       </button>
-                      <button type="button" className="shrink-0 rounded-full border border-[var(--line)] px-2 py-0.5 text-[11px] hover:border-cobre" onClick={() => avanzar(c)} title="Pasar al siguiente estado">
-                        {ESTADO_LABEL[c.estado]} →
+                      <button type="button" className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-[var(--line)] px-2 py-0.5 text-[11px] hover:border-cobre" onClick={() => avanzar(c)} title="Pasar al siguiente estado">
+                        {ESTADO_LABEL[c.estado]} <ChevronRight size={11} aria-hidden />
                       </button>
                     </li>
                   ))}

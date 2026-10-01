@@ -523,7 +523,7 @@ ${encabezado("Otorgamiento y revocación de poderes")}
 ${partes.join("\n")}
 <p>No habiendo más asuntos que tratar, se levanta la sesión, previa lectura y ratificación de la presente acta.</p>
 ${firmas((fs.length ? fs : ["", ""]).map((f, i) => ({ nombre: f ? esc(f) : "&nbsp;", cargo: i === 0 ? "Presidente" : "Director" })))}
-<p class="nota">Buena práctica: poderes especiales con límites de monto y firma conjunta para actos de alto impacto. Cuando se firme la escritura, registrá el poder en Documentos → Poderes para controlar su vigencia.</p>`;
+<p class="nota">Buena práctica: poderes especiales con límites de monto y firma conjunta para actos de alto impacto. Cuando se firme la escritura, registrá el poder en Documentos › Poderes para controlar su vigencia.</p>`;
   },
   registroPoder: (d) => ({
     apoderado: str(d, "apoderado"),
@@ -1147,7 +1147,7 @@ ${firmas([
   { nombre: str(d, "representante") ? esc(str(d, "representante")) : "&nbsp;", cargo: `${str(d, "representante_cargo") || "Representante"} — por ${ctx.empresa.denominacion}` },
   { nombre: str(d, "apoderado") ? esc(str(d, "apoderado")) : "&nbsp;", cargo: "Recibí — firma, aclaración y fecha" },
 ])}
-<p class="nota">Notificá la revocación al apoderado (guardá su recibo) y a cada institución o tercero ante quien se presentó el poder: frente a quienes no la conozcan, la revocación podría no serles oponible. Después, marcá el poder como revocado en Documentos → Poderes.</p>`;
+<p class="nota">Notificá la revocación al apoderado (guardá su recibo) y a cada institución o tercero ante quien se presentó el poder: frente a quienes no la conozcan, la revocación podría no serles oponible. Después, marcá el poder como revocado en Documentos › Poderes.</p>`;
   },
   revocacionPoder: (d) => ({ apoderado: str(d, "apoderado"), documento: str(d, "apoderado_ci"), fecha: str(d, "efecto") || str(d, "fecha") }),
 };

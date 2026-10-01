@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Mail, MessageCircle, Phone, Trash2 } from "lucide-react";
+import { ArrowLeft, Mail, MessageCircle, Phone, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatFecha } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
@@ -73,7 +73,7 @@ export default function LeadPage() {
     const { data, error: err } = await supabase.from("leads").update(cambios).eq("id", id).select().single();
     setSaving(false);
     if (err) return showToast(`No se pudo guardar: ${err.message}`, "error");
-    if (lead.etapa !== borrador.etapa) await registrar("etapa", `${ETAPA_LABEL[lead.etapa]} → ${ETAPA_LABEL[borrador.etapa]}`);
+    if (lead.etapa !== borrador.etapa) await registrar("etapa", `${ETAPA_LABEL[lead.etapa]} › ${ETAPA_LABEL[borrador.etapa]}`);
     setLead(data as Lead);
     setBorrador(data as Lead);
     showToast("Lead actualizado.");
@@ -103,8 +103,8 @@ export default function LeadPage() {
 
   return (
     <div>
-      <Link href="/panel/leads" className="text-xs text-carbon/55 hover:text-cobre-hover">
-        ← Leads
+      <Link href="/panel/leads" className="inline-flex items-center gap-1 text-xs text-carbon/55 hover:text-cobre-hover">
+        <ArrowLeft size={13} aria-hidden /> Leads
       </Link>
       <header className="mb-5 mt-2 flex flex-wrap items-end justify-between gap-3">
         <div>

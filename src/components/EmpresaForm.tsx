@@ -56,6 +56,7 @@ export default function EmpresaForm({
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorRubro, setErrorRubro] = useState(false);
 
   const [verSiara, setVerSiara] = useState(abrirSiara);
 
@@ -70,6 +71,13 @@ export default function EmpresaForm({
     e.preventDefault();
     if (!f.denominacion.trim()) {
       setError("La denominación es obligatoria.");
+      return;
+    }
+    // Al crear, el rubro es obligatorio; las empresas viejas sin rubro se pueden seguir editando.
+    if (!empresa && !f.rubro) {
+      setErrorRubro(true);
+      setError(null);
+      document.getElementById("empresa-rubro")?.focus();
       return;
     }
     setSaving(true);
@@ -114,6 +122,44 @@ export default function EmpresaForm({
             ))}
           </select>
         </div>
+        <div className="sm:col-span-2">
+          <label className="field-label" htmlFor="empresa-rubro">
+            Rubro (a qué se dedica){!empresa && <span className="required-mark">*</span>}
+          </label>
+          <select
+            id="empresa-rubro"
+            className="input"
+            value={f.rubro ?? ""}
+            onChange={(e) => {
+              set("rubro", e.target.value || null);
+              if (e.target.value) setErrorRubro(false);
+            }}
+            aria-invalid={errorRubro || undefined}
+            aria-describedby="empresa-rubro-ayuda"
+          >
+            <option value="">{empresa ? "Sin especificar" : "Elegí el rubro"}</option>
+            {RUBROS.map((r) => (
+              <option key={r} value={r}>
+                {RUBRO_LABEL[r]}
+              </option>
+            ))}
+          </select>
+          <p id="empresa-rubro-ayuda" className="mt-1 text-[11px] leading-snug text-carbon/50">
+            Lo usamos para mostrarte noticias y novedades de tu sector. No se comparte con nadie.
+          </p>
+          {errorRubro ? (
+            <p className="mt-1 text-xs text-bad" role="alert">
+              Elegí el rubro de la empresa para continuar.
+            </p>
+          ) : (
+            empresa &&
+            !f.rubro && (
+              <p className="mt-1 text-xs text-cobre-hover">
+                Todavía no indicaste el rubro: elegilo para ver novedades pensadas para esta empresa.
+              </p>
+            )
+          )}
+        </div>
         <div>
           <label className="field-label">RUC</label>
           <input className="input" value={f.ruc ?? ""} onChange={txt("ruc")} placeholder="80000000-0" />
@@ -121,20 +167,6 @@ export default function EmpresaForm({
         <div>
           <label className="field-label">Ciudad</label>
           <input className="input" value={f.ciudad ?? ""} onChange={txt("ciudad")} />
-        </div>
-        <div>
-          <label className="field-label" htmlFor="empresa-rubro">
-            Rubro
-          </label>
-          <select id="empresa-rubro" className="input" value={f.rubro ?? ""} onChange={(e) => set("rubro", e.target.value || null)}>
-            <option value="">Sin especificar</option>
-            {RUBROS.map((r) => (
-              <option key={r} value={r}>
-                {RUBRO_LABEL[r]}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-[11px] leading-snug text-carbon/50">Para mostrarte novedades de tu sector. No se comparte con nadie.</p>
         </div>
         <div>
           <label className="field-label">Domicilio social</label>
