@@ -66,3 +66,33 @@ export function supabaseAnonKey(): string {
     ""
   ).trim();
 }
+
+/** ¿Es una URL de las páginas NODOS? (para redirigir después de ingresar). */
+export function esUrlNodos(url: string | null | undefined): url is string {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    const h = u.hostname.toLowerCase();
+    return u.protocol === "https:" && (h === DOMINIO_RAIZ || h.endsWith(`.${DOMINIO_RAIZ}`));
+  } catch {
+    return false;
+  }
+}
+
+/** Pantalla única de ingreso (en nodoscompliance.com). `vista`: "crear" o "recuperar". */
+export function urlIngreso(volverA?: string | null, vista?: "crear" | "recuperar"): string {
+  const u = new URL("/ingresar", SITIOS.inicio.url);
+  if (esUrlNodos(volverA)) u.searchParams.set("next", volverA);
+  if (vista) u.hash = vista;
+  return u.toString();
+}
+
+/** Usuario válido: 3 a 20 caracteres, minúsculas, números, punto o guion bajo. */
+export const USUARIO_REGEX = /^[a-z0-9._]{3,20}$/;
+
+/** Cómo se muestra una cuenta, sin exponer su email. */
+export function nombreVisible(p: { usuario?: string | null; nombre?: string | null } | null | undefined): string {
+  if (p?.usuario) return `@${p.usuario}`;
+  if (p?.nombre) return p.nombre.split(" ")[0];
+  return "Mi cuenta";
+}

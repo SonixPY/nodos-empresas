@@ -37,8 +37,8 @@ export default function ResumenPage() {
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
-      const { data: p } = await supabase.from("profiles").select("nombre").eq("id", data.user.id).maybeSingle();
-      setNombre((p?.nombre as string | null)?.split(" ")[0] ?? data.user.email?.split("@")[0] ?? null);
+      const { data: p } = await supabase.from("profiles").select("nombre, usuario").eq("id", data.user.id).maybeSingle();
+      setNombre((p?.nombre as string | null)?.split(" ")[0] ?? (p?.usuario as string | null) ?? null);
     });
   }, []);
 

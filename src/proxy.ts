@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { APP_ID } from "@/lib/nodos/app";
-import { SSO_FLAG, cookieDomainFor } from "@/lib/nodos/sitios";
+import { SSO_FLAG, cookieDomainFor, urlIngreso } from "@/lib/nodos/sitios";
 import { supabaseAnonKey as supabaseAnonKey_, supabaseUrl as supabaseUrlLimpia } from "@/lib/nodos/sitios";
 
 // Rutas que se ven sin sesión.
@@ -15,7 +15,8 @@ const empiezaCon = (pathname: string, rutas: string[]) =>
 
 /**
  * Gate por sesión de Supabase Auth, compartida entre las apps NODOS:
- * - sin sesión → /login
+ * - sin sesión → pantalla única de ingreso en nodoscompliance.com/ingresar
+ *   (en localhost o previews de Vercel, el /login local)
  * - con sesión pero sin permiso para esta app (o cuenta suspendida) → /sin-acceso
  * Los datos de cada usuario los protege RLS en la base.
  */
@@ -76,7 +77,17 @@ export async function proxy(request: NextRequest) {
   if (pathname.startsWith("/api/")) return response; // cada endpoint valida por su cuenta
 
   if (!user) {
+    // En producción hay una sola pantalla de ingreso, la del sitio principal.
+    // URL pública de esta app (detrás del proxy de Vercel request.url puede no traer el host real).
+    const publica = `https://${request.headers.get("host")}`;
+    if (domain && empiezaCon(pathname, INGRESO)) {
+      const volver = request.nextUrl.searchParams.get("next");
+      const vista = pathname.startsWith("/signup") ? "crear" : pathname.startsWith("/recuperar") ? "recuperar" : undefined;
+      const destinoApp = volver && volver.startsWith("/") && !volver.startsWith("//") ? new URL(volver, publica).toString() : null;
+      return redirigir(urlIngreso(destinoApp, vista));
+    }
     if (empiezaCon(pathname, PUBLICAS)) return marcarSso(response);
+    if (domain) return redirigir(urlIngreso(`${publica}${pathname}${request.nextUrl.search}`));
     const destino = pathname === "/" ? "/login" : `/login?next=${encodeURIComponent(pathname)}`;
     return redirigir(destino);
   }
@@ -99,5 +110,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|isotipo.svg|robots.txt).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|isotipo.svg|robots.txt).*)"],
 };

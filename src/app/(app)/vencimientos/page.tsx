@@ -6,10 +6,12 @@ import { useEmpresas, useObligaciones } from "@/lib/data";
 import { MESES, parseIso, todayIso } from "@/lib/dates";
 import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista";
 import ObligacionForm from "@/components/ObligacionForm";
+import VencimientosCalendar from "@/components/VencimientosCalendar";
 import { SkeletonTable } from "@/components/Skeleton";
 import { CATEGORIA_LABELS, type CategoriaObligacion, type Obligacion } from "@/lib/types";
 
 type Estado = "pendientes" | "atrasados" | "hechas" | "todas";
+type Vista = "calendario" | "lista";
 
 export default function VencimientosPage() {
   const empresas = useEmpresas();
@@ -18,6 +20,7 @@ export default function VencimientosPage() {
   const [categoria, setCategoria] = useState<CategoriaObligacion | "todas">("todas");
   const [estado, setEstado] = useState<Estado>("pendientes");
   const [nueva, setNueva] = useState(false);
+  const [vista, setVista] = useState<Vista>("calendario");
 
   const filtradas = useMemo(() => {
     const hoy = todayIso();
@@ -98,12 +101,26 @@ export default function VencimientosPage() {
             </option>
           ))}
         </select>
+        <div className="segmented sm:ml-auto" role="group" aria-label="Vista">
+          {(["calendario", "lista"] as Vista[]).map((v) => (
+            <button key={v} type="button" className={vista === v ? "active" : ""} aria-pressed={vista === v} onClick={() => setVista(v)}>
+              {v === "calendario" ? "Calendario" : "Lista"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {obligaciones.error && <p className="mb-4 text-sm text-bad">Error: {obligaciones.error}</p>}
 
       {loading ? (
         <SkeletonTable rows={5} cols={3} />
+      ) : vista === "calendario" && empresas.data.length > 0 ? (
+        <VencimientosCalendar
+          obligaciones={filtradas}
+          empresas={empresas.data}
+          mostrarEmpresa={empresas.data.length > 1}
+          onChange={(id, patch) => obligaciones.setData((prev) => aplicarCambio(prev, id, patch))}
+        />
       ) : grupos.length === 0 ? (
         <ObligacionesLista
           obligaciones={[]}

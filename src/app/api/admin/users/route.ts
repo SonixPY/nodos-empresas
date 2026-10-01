@@ -6,6 +6,7 @@ type Perfil = {
   id: string;
   is_admin: boolean | null;
   nombre?: string | null;
+  usuario?: string | null;
   acceso_finanzas?: boolean | null;
   acceso_empresas?: boolean | null;
   suspendido?: boolean | null;
@@ -22,7 +23,7 @@ export async function GET() {
   // Si la migración de cuentas NODOS todavía no corrió, caemos a las columnas básicas.
   let migracionPendiente = false;
   let perfiles: Perfil[] = [];
-  const completo = await admin.from("profiles").select("id, is_admin, nombre, acceso_finanzas, acceso_empresas, suspendido");
+  const completo = await admin.from("profiles").select("id, is_admin, nombre, usuario, acceso_finanzas, acceso_empresas, suspendido");
   if (completo.error) {
     migracionPendiente = true;
     const basico = await admin.from("profiles").select("id, is_admin");
@@ -39,6 +40,7 @@ export async function GET() {
         id: u.id,
         email: u.email ?? "",
         nombre: p?.nombre ?? null,
+        usuario: p?.usuario ?? null,
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at ?? null,
         confirmed_at: u.email_confirmed_at ?? null,

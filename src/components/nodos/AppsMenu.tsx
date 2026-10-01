@@ -2,15 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Building2, Gauge, Globe, LayoutGrid, LifeBuoy, ShieldCheck, Wallet } from "lucide-react";
+import { AtSign, Building2, Gauge, Globe, LayoutGrid, LifeBuoy, ShieldCheck, UserRound, Wallet } from "lucide-react";
 import { APP_ID } from "@/lib/nodos/app";
-import { SITIOS } from "@/lib/nodos/sitios";
+import { SITIOS, nombreVisible } from "@/lib/nodos/sitios";
+import type { PerfilVisible } from "@/lib/nodos/usePerfil";
 
 /**
  * Selector de apps NODOS del header: salta entre el sitio, Finanzas y
  * Empresas con la misma sesión, y da acceso a Administración y Soporte.
  */
-export default function AppsMenu({ isAdmin, email }: { isAdmin: boolean; email: string | null }) {
+export default function AppsMenu({ perfil }: { perfil: PerfilVisible | null }) {
+  const isAdmin = !!perfil?.isAdmin;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -47,11 +49,23 @@ export default function AppsMenu({ isAdmin, email }: { isAdmin: boolean; email: 
       </button>
       {open && (
         <div className="absolute right-0 top-full z-30 mt-2 w-72 overflow-hidden rounded-lg border border-[var(--line)] bg-white text-carbon shadow-lg">
-          {email && (
-            <div className="border-b border-[var(--line)] bg-marfil/60 px-4 py-3">
-              <p className="t-caption text-carbon/55">Cuenta NODOS</p>
-              <p className="truncate text-sm font-medium text-musgo">{email}</p>
-            </div>
+          {perfil && (
+            <Link
+              href="/cuenta"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 border-b border-[var(--line)] bg-marfil/60 px-4 py-3 transition hover:bg-marfil"
+            >
+              <UserRound size={18} className="shrink-0 text-cobre" />
+              <span className="min-w-0">
+                <span className="t-caption block text-carbon/55">Cuenta NODOS</span>
+                <span className="block truncate text-sm font-medium text-musgo">{nombreVisible(perfil)}</span>
+                {!perfil.usuario && (
+                  <span className="mt-0.5 flex items-center gap-1 text-xs text-cobre-hover">
+                    <AtSign size={12} /> Elegí tu nombre de usuario
+                  </span>
+                )}
+              </span>
+            </Link>
           )}
           <ul className="p-1.5">
             {apps.map((a) => {

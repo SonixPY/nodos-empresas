@@ -93,7 +93,7 @@ export const CATEGORIA_COLOR: Record<CategoriaObligacion, string> = {
   tributario: "#5b6f8a",
   laboral: "#7a8a65",
   interno: "#8a7d6b",
-  seprelad: "#8c5934",
+  seprelad: "#c9a227",
 };
 
 export interface Obligacion {

@@ -9,6 +9,7 @@ interface Cuenta {
   id: string;
   email: string;
   nombre: string | null;
+  usuario: string | null;
   created_at: string;
   last_sign_in_at: string | null;
   confirmed_at: string | null;
@@ -18,7 +19,7 @@ interface Cuenta {
   suspendido: boolean;
 }
 
-type Cambios = Partial<Pick<Cuenta, "nombre" | "email" | "is_admin" | "acceso_finanzas" | "acceso_empresas" | "suspendido">>;
+type Cambios = Partial<Pick<Cuenta, "nombre" | "usuario" | "email" | "is_admin" | "acceso_finanzas" | "acceso_empresas" | "suspendido">>;
 
 function fmt(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -63,7 +64,7 @@ export default function AdminCuentas() {
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [editando, setEditando] = useState<string | null>(null);
-  const [borrador, setBorrador] = useState({ nombre: "", email: "" });
+  const [borrador, setBorrador] = useState({ nombre: "", usuario: "", email: "" });
   const [ocupado, setOcupado] = useState<string | null>(null);
 
   async function load() {
@@ -134,6 +135,7 @@ export default function AdminCuentas() {
   async function guardarEdicion(u: Cuenta) {
     const cambios: Cambios = {};
     if ((borrador.nombre.trim() || null) !== u.nombre) cambios.nombre = borrador.nombre.trim() || null;
+    if ((borrador.usuario.trim().toLowerCase() || null) !== u.usuario) cambios.usuario = borrador.usuario.trim().toLowerCase() || null;
     if (borrador.email.trim().toLowerCase() !== u.email) cambios.email = borrador.email.trim().toLowerCase();
     if (Object.keys(cambios).length === 0) return setEditando(null);
     if (await guardar(u, cambios, "Datos de la cuenta actualizados.")) setEditando(null);
@@ -141,7 +143,7 @@ export default function AdminCuentas() {
 
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    return (users ?? []).filter((u) => !q || u.email.toLowerCase().includes(q) || (u.nombre ?? "").toLowerCase().includes(q));
+    return (users ?? []).filter((u) => !q || u.email.toLowerCase().includes(q) || (u.nombre ?? "").toLowerCase().includes(q) || (u.usuario ?? "").includes(q));
   }, [users, busqueda]);
 
   const total = users?.length ?? 0;
@@ -165,13 +167,13 @@ export default function AdminCuentas() {
         </div>
       )}
 
-      <div className="mb-5 grid grid-cols-3 gap-3 sm:max-w-lg">
+      <div className="mb-5 grid grid-cols-3 gap-2 sm:max-w-lg sm:gap-3">
         <div className="stat-tile">
           <p className="stat-label">Cuentas</p>
           <p className="stat-value">{total}</p>
         </div>
         <div className="stat-tile">
-          <p className="stat-label">Administradores</p>
+          <p className="stat-label truncate" title="Administradores"><span className="sm:hidden">Admins</span><span className="hidden sm:inline">Administradores</span></p>
           <p className="stat-value">{admins}</p>
         </div>
         <div className="stat-tile">
@@ -184,7 +186,7 @@ export default function AdminCuentas() {
         <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-carbon/40" />
         <input
           className="input pl-9"
-          placeholder="Buscar por email o nombre"
+          placeholder="Buscar por email, nombre o usuario"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
@@ -225,6 +227,12 @@ export default function AdminCuentas() {
                           />
                           <input
                             className="input py-1"
+                            placeholder="usuario"
+                            value={borrador.usuario}
+                            onChange={(e) => setBorrador((b) => ({ ...b, usuario: e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, "") }))}
+                          />
+                          <input
+                            className="input py-1"
                             type="email"
                             value={borrador.email}
                             onChange={(e) => setBorrador((b) => ({ ...b, email: e.target.value }))}
@@ -244,6 +252,7 @@ export default function AdminCuentas() {
                             {u.nombre || u.email}
                             {esYo && <span className="t-caption ml-2 text-carbon/45">(vos)</span>}
                           </p>
+                          {u.usuario && <p className="text-xs font-medium text-cobre-hover">@{u.usuario}</p>}
                           {u.nombre && <p className="text-xs text-carbon/60">{u.email}</p>}
                           <p className="text-xs text-carbon/45">
                             Alta {fmt(u.created_at)}
@@ -289,10 +298,10 @@ export default function AdminCuentas() {
                       <div className="flex justify-end gap-1">
                         <button
                           type="button"
-                          title="Editar nombre y email"
+                          title="Editar nombre, usuario y email"
                           disabled={bloqueado}
                           onClick={() => {
-                            setBorrador({ nombre: u.nombre ?? "", email: u.email });
+                            setBorrador({ nombre: u.nombre ?? "", usuario: u.usuario ?? "", email: u.email });
                             setEditando(u.id);
                           }}
                           className="rounded p-1.5 text-carbon/60 hover:bg-marfil hover:text-musgo disabled:opacity-40"

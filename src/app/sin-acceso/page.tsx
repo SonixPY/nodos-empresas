@@ -1,21 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { cerrarSesion } from "@/lib/nodos/usePerfil";
 import { APP_ID } from "@/lib/nodos/app";
 import { SITIOS } from "@/lib/nodos/sitios";
 import AuthShell from "@/components/nodos/AuthShell";
 
 export default function SinAccesoPage() {
-  const router = useRouter();
   const otra = SITIOS[APP_ID === "finanzas" ? "empresas" : "finanzas"];
 
-  async function salir() {
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
-  }
+  const salir = cerrarSesion;
 
   return (
     <AuthShell titulo={`Tu cuenta no tiene acceso a ${SITIOS[APP_ID].nombre}`}>

@@ -31,6 +31,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { error } = await admin.from("profiles").update(cambios).eq("id", id);
   if (error) {
+    if (error.code === "23505") return NextResponse.json({ message: "Ese usuario ya está tomado." }, { status: 409 });
     const pendiente = /column|schema cache/i.test(error.message);
     return NextResponse.json(
       {

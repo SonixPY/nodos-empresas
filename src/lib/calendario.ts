@@ -270,3 +270,38 @@ export function obligacionesPorMovimiento(
     },
   ];
 }
+
+// ── Grilla mensual (vista calendario de Vencimientos) ─────────────────────
+// Misma lógica que el calendario de "PnL diario" de NODOS Finanzas, pero con
+// la semana de lunes a domingo, como se usa en Paraguay.
+
+/** Iniciales de los días, de lunes a domingo. */
+export const DOW_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
+
+export interface MonthCell {
+  date: string; // YYYY-MM-DD
+  day: number;
+  inMonth: boolean;
+}
+
+/** 'YYYY-MM-DD' en hora local (no UTC — evita que el día salte por huso). */
+export const localIso = toIso;
+
+/** Semanas completas (lunes a domingo) que cubren el mes dado (month: 0-11). */
+export function buildMonthWeeks(year: number, month: number): MonthCell[][] {
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  const start = new Date(first);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  const end = new Date(last);
+  end.setDate(end.getDate() + (6 - ((end.getDay() + 6) % 7)));
+  const days: MonthCell[] = [];
+  const d = new Date(start);
+  while (d <= end) {
+    days.push({ date: toIso(d), day: d.getDate(), inMonth: d.getMonth() === month });
+    d.setDate(d.getDate() + 1);
+  }
+  const weeks: MonthCell[][] = [];
+  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+  return weeks;
+}

@@ -287,9 +287,19 @@ body {
     border-radius: var(--radius-md);
     border: 1px solid var(--line);
     width: fit-content;
+    /* En pantallas angostas nunca se corta un segmento: si no entra, se
+       desliza horizontalmente (sin barra visible). */
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .segmented::-webkit-scrollbar {
+    display: none;
   }
   .segmented button,
   .segmented > a {
+    flex-shrink: 0;
+    white-space: nowrap;
     padding: 0.45rem 0.9rem;
     font-size: 0.8125rem;
     font-weight: 500;
@@ -300,6 +310,12 @@ body {
       background 0.15s,
       opacity 0.15s,
       color 0.15s;
+  }
+  @media (max-width: 400px) {
+    .segmented button,
+    .segmented > a {
+      padding: 0.45rem 0.6rem;
+    }
   }
   .segmented > a:not(:last-child),
   .segmented button:not(:last-child) {

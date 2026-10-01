@@ -17,6 +17,26 @@ export function EstadoFecha({ o }: { o: Obligacion }) {
   return <span className={`text-xs font-medium ${color}`}>{n < 0 ? `Vencida ${relativo(o.fecha)}` : `Vence ${relativo(o.fecha)}`}</span>;
 }
 
+type OnChange = (id: string, patch: Partial<Obligacion> | null) => void;
+
+/**
+ * Marca una obligación como hecha o la reabre: actualiza la UI al instante
+ * (optimista), guarda en Supabase y revierte si falla. Compartido por la
+ * lista y el calendario de Vencimientos.
+ */
+export function useToggleObligacion(onChange: OnChange) {
+  const { showToast } = useToast();
+  return async function toggle(o: Obligacion) {
+    const hecho = o.estado !== "hecho";
+    onChange(o.id, { estado: hecho ? "hecho" : "pendiente", completado_en: hecho ? new Date().toISOString() : null });
+    const { error } = await marcarObligacion(o.id, hecho);
+    if (error) {
+      showToast(`No se pudo actualizar: ${error.message}`, "error");
+      onChange(o.id, { estado: o.estado, completado_en: o.completado_en });
+    } else if (hecho) showToast("Marcada como hecha.");
+  };
+}
+
 /**
  * Lista de obligaciones con check para marcar como hecha. Se usa en el
  * Resumen, en la ficha de cada empresa y en Vencimientos.
@@ -31,24 +51,15 @@ export default function ObligacionesLista({
 }: {
   obligaciones: Obligacion[];
   empresas?: Empresa[];
-  onChange: (id: string, patch: Partial<Obligacion> | null) => void;
+  onChange: OnChange;
   mostrarEmpresa?: boolean;
   compacta?: boolean;
   vacio?: string;
 }) {
   const { showToast } = useToast();
+  const toggle = useToggleObligacion(onChange);
   const [abierta, setAbierta] = useState<string | null>(null);
   const nombres = useMemo(() => new Map((empresas ?? []).map((e) => [e.id, e.denominacion])), [empresas]);
-
-  async function toggle(o: Obligacion) {
-    const hecho = o.estado !== "hecho";
-    onChange(o.id, { estado: hecho ? "hecho" : "pendiente", completado_en: hecho ? new Date().toISOString() : null });
-    const { error } = await marcarObligacion(o.id, hecho);
-    if (error) {
-      showToast(`No se pudo actualizar: ${error.message}`, "error");
-      onChange(o.id, { estado: o.estado, completado_en: o.completado_en });
-    } else if (hecho) showToast("Marcada como hecha.");
-  }
 
   async function borrar(o: Obligacion) {
     if (!confirm(`¿Eliminar "${o.titulo}"?`)) return;

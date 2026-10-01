@@ -19,6 +19,7 @@ export interface CuentaAdmin {
   id: string;
   email: string;
   nombre: string | null;
+  usuario: string | null;
   created_at: string;
   last_sign_in_at: string | null;
   confirmed_at: string | null;
@@ -31,6 +32,7 @@ export interface CuentaAdmin {
 /** Campos que el panel puede modificar. */
 export interface CambiosCuenta {
   nombre?: string | null;
+  usuario?: string | null;
   email?: string;
   is_admin?: boolean;
   acceso_finanzas?: boolean;
@@ -51,6 +53,12 @@ export function limpiarCambios(body: unknown): CambiosCuenta | string {
   if ("nombre" in b) {
     if (b.nombre !== null && typeof b.nombre !== "string") return "Nombre inválido.";
     out.nombre = typeof b.nombre === "string" ? b.nombre.trim().slice(0, 120) || null : null;
+  }
+  if ("usuario" in b) {
+    if (b.usuario === null || b.usuario === "") out.usuario = null;
+    else if (typeof b.usuario !== "string" || !/^[a-z0-9._]{3,20}$/.test(b.usuario.trim().toLowerCase()))
+      return "El usuario lleva de 3 a 20 caracteres: letras minúsculas, números, punto o guion bajo.";
+    else out.usuario = b.usuario.trim().toLowerCase();
   }
   if ("email" in b) {
     if (typeof b.email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email.trim())) return "Email inválido.";
