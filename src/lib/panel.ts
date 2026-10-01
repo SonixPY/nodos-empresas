@@ -2,7 +2,7 @@
 
 export type Etapa = "nuevo" | "contactado" | "calificado" | "propuesta" | "cliente" | "descartado";
 export type Tema = "cripto-compliance" | "empresa-familiar" | "finanzas" | "apps" | "otro";
-export type Origen = "sitio" | "whatsapp" | "instagram" | "tiktok" | "youtube" | "email" | "referido" | "evento" | "otro";
+export type Origen = "sitio" | "whatsapp" | "instagram" | "tiktok" | "youtube" | "email" | "referido" | "evento" | "otro" | "app";
 export type TipoActividad = "nota" | "llamada" | "email" | "whatsapp" | "reunion" | "etapa" | "sistema";
 export type Pilar = "zona-gris" | "decodificado" | "bajo-lupa" | "otro";
 export type EstadoContenido = "idea" | "guion" | "grabado" | "editado" | "programado" | "publicado";
@@ -75,6 +75,7 @@ export const ORIGEN_LABEL: Record<Origen, string> = {
   referido: "Referido",
   evento: "Evento",
   otro: "Otro",
+  app: "App NODOS Empresas",
 };
 
 export const ACTIVIDAD_LABEL: Record<TipoActividad, string> = {

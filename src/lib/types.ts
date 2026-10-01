@@ -26,6 +26,8 @@ export interface Empresa {
   tiene_sindico: boolean;
   capital_integrado: number | null;
   notas: string | null;
+  /** Rubro (migración 008, lista fija en src/lib/novedades.ts). */
+  rubro?: string | null;
   created_at: string;
 }
 

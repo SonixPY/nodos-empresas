@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, LayoutDashboard, Users } from "lucide-react";
+import { CalendarDays, LayoutDashboard, Newspaper, Users } from "lucide-react";
 
 const LINKS = [
   { href: "/panel", label: "Resumen", icon: LayoutDashboard },
   { href: "/panel/leads", label: "Leads", icon: Users },
   { href: "/panel/contenido", label: "Contenido", icon: CalendarDays },
+  { href: "/panel/notas", label: "Notas", icon: Newspaper },
 ];
 
 export default function PanelNav() {

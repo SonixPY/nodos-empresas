@@ -9,6 +9,7 @@ import { daysUntil, formatFecha, formatFechaLarga, relativo, todayIso } from "@/
 import { useToast } from "@/components/ToastProvider";
 import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista";
 import { SkeletonStatTiles } from "@/components/Skeleton";
+import NovedadesEmpresas from "@/components/NovedadesEmpresas";
 import { TIPO_CORTO, type Empresa, type Obligacion } from "@/lib/types";
 
 function alertasEmpresa(e: Empresa, obligaciones: Obligacion[], anio: number): string[] {
@@ -112,6 +113,8 @@ export default function ResumenPage() {
           <circle cx="110" cy="118" r="24" fill="#b8734a" />
         </svg>
       </section>
+
+      {!empresas.loading && empresas.data.length > 0 && <NovedadesEmpresas empresas={empresas.data} />}
 
       {!loading && empresas.data.length > 0 && (
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">

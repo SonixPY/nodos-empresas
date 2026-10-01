@@ -16,9 +16,11 @@ import PoderesPanel from "@/components/PoderesPanel";
 import ArchivoPanel from "@/components/ArchivoPanel";
 import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista";
 import ObligacionForm from "@/components/ObligacionForm";
+import NovedadesEmpresas from "@/components/NovedadesEmpresas";
 import { SkeletonBlock } from "@/components/Skeleton";
 import { TIPO_LABELS, type Empresa } from "@/lib/types";
 import type { EmpresaSiara } from "@/lib/siara";
+import { esRubro, RUBRO_LABEL } from "@/lib/novedades";
 
 const TABS = [
   { key: "datos", label: "Datos" },
@@ -77,6 +79,7 @@ function Datos({
     ["Vence el mandato", formatFecha(empresa.vencimiento_mandato)],
     ["Capital integrado", empresa.capital_integrado ? formatPyg(empresa.capital_integrado) : "—"],
   ];
+  if (esRubro(empresa.rubro)) filas.push(["Rubro", RUBRO_LABEL[empresa.rubro]]);
   if (empresa.tipo === "sa") filas.push(["Síndico", empresa.tiene_sindico ? "Sí" : "No"]);
   // Datos registrales para SIARA (migración 007), si están cargados.
   const s = empresa as EmpresaSiara;
@@ -276,6 +279,7 @@ function FichaEmpresa() {
                 onDeleted={() => router.push("/empresas")}
               />
             )}
+            {tab === "datos" && <NovedadesEmpresas empresas={[empresa]} compacta />}
             {tab === "accionistas" && <AccionistasPanel empresa={empresa} />}
             {tab === "siara" && (
               <SiaraPanel

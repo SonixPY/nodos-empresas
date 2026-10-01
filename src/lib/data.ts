@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { generarObligacionesAnuales } from "@/lib/calendario";
 import { generarObligacionesSeprelad, type PerfilSeprelad } from "@/lib/seprelad";
 import type { Accionista, Documento, Empresa, MovimientoAcciones, Obligacion } from "@/lib/types";
+import type { NotaNodos } from "@/lib/novedades";
 
 interface Estado<T> {
   data: T;
@@ -127,6 +128,32 @@ export function usePerfilSeprelad(empresaId: string | null) {
         ? await supabase.from("perfil_seprelad").select("*").eq("empresa_id", empresaId).maybeSingle()
         : { data: null, error: null },
     null
+  );
+}
+
+/** Sectores SEPRELAD de todas las empresas visibles (para Novedades). */
+export function useSectoresSeprelad() {
+  return useQuery<Pick<PerfilSeprelad, "empresa_id" | "sectores">[]>(
+    "perfil_seprelad:sectores",
+    () => supabase.from("perfil_seprelad").select("empresa_id, sectores"),
+    []
+  );
+}
+
+// ── Notas NODOS (migración 008) ───────────────────────────────────────────
+
+/** Notas editoriales. Con `todas` (Panel) trae también los borradores; RLS
+ * solo se los entrega a administradores. */
+export function useNotasNodos(todas = false) {
+  return useQuery<NotaNodos[]>(
+    `notas_nodos:${todas}`,
+    () => {
+      const q = supabase.from("notas_nodos").select("*");
+      return todas
+        ? q.order("created_at", { ascending: false })
+        : q.eq("publicada", true).order("destacada", { ascending: false }).order("publicada_el", { ascending: false }).limit(30);
+    },
+    []
   );
 }
 

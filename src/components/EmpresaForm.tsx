@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { MESES } from "@/lib/dates";
 import { TIPO_LABELS, type Empresa, type NuevaEmpresa, type TipoSociedad } from "@/lib/types";
 import type { CamposSiaraEmpresa } from "@/lib/siara";
+import { RUBRO_LABEL, RUBROS } from "@/lib/novedades";
 
 /** Datos de la empresa + los que pide SIARA (columnas de la migración 007). */
 type FormEmpresa = NuevaEmpresa & Partial<Omit<CamposSiaraEmpresa, "siara_ultima_declaracion" | "siara_numero_solicitud">>;
@@ -120,6 +121,20 @@ export default function EmpresaForm({
         <div>
           <label className="field-label">Ciudad</label>
           <input className="input" value={f.ciudad ?? ""} onChange={txt("ciudad")} />
+        </div>
+        <div>
+          <label className="field-label" htmlFor="empresa-rubro">
+            Rubro
+          </label>
+          <select id="empresa-rubro" className="input" value={f.rubro ?? ""} onChange={(e) => set("rubro", e.target.value || null)}>
+            <option value="">Sin especificar</option>
+            {RUBROS.map((r) => (
+              <option key={r} value={r}>
+                {RUBRO_LABEL[r]}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-[11px] leading-snug text-carbon/50">Para mostrarte novedades de tu sector. No se comparte con nadie.</p>
         </div>
         <div>
           <label className="field-label">Domicilio social</label>
