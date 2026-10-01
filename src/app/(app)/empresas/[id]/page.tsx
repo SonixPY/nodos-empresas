@@ -279,7 +279,7 @@ function FichaEmpresa() {
                 onDeleted={() => router.push("/empresas")}
               />
             )}
-            {tab === "datos" && <NovedadesEmpresas empresas={[empresa]} compacta />}
+            {tab === "datos" && <NovedadesEmpresas empresas={[empresa]} variant="compacta" />}
             {tab === "accionistas" && <AccionistasPanel empresa={empresa} />}
             {tab === "siara" && (
               <SiaraPanel

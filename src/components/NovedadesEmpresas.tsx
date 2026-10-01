@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, ExternalLink, MessageCircle, Newspaper, RotateCw, Star } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, MessageCircle, Newspaper, RotateCw, Star, X } from "lucide-react";
 import { useNotasNodos, useSectoresSeprelad } from "@/lib/data";
 import { useNovedades, type EstadoNovedades } from "@/lib/useNovedades";
 import {
@@ -22,7 +22,8 @@ import {
 import type { Empresa } from "@/lib/types";
 import type { EmpresaSiara } from "@/lib/siara";
 
-type Pestana = "normativa" | "rubro" | "notas";
+type Filtro = "todas" | "normativa" | "rubro" | "notas";
+export type VarianteNovedades = "banda" | "compacta";
 
 export interface FuenteNovedades {
   estado: EstadoNovedades;
@@ -51,19 +52,23 @@ async function enviarConsulta(nota: NotaNodos): Promise<ResultadoConsulta> {
 }
 
 /**
- * Bloque "Novedades para tus empresas". Carga los sectores SEPRELAD y las
- * notas con RLS, decide los temas EN EL NAVEGADOR y le pide al servidor solo
- * los ids de esos temas. Con `compacta` (ficha de una empresa) muestra menos
- * y sin chips de empresa.
+ * "Novedades para tus empresas". Carga los sectores SEPRELAD y las notas con
+ * RLS, decide los temas EN EL NAVEGADOR y le pide al servidor solo los ids de
+ * esos temas.
+ *
+ * - `banda` (Resumen): tira de tarjetas para ir dentro de la banda musgo del
+ *   saludo, igual que las noticias del Resumen de NODOS Finanzas.
+ * - `compacta` (ficha de una empresa): la misma tira en su propio bloque
+ *   musgo, sin filtro ni "Afecta a" porque es una sola empresa.
  */
 export default function NovedadesEmpresas({
   empresas,
   loading = false,
-  compacta = false,
+  variant = "banda",
 }: {
   empresas: Empresa[];
   loading?: boolean;
-  compacta?: boolean;
+  variant?: VarianteNovedades;
 }) {
   const sectores = useSectoresSeprelad();
   const notas = useNotasNodos();
@@ -87,75 +92,70 @@ export default function NovedadesEmpresas({
       // Si la tabla todavía no existe (falta correr 008), las notas quedan vacías sin error.
       notas={notas.data}
       notasCargando={notas.loading}
-      compacta={compacta}
+      variant={variant}
       onConsultar={enviarConsulta}
     />
   );
 }
 
-const pillClass = (activo: boolean) =>
+// ── Piezas ───────────────────────────────────────────────────────────────
+
+const ANCHO_TARJETA = "w-[78%] shrink-0 snap-start sm:w-[calc(50%-6px)] lg:w-[calc(25%-9px)]";
+
+const chipClass = (activo: boolean) =>
   `shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition ${
-    activo ? "border-musgo bg-musgo text-marfil" : "border-[var(--line)] bg-white text-carbon/70 hover:border-cobre hover:text-carbon"
+    activo ? "border-cobre bg-cobre text-marfil" : "border-marfil/20 text-marfil/75 hover:border-marfil/40 hover:text-marfil"
   }`;
 
-/** Chips "Puede afectar a: …". Si son todas (y más de una), un solo chip. */
-function Afectadas({ afectadas, total }: { afectadas: EmpresaCtx[]; total: number }) {
-  if (afectadas.length === 0) return null;
-  const todas = total > 1 && afectadas.length === total;
-  const visibles = todas ? [] : afectadas.slice(0, 3);
-  const resto = todas ? 0 : afectadas.length - visibles.length;
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-carbon/55">
-      <span>Puede afectar a:</span>
-      {todas ? (
-        <span className="rounded-full bg-marfil px-2 py-0.5 font-medium text-carbon/75">Todas tus empresas</span>
-      ) : (
-        visibles.map((e) => (
-          <span key={e.id} className="max-w-[14rem] truncate rounded-full bg-marfil px-2 py-0.5 font-medium text-carbon/75" title={e.nombre}>
-            {e.nombre}
-          </span>
-        ))
-      )}
-      {resto > 0 && <span className="rounded-full bg-marfil px-2 py-0.5 font-medium text-carbon/60">+{resto}</span>}
-    </div>
-  );
+/** "Afecta a: …" en una sola línea. Con una sola empresa no se muestra. */
+function textoAfecta(afectadas: EmpresaCtx[], total: number): string | null {
+  if (total <= 1 || afectadas.length === 0) return null;
+  if (afectadas.length === total) return "Afecta a: Todas tus empresas";
+  return `Afecta a: ${afectadas.map((e) => e.nombre).join(", ")}`;
 }
 
-function FilaNovedad({ n, ahora, afectadas, total, compacta }: { n: Novedad; ahora: number; afectadas: EmpresaCtx[]; total: number; compacta: boolean }) {
+function kickerNovedad(n: Novedad): string {
+  const tema = temaPorId(n.tema);
+  if (!tema) return "Novedad";
+  return tema.tipo === "rubro" ? `Rubro · ${tema.label}` : tema.label;
+}
+
+function kickerNota(nota: NotaNodos): string {
+  const organismo = nota.organismo ? temaPorId(nota.organismo) : undefined;
+  return organismo ? `Nota NODOS · ${organismo.label}` : "Nota NODOS";
+}
+
+function TarjetaNovedad({ n, ahora, afecta }: { n: Novedad; ahora: number; afecta: string | null }) {
   const url = urlSegura(n.url);
   const rel = tiempoRelativo(n.fecha, ahora);
-  const tema = temaPorId(n.tema);
-  const contenido = (
+  const cuerpo = (
     <>
-      {n.titulo}
-      {url && <ExternalLink size={12} className="ml-1 inline-block align-baseline opacity-50 transition group-hover:opacity-100" aria-hidden="true" />}
+      <span className="truncate text-[11px] font-semibold uppercase tracking-wider text-cobre">{kickerNovedad(n)}</span>
+      <span className="mt-1.5 line-clamp-3 text-sm font-medium leading-snug text-marfil [overflow-wrap:anywhere]">{n.titulo}</span>
+      <span className="mt-auto block pt-3">
+        <span className="flex items-center gap-1.5 text-xs text-marfil/55">
+          <span className="truncate">
+            {n.fuente || "Google News"}
+            {rel ? ` · ${rel}` : ""}
+          </span>
+          {url && <ExternalLink size={12} className="ml-auto shrink-0 opacity-60 transition group-hover:opacity-100" aria-hidden="true" />}
+        </span>
+        {afecta && (
+          <span className="mt-1 block truncate text-[11px] text-marfil/45" title={afecta}>
+            {afecta}
+          </span>
+        )}
+      </span>
     </>
   );
-  return (
-    <li className="py-3 first:pt-1">
-      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-[11px]">
-        {tema && <span className="font-semibold uppercase tracking-wider text-cobre-hover">{tema.label}</span>}
-        <span className="truncate text-carbon/50">
-          {n.fuente || "Google News"}
-          {rel ? ` · ${rel}` : ""}
-        </span>
-      </div>
-      {url ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          referrerPolicy="no-referrer"
-          className="group mt-1 block text-sm font-medium leading-snug text-musgo [overflow-wrap:anywhere] hover:underline"
-        >
-          {contenido}
-          <span className="sr-only"> (se abre en otra pestaña)</span>
-        </a>
-      ) : (
-        <p className="mt-1 text-sm font-medium leading-snug text-musgo">{contenido}</p>
-      )}
-      {!compacta && <Afectadas afectadas={afectadas} total={total} />}
-    </li>
+  const clase = `group flex ${ANCHO_TARJETA} flex-col rounded-lg bg-marfil/10 p-4 transition`;
+  return url ? (
+    <a href={url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className={`${clase} hover:bg-marfil/15`}>
+      {cuerpo}
+      <span className="sr-only"> (se abre en otra pestaña)</span>
+    </a>
+  ) : (
+    <div className={clase}>{cuerpo}</div>
   );
 }
 
@@ -163,125 +163,193 @@ type EstadoConsulta = { paso: "confirmando" } | { paso: "enviando" } | { paso: "
 
 function TarjetaNota({
   nota,
-  afectadas,
-  total,
-  compacta,
   ahora,
+  afecta,
+  consulta,
+  abierta,
+  onAbrir,
+  onConsultar,
+  ancho = ANCHO_TARJETA,
+}: {
+  nota: NotaNodos;
+  ahora: number;
+  afecta: string | null;
+  consulta: EstadoConsulta | undefined;
+  abierta: boolean;
+  onAbrir: () => void;
+  onConsultar: () => void;
+  ancho?: string;
+}) {
+  const fecha = nota.publicada_el && ahora ? tiempoRelativo(nota.publicada_el, ahora) : "";
+  return (
+    <article
+      className={`flex ${ancho} flex-col rounded-lg bg-marfil/10 p-4 ring-1 ring-inset transition ${
+        abierta ? "bg-marfil/15 ring-cobre" : nota.destacada ? "ring-cobre/70" : "ring-cobre/30"
+      }`}
+    >
+      <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-cobre">
+        {nota.destacada && <Star size={11} className="shrink-0 fill-current" aria-label="Destacada" />}
+        <span className="truncate">{kickerNota(nota)}</span>
+      </span>
+      <button
+        type="button"
+        onClick={onAbrir}
+        aria-expanded={abierta}
+        className="mt-1.5 line-clamp-2 text-left text-sm font-medium leading-snug text-marfil [overflow-wrap:anywhere] hover:underline"
+      >
+        {nota.titulo}
+      </button>
+      <p className="mt-1 line-clamp-2 text-xs leading-snug text-marfil/65 [overflow-wrap:anywhere]">{nota.resumen}</p>
+      <span className="mt-auto block pt-3">
+        <span className="flex items-center gap-2 text-xs text-marfil/55">
+          <span className="truncate">NODOS{fecha ? ` · ${fecha}` : ""}</span>
+          {consulta?.paso === "enviada" ? (
+            <span className="ml-auto inline-flex shrink-0 items-center gap-1 font-medium text-marfil/75">
+              <Check size={12} className="text-cobre" /> Enviada
+            </span>
+          ) : (
+            <button type="button" onClick={onConsultar} className="ml-auto inline-flex shrink-0 items-center gap-1 font-medium text-cobre transition hover:text-marfil">
+              <MessageCircle size={12} /> Consultar
+            </button>
+          )}
+        </span>
+        {afecta && (
+          <span className="mt-1 block truncate text-[11px] text-marfil/45" title={afecta}>
+            {afecta}
+          </span>
+        )}
+      </span>
+    </article>
+  );
+}
+
+/** Panel de la nota abierta, debajo de la tira: texto completo y la
+ * confirmación explícita antes de enviar una consulta. */
+function DetalleNota({
+  nota,
+  afecta,
   consulta,
   onConsulta,
   onEnviar,
+  onCerrar,
 }: {
   nota: NotaNodos;
-  afectadas: EmpresaCtx[];
-  total: number;
-  compacta: boolean;
-  ahora: number;
+  afecta: string | null;
   consulta: EstadoConsulta | undefined;
   onConsulta: (estado: EstadoConsulta | undefined) => void;
   onEnviar: () => void;
+  onCerrar?: () => void;
 }) {
-  const [abierta, setAbierta] = useState(false);
   const link = urlSegura(nota.link);
-  const organismo = nota.organismo ? temaPorId(nota.organismo) : undefined;
-  const fecha = nota.publicada_el && ahora ? tiempoRelativo(nota.publicada_el, ahora) : "";
-
   return (
-    <li className={`rounded-lg border p-3 sm:p-4 ${nota.destacada ? "border-cobre/50 bg-marfil/70" : "border-[var(--line)] bg-white"}`}>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
-        <span className="rounded-full bg-musgo px-2 py-0.5 font-semibold uppercase tracking-wider text-marfil">Nota NODOS</span>
-        {nota.destacada && (
-          <span className="inline-flex items-center gap-1 font-semibold text-cobre-hover">
-            <Star size={11} className="fill-current" aria-hidden="true" /> Destacada
-          </span>
-        )}
-        {organismo && <span className="font-semibold uppercase tracking-wider text-cobre-hover">{organismo.label}</span>}
-        {fecha && <span className="text-carbon/50">{fecha}</span>}
-      </div>
-      <h3 className="mt-1.5 font-display text-base font-semibold leading-snug text-musgo [overflow-wrap:anywhere]">{nota.titulo}</h3>
-      <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-carbon/75 [overflow-wrap:anywhere]">{nota.resumen}</p>
-      {nota.cuerpo && abierta && <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-carbon/75 [overflow-wrap:anywhere]">{nota.cuerpo}</p>}
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium">
-        {nota.cuerpo && (
-          <button type="button" className="text-cobre-hover hover:underline" onClick={() => setAbierta((v) => !v)} aria-expanded={abierta}>
-            {abierta ? "Ver menos" : "Leer más"}
+    <div role="region" aria-label="Nota NODOS" className="animate-fade-in mt-3 rounded-lg bg-marfil/10 p-4 ring-1 ring-inset ring-cobre/40 sm:p-5">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="flex min-w-0 items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-cobre">
+            {nota.destacada && <Star size={11} className="shrink-0 fill-current" aria-label="Destacada" />}
+            <span className="truncate">{kickerNota(nota)}</span>
+          </p>
+          <h3 className="mt-1 font-display text-base font-semibold leading-snug !text-marfil [overflow-wrap:anywhere]">{nota.titulo}</h3>
+        </div>
+        {onCerrar && (
+          <button type="button" onClick={onCerrar} aria-label="Cerrar nota" className="-m-1 shrink-0 rounded-full p-1.5 text-marfil/60 transition hover:bg-marfil/10 hover:text-marfil">
+            <X size={16} />
           </button>
         )}
-        {link && (
-          <a href={link} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="inline-flex items-center gap-1 text-cobre-hover hover:underline">
-            Ver fuente <ExternalLink size={11} aria-hidden="true" />
-          </a>
-        )}
       </div>
-      {!compacta && <Afectadas afectadas={afectadas} total={total} />}
+      <p className="mt-1.5 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-marfil/80 [overflow-wrap:anywhere]">{nota.resumen}</p>
+      {nota.cuerpo && <p className="mt-2 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-marfil/70 [overflow-wrap:anywhere]">{nota.cuerpo}</p>}
+      {(link || afecta) && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          {link && (
+            <a href={link} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="inline-flex items-center gap-1 font-medium text-cobre hover:text-marfil">
+              Ver fuente <ExternalLink size={11} aria-hidden="true" />
+            </a>
+          )}
+          {afecta && <span className="min-w-0 truncate text-marfil/50">{afecta}</span>}
+        </div>
+      )}
 
-      <div className="mt-3">
+      <div className="mt-4 border-t border-marfil/15 pt-4">
         {consulta?.paso === "enviada" ? (
-          <p className="inline-flex items-center gap-1.5 text-sm font-medium text-good" role="status">
-            <Check size={15} /> {consulta.repetida ? "Ya habíamos recibido tu consulta sobre esta nota." : "Listo. Te respondemos a tu email."}
+          <p className="inline-flex items-center gap-1.5 text-sm font-medium text-marfil" role="status">
+            <Check size={15} className="text-cobre" /> {consulta.repetida ? "Ya habíamos recibido tu consulta sobre esta nota." : "Listo. Te respondemos a tu email."}
           </p>
         ) : consulta && consulta.paso !== "error" ? (
-          <div role="region" aria-label="Confirmar consulta" className="animate-fade-in rounded-md border border-cobre/40 bg-white p-3 text-sm">
-            <p className="font-medium text-musgo">¿Enviamos tu consulta?</p>
-            <p className="mt-1 text-carbon/75">
-              Vamos a enviar tu nombre y email a NODOS para responderte. No enviamos datos de tus empresas.
-            </p>
-            <p className="mt-1 text-xs text-carbon/55 [overflow-wrap:anywhere]">Mensaje: “Consulta sobre la nota: {nota.titulo}”</p>
+          <div role="region" aria-label="Confirmar consulta" className="animate-fade-in text-sm">
+            <p className="font-medium text-marfil">¿Enviamos tu consulta?</p>
+            <p className="mt-1 text-marfil/75">Vamos a enviar tu nombre y email a NODOS para responderte. No enviamos datos de tus empresas.</p>
+            <p className="mt-1 text-xs text-marfil/55 [overflow-wrap:anywhere]">Mensaje: “Consulta sobre la nota: {nota.titulo}”</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" className="btn btn-primary" onClick={onEnviar} disabled={consulta.paso === "enviando"}>
+              <button type="button" className="btn bg-cobre-hover text-marfil hover:bg-cobre" onClick={onEnviar} disabled={consulta.paso === "enviando"}>
                 {consulta.paso === "enviando" ? "Enviando..." : "Sí, enviar consulta"}
               </button>
-              <button type="button" className="btn btn-ghost" onClick={() => onConsulta(undefined)} disabled={consulta.paso === "enviando"}>
+              <button
+                type="button"
+                className="btn border border-marfil/25 text-marfil/85 hover:border-marfil/50 hover:text-marfil"
+                onClick={() => onConsulta(undefined)}
+                disabled={consulta.paso === "enviando"}
+              >
                 Cancelar
               </button>
             </div>
           </div>
         ) : (
           <>
-            <button
-              type="button"
-              className="btn btn-ghost !py-1.5 text-sm"
-              onClick={() => onConsulta({ paso: "confirmando" })}
-            >
+            <button type="button" className="btn bg-cobre-hover !py-1.5 text-sm text-marfil hover:bg-cobre" onClick={() => onConsulta({ paso: "confirmando" })}>
               <MessageCircle size={14} /> Consultar sobre esto
             </button>
             {consulta?.paso === "error" && (
-              <p className="mt-2 text-xs text-bad" role="alert">
+              <p className="mt-2 text-xs font-medium text-[#f2b8ad]" role="alert">
                 {consulta.message}
               </p>
             )}
           </>
         )}
       </div>
-    </li>
+    </div>
   );
 }
 
 /** Vista previa de una nota para el Panel (sin envío de consultas). */
 export function NotaPreview({ nota }: { nota: NotaNodos }) {
+  const [consulta, setConsulta] = useState<EstadoConsulta | undefined>(undefined);
   return (
-    <ul>
-      <TarjetaNota nota={nota} afectadas={[]} total={0} compacta ahora={0} consulta={undefined} onConsulta={() => {}} onEnviar={() => {}} />
-    </ul>
+    <div className="rounded-2xl bg-musgo p-4 text-marfil">
+      <div className="flex">
+        <TarjetaNota nota={nota} ahora={0} afecta={null} consulta={undefined} abierta={false} onAbrir={() => {}} onConsultar={() => setConsulta({ paso: "confirmando" })} ancho="w-full max-w-xs" />
+      </div>
+      <DetalleNota nota={nota} afecta={null} consulta={consulta} onConsulta={setConsulta} onEnviar={() => setConsulta(undefined)} />
+    </div>
   );
 }
 
-function Cargando({ filas }: { filas: number }) {
+function Cargando() {
   return (
-    <ul aria-busy="true" aria-label="Cargando novedades" className="divide-y divide-[var(--line)]">
-      {Array.from({ length: filas }, (_, i) => (
-        <li key={i} className="py-3">
-          <div className="skeleton h-2.5 w-24 rounded" />
-          <div className="skeleton mt-2 h-3.5 w-full rounded" />
-          <div className="skeleton mt-1.5 h-3.5 w-3/5 rounded" />
-        </li>
+    <div className="no-scrollbar flex gap-3 overflow-hidden" aria-busy="true" aria-label="Cargando novedades">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="w-[78%] shrink-0 rounded-lg bg-marfil/10 p-4 sm:w-[calc(50%-6px)] lg:w-[calc(25%-9px)]">
+          <div className="h-2.5 w-12 animate-pulse rounded bg-marfil/15" />
+          <div className="mt-3 h-3 w-full animate-pulse rounded bg-marfil/15" />
+          <div className="mt-2 h-3 w-4/5 animate-pulse rounded bg-marfil/15" />
+          <div className="mt-4 h-2.5 w-24 animate-pulse rounded bg-marfil/10" />
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
 
 function Aviso({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-md bg-marfil/70 p-4 text-sm text-carbon/65">{children}</div>;
+  return <div className="rounded-lg bg-marfil/10 p-4 text-sm text-marfil/70">{children}</div>;
 }
+
+// ── Vista ────────────────────────────────────────────────────────────────
+
+const MAX_VISIBLES = 10;
+
+type ItemNovedad = { tipo: "novedad"; key: string; n: Novedad; afectadas: EmpresaCtx[]; ahora: number };
+type ItemNota = { tipo: "nota"; key: string; n: NotaNodos; afectadas: EmpresaCtx[] };
+type Item = ItemNovedad | ItemNota;
 
 /** Vista sin carga de datos (la usa el bloque y el banco de pruebas). */
 export function NovedadesVista({
@@ -290,7 +358,7 @@ export function NovedadesVista({
   rubro,
   notas,
   notasCargando = false,
-  compacta = false,
+  variant = "banda",
   onConsultar,
 }: {
   empresas: EmpresaCtx[];
@@ -298,36 +366,95 @@ export function NovedadesVista({
   rubro: FuenteNovedades;
   notas: NotaNodos[];
   notasCargando?: boolean;
-  compacta?: boolean;
+  variant?: VarianteNovedades;
   onConsultar: (nota: NotaNodos) => Promise<ResultadoConsulta>;
 }) {
-  const [pestana, setPestana] = useState<Pestana>("normativa");
-  const [filtro, setFiltro] = useState<string | null>(null);
-  const [verTodo, setVerTodo] = useState(false);
+  const compacta = variant === "compacta";
+  const [filtro, setFiltro] = useState<Filtro>("todas");
+  const [empresaFiltro, setEmpresaFiltro] = useState<string>("");
+  const [abierta, setAbierta] = useState<string | null>(null);
   const [consultas, setConsultas] = useState<Record<string, EstadoConsulta | undefined>>({});
+  const scroller = useRef<HTMLDivElement>(null);
 
   const total = empresas.length;
-  const filtroVigente = filtro && empresas.some((e) => e.id === filtro) ? filtro : null;
-  const enFiltro = (afectadas: EmpresaCtx[]) => !filtroVigente || afectadas.some((e) => e.id === filtroVigente);
+  const empresaVigente = !compacta && empresaFiltro && empresas.some((e) => e.id === empresaFiltro) ? empresaFiltro : null;
+  const enFiltro = (afectadas: EmpresaCtx[]) => !empresaVigente || afectadas.some((e) => e.id === empresaVigente);
+  const ahora = normativa.ahora || rubro.ahora;
 
   // Con empresas cargadas, solo titulares de temas que le aplican a alguna.
-  const conAfectadas = (f: FuenteNovedades) =>
+  const deFuente = (f: FuenteNovedades): ItemNovedad[] =>
     f.items
-      .map((n) => ({ n, afectadas: empresasAfectadas(n.tema, empresas) }))
+      .map((n) => ({ tipo: "novedad" as const, key: `n:${n.url}`, n, afectadas: empresasAfectadas(n.tema, empresas), ahora: f.ahora }))
       .filter((x) => (total === 0 || x.afectadas.length > 0) && enFiltro(x.afectadas));
-  const listaNormativa = conAfectadas(normativa);
-  const listaRubro = conAfectadas(rubro);
-  const listaNotas = notas
+  const itemsNormativa = deFuente(normativa);
+  const itemsRubro = deFuente(rubro);
+  const itemsNotas: ItemNota[] = notas
     .filter((n) => n.publicada && notaVisible(n, empresas))
-    .map((n) => ({ n, afectadas: empresasDeNota(n, empresas) }))
+    .map((n) => ({ tipo: "nota" as const, key: `nota:${n.id}`, n, afectadas: empresasDeNota(n, empresas) }))
     .filter((x) => enFiltro(x.afectadas))
     .sort((a, b) => Number(b.n.destacada) - Number(a.n.destacada) || (b.n.publicada_el ?? "").localeCompare(a.n.publicada_el ?? ""));
-  const destacadas = listaNotas.filter((x) => x.n.destacada).slice(0, compacta ? 1 : 2);
-  const sinRubro = empresas.length > 0 && empresas.every((e) => e.rubro === null);
+
+  const sinRubro = total > 0 && empresas.every((e) => e.rubro === null);
   const primeraSinRubro = empresas.find((e) => e.rubro === null || e.rubroEstimado);
 
-  const limite = verTodo ? Infinity : compacta ? 3 : 5;
-  const ahora = normativa.ahora || rubro.ahora;
+  // "Todas": notas destacadas primero, después los titulares (más nuevos
+  // arriba, sin repetidos) y al final el resto de las notas.
+  const titulares = (() => {
+    const vistos = new Set<string>();
+    return [...itemsNormativa, ...itemsRubro]
+      .filter((x) => (vistos.has(x.key) ? false : (vistos.add(x.key), true)))
+      .sort((a, b) => (b.n.fecha || "").localeCompare(a.n.fecha || ""));
+  })();
+  const itemsTodas: Item[] = [
+    ...itemsNotas.filter((x) => x.n.destacada),
+    ...titulares,
+    ...itemsNotas.filter((x) => !x.n.destacada),
+  ];
+
+  let estado: EstadoNovedades;
+  let lista: Item[];
+  let reintentar: (() => void) | undefined;
+  let vacio: React.ReactNode;
+  if (filtro === "normativa") {
+    ({ estado, reintentar } = normativa);
+    lista = itemsNormativa;
+    vacio = "No hay titulares recientes de los organismos que siguen tus empresas. Volvé a mirar más tarde.";
+  } else if (filtro === "rubro") {
+    ({ estado, reintentar } = rubro);
+    lista = itemsRubro;
+    vacio = "No hay titulares recientes de tu rubro. Volvé a mirar más tarde.";
+  } else if (filtro === "notas") {
+    estado = notasCargando ? "cargando" : "ok";
+    lista = itemsNotas;
+    vacio = "Todavía no hay notas del equipo NODOS para tus empresas.";
+  } else {
+    lista = itemsTodas;
+    const fuentes = sinRubro ? [normativa] : [normativa, rubro];
+    estado =
+      lista.length > 0
+        ? "ok"
+        : fuentes.some((f) => f.estado === "cargando") || notasCargando
+          ? "cargando"
+          : fuentes.every((f) => f.estado === "error")
+            ? "error"
+            : "ok";
+    reintentar = () => fuentes.forEach((f) => f.estado === "error" && f.reintentar?.());
+    vacio = "No hay novedades recientes para tus empresas. Volvé a mirar más tarde.";
+  }
+  const visibles = lista.slice(0, MAX_VISIBLES);
+  const algunaConError = filtro === "todas" && estado === "ok" && [normativa, ...(sinRubro ? [] : [rubro])].some((f) => f.estado === "error");
+
+  const notaAbierta = abierta ? itemsNotas.find((x) => x.n.id === abierta) : undefined;
+
+  function mover(dir: 1 | -1) {
+    const el = scroller.current;
+    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: "smooth" });
+  }
+
+  function elegir(f: Filtro) {
+    setFiltro(f);
+    scroller.current?.scrollTo({ left: 0 });
+  }
 
   async function enviar(nota: NotaNodos) {
     setConsultas((c) => ({ ...c, [nota.id]: { paso: "enviando" } }));
@@ -335,167 +462,158 @@ export function NovedadesVista({
     setConsultas((c) => ({ ...c, [nota.id]: r.ok ? { paso: "enviada", repetida: r.repetida } : { paso: "error", message: r.message } }));
   }
 
-  const tarjeta = ({ n, afectadas }: { n: NotaNodos; afectadas: EmpresaCtx[] }) => (
-    <TarjetaNota
-      key={n.id}
-      nota={n}
-      afectadas={afectadas}
-      total={total}
-      compacta={compacta}
-      ahora={ahora}
-      consulta={consultas[n.id]}
-      onConsulta={(estado) => setConsultas((c) => ({ ...c, [n.id]: estado }))}
-      onEnviar={() => enviar(n)}
-    />
-  );
-
-  function listaAutomatica(f: FuenteNovedades, lista: { n: Novedad; afectadas: EmpresaCtx[] }[], vacio: React.ReactNode) {
-    if (f.estado === "cargando") return <Cargando filas={compacta ? 2 : 3} />;
-    if (f.estado === "error")
-      return (
-        <Aviso>
-          No pudimos traer las novedades en este momento.{" "}
-          {f.reintentar && (
-            <button type="button" onClick={f.reintentar} className="inline-flex items-center gap-1 font-medium text-cobre-hover hover:underline">
-              <RotateCw size={13} /> Reintentar
-            </button>
-          )}
-        </Aviso>
-      );
-    if (lista.length === 0) return <Aviso>{vacio}</Aviso>;
-    return (
-      <>
-        <ul className="divide-y divide-[var(--line)]">
-          {lista.slice(0, limite).map(({ n, afectadas }) => (
-            <FilaNovedad key={n.url} n={n} ahora={f.ahora} afectadas={afectadas} total={total} compacta={compacta} />
-          ))}
-        </ul>
-        {lista.length > limite && (
-          <button type="button" className="mt-1 text-xs font-medium text-cobre-hover hover:underline" onClick={() => setVerTodo(true)}>
-            Ver {lista.length - limite} más
-          </button>
-        )}
-      </>
-    );
-  }
-
-  const cuenta = (f: FuenteNovedades, n: number) => (f.estado === "ok" ? n : null);
-  const pestanas: { id: Pestana; label: React.ReactNode; cantidad: number | null }[] = [
-    { id: "normativa", label: "Normativa", cantidad: cuenta(normativa, listaNormativa.length) },
-    { id: "rubro", label: "Tu rubro", cantidad: cuenta(rubro, listaRubro.length) },
-    {
-      id: "notas",
-      label: (
-        <>
-          Notas<span className="max-[400px]:hidden"> NODOS</span>
-        </>
-      ),
-      cantidad: notasCargando ? null : listaNotas.length,
-    },
+  const filtros: { id: Filtro; label: string }[] = [
+    { id: "todas", label: "Todas" },
+    { id: "normativa", label: "Normativa" },
+    { id: "rubro", label: "Tu rubro" },
+    { id: "notas", label: "Notas NODOS" },
   ];
 
-  return (
-    <section className={`card ${compacta ? "mt-6" : "mb-6"} !p-4 sm:!p-6`} aria-labelledby="novedades-titulo">
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
-        <div className="min-w-0">
-          <p className="t-caption flex items-center gap-1.5 uppercase tracking-[0.14em] text-cobre-hover">
-            <Newspaper size={13} aria-hidden="true" /> Novedades
-          </p>
-          <h2 id="novedades-titulo" className="mt-0.5">
-            {compacta ? "Novedades para esta empresa" : "Novedades para tus empresas"}
-          </h2>
+  const tira = (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <p className="t-caption flex items-center gap-1.5 uppercase tracking-[0.1em] text-marfil/60 sm:tracking-[0.14em]">
+          <Newspaper size={13} className="text-cobre" aria-hidden="true" /> {compacta ? "Novedades para esta empresa" : "Novedades para tus empresas"}
+        </p>
+        <div className="flex items-center gap-2">
+          {!compacta && total > 1 && (
+            <label className="relative inline-flex min-w-0 items-center">
+              <span className="sr-only">Filtrar por empresa</span>
+              <select
+                value={empresaVigente ?? ""}
+                onChange={(e) => {
+                  setEmpresaFiltro(e.target.value);
+                  scroller.current?.scrollTo({ left: 0 });
+                }}
+                className={`max-w-[13rem] cursor-pointer appearance-none truncate rounded-full border py-1 pl-3 pr-7 text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cobre ${
+                  empresaVigente ? "border-cobre bg-cobre text-marfil" : "border-marfil/20 bg-transparent text-marfil/75 hover:border-marfil/40 hover:text-marfil"
+                }`}
+              >
+                <option value="" className="bg-white text-carbon">
+                  Todas las empresas
+                </option>
+                {empresas.map((e) => (
+                  <option key={e.id} value={e.id} className="bg-white text-carbon">
+                    {e.nombre}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={13} className="pointer-events-none absolute right-2.5 text-marfil/70" aria-hidden="true" />
+            </label>
+          )}
+          {estado === "ok" && visibles.length > 1 && (
+            <div className="hidden gap-1 sm:flex">
+              <button type="button" aria-label="Anteriores" onClick={() => mover(-1)} className="rounded-full p-1.5 text-marfil/70 transition hover:bg-marfil/10 hover:text-marfil">
+                <ChevronLeft size={16} />
+              </button>
+              <button type="button" aria-label="Siguientes" onClick={() => mover(1)} className="rounded-full p-1.5 text-marfil/70 transition hover:bg-marfil/10 hover:text-marfil">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {pestana !== "notas" && destacadas.length > 0 && <ul className="mt-4 space-y-3">{destacadas.map(tarjeta)}</ul>}
+      <div className="no-scrollbar -mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Tipo de novedad">
+        {filtros.map((f) => (
+          <button key={f.id} type="button" className={chipClass(filtro === f.id)} aria-pressed={filtro === f.id} onClick={() => elegir(f.id)}>
+            {f.label}
+          </button>
+        ))}
+      </div>
 
-      <div className="mt-4 flex flex-col gap-3">
-        <div className="segmented max-sm:!w-full" role="tablist" aria-label="Tipo de novedad">
-          {pestanas.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              role="tab"
-              aria-selected={pestana === p.id}
-              className={`max-sm:flex-1 ${pestana === p.id ? "active" : ""}`}
-              onClick={() => {
-                setPestana(p.id);
-                setVerTodo(false);
-              }}
-            >
-              {p.label}
-              {p.cantidad !== null && <span className="ml-1 text-[11px] tabular-nums opacity-70">{p.cantidad}</span>}
-            </button>
-          ))}
-        </div>
-
-        {!compacta && empresas.length > 1 && (
-          <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [contain:inline-size]" role="group" aria-label="Filtrar por empresa">
-            <button type="button" className={pillClass(!filtroVigente)} aria-pressed={!filtroVigente} onClick={() => setFiltro(null)}>
-              Todas
-            </button>
-            {empresas.map((e) => (
-              <button
-                key={e.id}
-                type="button"
-                className={`${pillClass(filtroVigente === e.id)} max-w-[16rem] truncate`}
-                aria-pressed={filtroVigente === e.id}
-                onClick={() => setFiltro(filtroVigente === e.id ? null : e.id)}
-                title={e.nombre}
-              >
-                {e.nombre}
+      <div className="mt-3">
+        {filtro === "rubro" && sinRubro ? (
+          <Aviso>
+            Elegí el rubro de tu empresa para ver noticias de tu sector.{" "}
+            {primeraSinRubro && (
+              <Link href={`/empresas/${primeraSinRubro.id}?tab=datos`} className="font-medium text-marfil underline-offset-2 hover:underline">
+                Completar rubro
+              </Link>
+            )}
+          </Aviso>
+        ) : estado === "cargando" ? (
+          <Cargando />
+        ) : estado === "error" ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg bg-marfil/10 p-4 text-sm text-marfil/75">
+            No pudimos traer las novedades en este momento.
+            {reintentar && (
+              <button type="button" onClick={reintentar} className="inline-flex items-center gap-1 font-medium text-marfil underline-offset-2 hover:underline">
+                <RotateCw size={13} /> Reintentar
               </button>
-            ))}
+            )}
+          </div>
+        ) : visibles.length === 0 ? (
+          <Aviso>{vacio}</Aviso>
+        ) : (
+          <div ref={scroller} className="no-scrollbar relative -mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-1 pb-1">
+            {visibles.map((x) =>
+              x.tipo === "novedad" ? (
+                <TarjetaNovedad key={x.key} n={x.n} ahora={x.ahora} afecta={compacta ? null : textoAfecta(x.afectadas, total)} />
+              ) : (
+                <TarjetaNota
+                  key={x.key}
+                  nota={x.n}
+                  ahora={ahora}
+                  afecta={compacta ? null : textoAfecta(x.afectadas, total)}
+                  consulta={consultas[x.n.id]}
+                  abierta={abierta === x.n.id}
+                  onAbrir={() => setAbierta(abierta === x.n.id ? null : x.n.id)}
+                  onConsultar={() => {
+                    setAbierta(x.n.id);
+                    setConsultas((c) => ({ ...c, [x.n.id]: { paso: "confirmando" } }));
+                  }}
+                />
+              )
+            )}
           </div>
         )}
       </div>
 
-      <div className="mt-3" role="tabpanel">
-        {pestana === "normativa" &&
-          listaAutomatica(normativa, listaNormativa, "No hay titulares recientes de los organismos que siguen tus empresas. Volvé a mirar más tarde.")}
-        {pestana === "rubro" &&
-          (sinRubro ? (
-            <Aviso>
-              Elegí el rubro de tu empresa para ver noticias de tu sector.{" "}
-              {primeraSinRubro && (
-                <Link href={`/empresas/${primeraSinRubro.id}?tab=datos`} className="font-medium text-cobre-hover hover:underline">
-                  Completar rubro
-                </Link>
-              )}
-            </Aviso>
-          ) : (
-            <>
-              {listaAutomatica(rubro, listaRubro, "No hay titulares recientes de tu rubro. Volvé a mirar más tarde.")}
-              {primeraSinRubro && rubro.estado === "ok" && (
-                <p className="mt-2 text-[11px] text-carbon/50">
-                  {primeraSinRubro.rubroEstimado
-                    ? `Estimamos el rubro de ${primeraSinRubro.nombre} por su actividad o su nombre.`
-                    : `${primeraSinRubro.nombre} no tiene rubro cargado.`}{" "}
-                  <Link href={`/empresas/${primeraSinRubro.id}?tab=datos`} className="font-medium text-cobre-hover hover:underline">
-                    Elegilo vos
-                  </Link>
-                </p>
-              )}
-            </>
-          ))}
-        {pestana === "notas" &&
-          (notasCargando ? (
-            <Cargando filas={2} />
-          ) : listaNotas.length === 0 ? (
-            <Aviso>Todavía no hay notas del equipo NODOS para tus empresas.</Aviso>
-          ) : (
-            <>
-              <ul className="space-y-3">{listaNotas.slice(0, limite).map(tarjeta)}</ul>
-              {listaNotas.length > limite && (
-                <button type="button" className="mt-2 text-xs font-medium text-cobre-hover hover:underline" onClick={() => setVerTodo(true)}>
-                  Ver {listaNotas.length - limite} más
-                </button>
-              )}
-            </>
-          ))}
-      </div>
+      {filtro === "rubro" && !sinRubro && primeraSinRubro && rubro.estado === "ok" && (
+        <p className="mt-2 text-[11px] text-marfil/55">
+          {primeraSinRubro.rubroEstimado
+            ? `Estimamos el rubro de ${primeraSinRubro.nombre} por su actividad o su nombre.`
+            : `${primeraSinRubro.nombre} no tiene rubro cargado.`}{" "}
+          <Link href={`/empresas/${primeraSinRubro.id}?tab=datos`} className="font-medium text-marfil underline-offset-2 hover:underline">
+            Elegilo vos
+          </Link>
+        </p>
+      )}
+      {algunaConError && (
+        <p className="mt-2 flex flex-wrap items-center gap-x-2 text-[11px] text-marfil/55">
+          Algunas novedades no se pudieron cargar.
+          <button type="button" onClick={reintentar} className="inline-flex items-center gap-1 font-medium text-marfil underline-offset-2 hover:underline">
+            <RotateCw size={11} /> Reintentar
+          </button>
+        </p>
+      )}
 
-      <p className="mt-4 border-t border-[var(--line)] pt-3 text-[11px] leading-snug text-carbon/50">{DISCLAIMER_NOVEDADES}</p>
-    </section>
+      {notaAbierta && (
+        <DetalleNota
+          nota={notaAbierta.n}
+          afecta={compacta ? null : textoAfecta(notaAbierta.afectadas, total)}
+          consulta={consultas[notaAbierta.n.id]}
+          onConsulta={(e) => setConsultas((c) => ({ ...c, [notaAbierta.n.id]: e }))}
+          onEnviar={() => enviar(notaAbierta.n)}
+          onCerrar={() => setAbierta(null)}
+        />
+      )}
+
+      <p className="mt-3 text-[11px] leading-snug text-marfil/45">{DISCLAIMER_NOVEDADES}</p>
+    </>
+  );
+
+  if (compacta) {
+    return (
+      <section className="mt-6 rounded-2xl bg-musgo px-5 py-6 text-marfil sm:px-8" aria-label="Novedades para esta empresa">
+        {tira}
+      </section>
+    );
+  }
+  return (
+    <div className="mt-6 border-t border-marfil/15 pt-5" aria-label="Novedades para tus empresas" role="region">
+      {tira}
+    </div>
   );
 }
