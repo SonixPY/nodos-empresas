@@ -128,6 +128,9 @@ body {
 
   .input {
     width: 100%;
+    /* Un select con width:auto y una opción larga no puede empujar la
+       página más allá del ancho de la pantalla. */
+    max-width: 100%;
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     padding: 0.5rem 0.75rem;
@@ -240,6 +243,7 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.03em;
+    white-space: nowrap;
     color: var(--color-carbon);
     opacity: 0.6;
   }
@@ -612,4 +616,14 @@ body {
   .card-hover:hover {
     transform: none;
   }
+}
+
+/* Fila con scroll horizontal sin barra visible (tabs y links del header en
+   móvil). Sigue siendo scrolleable con el dedo, la rueda o el teclado. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

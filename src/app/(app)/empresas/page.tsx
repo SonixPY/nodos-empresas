@@ -72,15 +72,15 @@ function EmpresasContenido() {
             <tbody>
               {empresas.map((e) => (
                 <tr key={e.id} className="cursor-pointer" onClick={() => router.push(`/empresas/${e.id}`)}>
-                  <td className="font-medium">
+                  <td className="min-w-[12rem] font-medium">
                     <Link href={`/empresas/${e.id}`} className="hover:text-cobre-hover">
                       {e.denominacion}
                     </Link>
                   </td>
                   <td>{TIPO_CORTO[e.tipo]}</td>
-                  <td>{e.ruc ?? "—"}</td>
-                  <td>Fin de {MESES[(e.cierre_mes || 12) - 1]}</td>
-                  <td>{formatFecha(e.vencimiento_mandato)}</td>
+                  <td className="whitespace-nowrap">{e.ruc ?? "—"}</td>
+                  <td className="whitespace-nowrap">Fin de {MESES[(e.cierre_mes || 12) - 1]}</td>
+                  <td className="whitespace-nowrap">{formatFecha(e.vencimiento_mandato)}</td>
                 </tr>
               ))}
             </tbody>

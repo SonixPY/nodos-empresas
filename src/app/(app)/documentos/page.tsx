@@ -56,12 +56,12 @@ function DocumentosContenido() {
                 <tbody>
                   {documentos.data.map((d) => (
                     <tr key={d.id}>
-                      <td>
+                      <td className="min-w-[14rem]">
                         <Link href={`/documentos/${d.id}`} className="font-medium hover:text-cobre-hover">
                           {d.titulo}
                         </Link>
                       </td>
-                      <td>{nombres.get(d.empresa_id) ?? "—"}</td>
+                      <td className="min-w-[10rem]">{nombres.get(d.empresa_id) ?? "—"}</td>
                       <td className="whitespace-nowrap">{formatFecha(d.created_at)}</td>
                     </tr>
                   ))}

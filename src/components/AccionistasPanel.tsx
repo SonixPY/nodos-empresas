@@ -419,7 +419,7 @@ export default function AccionistasPanel({ empresa, onChanged }: { empresa: Empr
             <tbody>
               {filas.map((f) => (
                 <tr key={f.id} className={Number(f.acciones) === 0 ? "opacity-50" : ""}>
-                  <td className="font-medium">
+                  <td className="min-w-[11rem] font-medium">
                     {f.nombre}
                     {f.tipo_persona === "juridica" && <span className="ml-1 text-xs text-carbon/50">(P. jurídica)</span>}
                   </td>
@@ -427,7 +427,7 @@ export default function AccionistasPanel({ empresa, onChanged }: { empresa: Empr
                   <td className="text-right tabular-nums">{formatNumero(f.acciones)}</td>
                   <td className="text-right tabular-nums">{formatPct(f.pctCapital)}</td>
                   <td className="text-right tabular-nums">{formatPct(f.pctVotos)}</td>
-                  <td className="text-xs text-carbon/70">{[f.cargo, f.vinculo].filter(Boolean).join(" · ") || "—"}</td>
+                  <td className="min-w-[9rem] text-xs text-carbon/70">{[f.cargo, f.vinculo].filter(Boolean).join(" · ") || "—"}</td>
                   <td className="text-xs">
                     {f.posibleBF ? (
                       <span className="rounded-full px-2 py-0.5 font-medium text-cobre" style={{ background: "rgba(184,115,74,0.12)" }}>
@@ -491,11 +491,11 @@ export default function AccionistasPanel({ empresa, onChanged }: { empresa: Empr
                   <tr key={m.id}>
                     <td className="whitespace-nowrap">{formatFecha(m.fecha)}</td>
                     <td className="whitespace-nowrap">{MOVIMIENTO_LABELS[m.tipo]}</td>
-                    <td>{m.de_nombre ?? "—"}</td>
-                    <td>{m.a_nombre ?? "—"}</td>
+                    <td className="min-w-[10rem]">{m.de_nombre ?? "—"}</td>
+                    <td className="min-w-[10rem]">{m.a_nombre ?? "—"}</td>
                     <td className="text-right tabular-nums">{formatNumero(m.cantidad)}</td>
                     <td className="text-right tabular-nums">{m.precio_total ? formatPyg(m.precio_total) : "—"}</td>
-                    <td className="text-xs text-carbon/70">{m.notas ?? ""}</td>
+                    <td className="min-w-[10rem] text-xs text-carbon/70">{m.notas ?? ""}</td>
                   </tr>
                 ))}
               </tbody>

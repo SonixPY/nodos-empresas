@@ -189,9 +189,9 @@ export default function ResumenPage() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <section>
-              <div className="mb-2 flex items-baseline justify-between">
+              <div className="mb-2 flex items-baseline justify-between gap-3">
                 <h2>Próximos vencimientos</h2>
-                <Link href="/vencimientos" className="text-xs font-medium text-cobre-hover hover:underline">
+                <Link href="/vencimientos" className="shrink-0 whitespace-nowrap text-xs font-medium text-cobre-hover hover:underline">
                   Ver todos
                 </Link>
               </div>

@@ -71,11 +71,11 @@ function Datos({ empresa, onSaved, onDeleted }: { empresa: Empresa; onSaved: (e:
         ))}
       </dl>
       {empresa.notas && <p className="mt-4 whitespace-pre-line text-sm text-carbon/70">{empresa.notas}</p>}
-      <div className="mt-5 flex gap-2">
-        <button type="button" className="btn btn-ghost" onClick={() => setEditando(true)}>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button type="button" className="btn btn-ghost whitespace-nowrap" onClick={() => setEditando(true)}>
           <Pencil size={14} /> Editar
         </button>
-        <button type="button" className="btn btn-ghost text-bad" onClick={eliminar}>
+        <button type="button" className="btn btn-ghost whitespace-nowrap text-bad" onClick={eliminar}>
           <Trash2 size={14} /> Eliminar empresa
         </button>
       </div>
@@ -200,19 +200,27 @@ function FichaEmpresa() {
       ) : (
         <>
           <header className="mb-5 mt-2">
-            <h1>{empresa.denominacion}</h1>
+            <h1 className="max-sm:text-2xl max-sm:leading-tight [overflow-wrap:anywhere]">{empresa.denominacion}</h1>
             <p className="mt-1 text-sm text-carbon/60">
               {TIPO_LABELS[empresa.tipo]}
               {empresa.ruc ? ` · RUC ${empresa.ruc}` : ""}
             </p>
           </header>
-          <div className="mb-5 flex flex-wrap gap-1 border-b" style={{ borderColor: "var(--line)" }}>
+          {/* Una sola fila de pestañas; en celulares scrollea en horizontal en
+              vez de partirse en dos renglones. */}
+          <div
+            className="no-scrollbar mb-5 flex gap-1 overflow-x-auto border-b"
+            style={{ borderColor: "var(--line)" }}
+            role="tablist"
+          >
             {TABS.map((t) => (
               <button
                 key={t.key}
                 type="button"
+                role="tab"
+                aria-selected={tab === t.key}
                 onClick={() => setTab(t.key)}
-                className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition ${
+                className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition ${
                   tab === t.key ? "border-cobre text-musgo" : "border-transparent text-carbon/55 hover:text-carbon"
                 }`}
               >
