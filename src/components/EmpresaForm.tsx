@@ -4,6 +4,21 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { MESES } from "@/lib/dates";
 import { TIPO_LABELS, type Empresa, type NuevaEmpresa, type TipoSociedad } from "@/lib/types";
+import type { CamposSiaraEmpresa } from "@/lib/siara";
+
+/** Datos de la empresa + los que pide SIARA (columnas de la migración 007). */
+type FormEmpresa = NuevaEmpresa & Partial<Omit<CamposSiaraEmpresa, "siara_ultima_declaracion" | "siara_numero_solicitud">>;
+
+/** Campos de texto de la persona jurídica que pide SIARA. */
+const CAMPOS_SIARA: { k: keyof FormEmpresa; label: string; placeholder?: string; type?: string; wide?: boolean }[] = [
+  { k: "email_institucional", label: "Correo electrónico institucional", type: "email" },
+  { k: "pagina_web", label: "Página web", placeholder: "https://" },
+  { k: "departamento", label: "Departamento", placeholder: "Ej.: Central" },
+  { k: "barrio", label: "Barrio" },
+  { k: "domicilio_comercial", label: "Domicilio comercial (si difiere)", wide: true },
+  { k: "actividad_principal", label: "Actividad principal" },
+  { k: "inscripcion_registral", label: "Datos de inscripción registral", placeholder: "Registro Público de Comercio: matrícula, serie, folio…", wide: true },
+];
 
 const VACIA: NuevaEmpresa = {
   denominacion: "",
@@ -24,25 +39,30 @@ export default function EmpresaForm({
   empresa,
   onSaved,
   onCancel,
+  abrirSiara = false,
 }: {
   empresa?: Empresa;
+  /** Abre desplegados los datos registrales para SIARA. */
+  abrirSiara?: boolean;
   onSaved: (e: Empresa) => void;
   onCancel?: () => void;
 }) {
-  const [f, setF] = useState<NuevaEmpresa>(() => {
+  const [f, setF] = useState<FormEmpresa>(() => {
     if (!empresa) return VACIA;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id, user_id, created_at, ...rest } = empresa;
+    const { id, user_id, created_at, ...rest } = empresa as Empresa & Partial<CamposSiaraEmpresa>;
     return rest;
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function set<K extends keyof NuevaEmpresa>(k: K, val: NuevaEmpresa[K]) {
+  const [verSiara, setVerSiara] = useState(abrirSiara);
+
+  function set<K extends keyof FormEmpresa>(k: K, val: FormEmpresa[K]) {
     setF((prev) => ({ ...prev, [k]: val }));
   }
 
-  const txt = (k: keyof NuevaEmpresa) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  const txt = (k: keyof FormEmpresa) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     set(k, (e.target.value.trim() === "" ? null : e.target.value) as never);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -143,6 +163,51 @@ export default function EmpresaForm({
               Tiene síndico designado
             </label>
           </div>
+        )}
+        <div className="sm:col-span-2 lg:col-span-3">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left text-sm font-medium text-musgo"
+            style={{ borderColor: "var(--line)", background: "rgba(242,238,230,0.6)" }}
+            onClick={() => setVerSiara((v) => !v)}
+            aria-expanded={verSiara}
+          >
+            <span>
+              Datos registrales para SIARA
+              <span className="block text-xs font-normal text-carbon/55">Correo institucional, departamento, barrio, inscripción, valor nominal…</span>
+            </span>
+            <span className="text-xs text-carbon/50">{verSiara ? "Ocultar" : "Completar"}</span>
+          </button>
+        </div>
+        {verSiara && (
+          <>
+            {CAMPOS_SIARA.map((c) => (
+              <div key={c.k} className={c.wide ? "sm:col-span-2" : ""}>
+                <label className="field-label">{c.label}</label>
+                <input
+                  className="input"
+                  type={c.type ?? "text"}
+                  value={(f[c.k] as string | null | undefined) ?? ""}
+                  onChange={txt(c.k)}
+                  placeholder={c.placeholder}
+                />
+              </div>
+            ))}
+            <div>
+              <label className="field-label">Fecha de inscripción</label>
+              <input type="date" className="input" value={f.fecha_inscripcion ?? ""} onChange={txt("fecha_inscripcion")} />
+            </div>
+            <div>
+              <label className="field-label">Valor nominal por {f.tipo === "srl" ? "cuota" : "acción"} (Gs.)</label>
+              <input
+                type="number"
+                min="0"
+                className="input"
+                value={f.valor_nominal_accion ?? ""}
+                onChange={(e) => set("valor_nominal_accion", e.target.value === "" ? null : Number(e.target.value))}
+              />
+            </div>
+          </>
         )}
         <div className="sm:col-span-2 lg:col-span-3">
           <label className="field-label">Notas internas</label>

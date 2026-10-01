@@ -15,10 +15,14 @@ la empresa en un solo lugar. Parte de la marca **Nodos**.
 - **Vencimientos**: calendario anual automático según el tipo de sociedad y el
   mes de cierre (asamblea, edicto, comunicación a la DGPEJBF, actualización de
   beneficiarios finales al 30 de junio, etc.) + tareas propias.
-- **Documentos**: generador con las plantillas de Nodos Empresas (actas de
-  Directorio y Asamblea, edicto, registro de asistencia, carta poder, EAS,
-  contratación de familiares). Datos precargados desde la empresa y el libro
-  de accionistas, vista previa en vivo, descarga en Word y PDF, historial.
+- **Documentos** (pestañas Generar · Guardados · Poderes · Archivo):
+  generador con las plantillas de Nodos Empresas, numeradas por grupo
+  (SOC-xx sociedad y asambleas, POD-xx poderes, FAM-xx familiares, SEP-xx
+  SEPRELAD). Datos precargados desde la empresa y el libro de accionistas,
+  vista previa en vivo e impresión / PDF con marca de agua (no hay descarga
+  editable en Word, a propósito). Registro de poderes por empresa (con su
+  vencimiento en la agenda) y archivo privado de documentos reales con nombre
+  uniforme "EMPRESA - DOCUMENTO (FECHA)".
 - **Admin**: listado y baja de cuentas (solo administradores).
 
 Todo documento lleva el aviso de que es material informativo y no reemplaza
@@ -40,8 +44,9 @@ administrador, acceso por app, suspensión, email y recuperación de clave.
 ## Puesta en marcha
 
 1. En el SQL Editor del proyecto Supabase compartido, correr en orden:
-   `000_cuentas_nodos.sql` → `001_schema.sql` → `002_seprelad.sql`
-   (todos idempotentes). Finanzas además corre su `021_nodos_v18.sql`.
+   `000_cuentas_nodos.sql` → `001_schema.sql` → `002_seprelad.sql` → … →
+   `005_equipo.sql` → `006_documentos.sql` (todos idempotentes; el 006 crea
+   además el bucket privado `archivo` de Storage). Finanzas además corre su `021_nodos_v18.sql`.
 2. Variables de entorno (Vercel y `.env.local`): `NEXT_PUBLIC_SUPABASE_URL`,
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (o los
    nombres de la integración Supabase–Vercel) y, opcional,
@@ -68,7 +73,9 @@ administrador, acceso por app, suspensión, email y recuperación de clave.
 ### Agregar una plantilla
 
 En `src/lib/plantillas.ts`, definí un objeto `Plantilla` (campos + `render`) y
-sumalo a `PLANTILLAS`. Para que aparezca como acceso directo desde un
+sumalo a `PLANTILLAS`. Su `key` no se cambia nunca (queda guardada en los
+documentos); el código visible (`numero`) es el prefijo del grupo + el
+siguiente correlativo (p. ej. `POD-06`). Para que aparezca como acceso directo desde un
 vencimiento, poné su `key` en la propiedad `plantilla` de la regla en
 `calendario.ts`.
 

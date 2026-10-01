@@ -11,21 +11,39 @@ import { formatPyg } from "@/lib/format";
 import { useToast } from "@/components/ToastProvider";
 import EmpresaForm from "@/components/EmpresaForm";
 import AccionistasPanel from "@/components/AccionistasPanel";
+import SiaraPanel from "@/components/SiaraPanel";
+import PoderesPanel from "@/components/PoderesPanel";
+import ArchivoPanel from "@/components/ArchivoPanel";
 import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista";
 import ObligacionForm from "@/components/ObligacionForm";
 import { SkeletonBlock } from "@/components/Skeleton";
 import { TIPO_LABELS, type Empresa } from "@/lib/types";
+import type { EmpresaSiara } from "@/lib/siara";
 
 const TABS = [
-  { key: "accionistas", label: "Libro de accionistas" },
-  { key: "vencimientos", label: "Vencimientos" },
-  { key: "documentos", label: "Documentos" },
   { key: "datos", label: "Datos" },
+  { key: "accionistas", label: "Accionistas" },
+  { key: "siara", label: "SIARA" },
+  { key: "poderes", label: "Poderes" },
+  { key: "archivo", label: "Archivo" },
+  { key: "documentos", label: "Documentos" },
+  { key: "vencimientos", label: "Vencimientos" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
-function Datos({ empresa, onSaved, onDeleted }: { empresa: Empresa; onSaved: (e: Empresa) => void; onDeleted: () => void }) {
-  const [editando, setEditando] = useState(false);
+function Datos({
+  empresa,
+  onSaved,
+  onDeleted,
+  editarInicial = false,
+}: {
+  empresa: Empresa;
+  onSaved: (e: Empresa) => void;
+  onDeleted: () => void;
+  /** Abre directo el formulario con los datos registrales de SIARA (desde la pestaña SIARA). */
+  editarInicial?: boolean;
+}) {
+  const [editando, setEditando] = useState(editarInicial);
   const { showToast } = useToast();
 
   async function eliminar() {
@@ -45,6 +63,7 @@ function Datos({ empresa, onSaved, onDeleted }: { empresa: Empresa; onSaved: (e:
           onSaved(e);
         }}
         onCancel={() => setEditando(false)}
+        abrirSiara={editarInicial}
       />
     );
   }
@@ -59,6 +78,17 @@ function Datos({ empresa, onSaved, onDeleted }: { empresa: Empresa; onSaved: (e:
     ["Capital integrado", empresa.capital_integrado ? formatPyg(empresa.capital_integrado) : "—"],
   ];
   if (empresa.tipo === "sa") filas.push(["Síndico", empresa.tiene_sindico ? "Sí" : "No"]);
+  // Datos registrales para SIARA (migración 007), si están cargados.
+  const s = empresa as EmpresaSiara;
+  const extra: [string, string | null | undefined][] = [
+    ["Correo institucional", s.email_institucional],
+    ["Departamento / barrio", [s.departamento, s.barrio].filter(Boolean).join(" · ")],
+    ["Domicilio comercial", s.domicilio_comercial],
+    ["Actividad principal", s.actividad_principal],
+    ["Inscripción registral", [s.inscripcion_registral, s.fecha_inscripcion ? formatFecha(s.fecha_inscripcion) : null].filter(Boolean).join(" · ")],
+    ["Valor nominal", s.valor_nominal_accion ? formatPyg(s.valor_nominal_accion) : null],
+  ];
+  for (const [k, v] of extra) if (v) filas.push([k, v]);
 
   return (
     <div className="card">
@@ -186,7 +216,13 @@ function FichaEmpresa() {
   const router = useRouter();
   const { data: empresa, setData, loading, error } = useEmpresa(id);
   const tabParam = params.get("tab") as Tab | null;
-  const [tab, setTab] = useState<Tab>(TABS.some((t) => t.key === tabParam) ? (tabParam as Tab) : "accionistas");
+  const [tab, setTab] = useState<Tab>(TABS.some((t) => t.key === tabParam) ? (tabParam as Tab) : "datos");
+  const [editarDatos, setEditarDatos] = useState(false);
+
+  function irA(t: Tab) {
+    setEditarDatos(false);
+    setTab(t);
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -219,7 +255,7 @@ function FichaEmpresa() {
                 type="button"
                 role="tab"
                 aria-selected={tab === t.key}
-                onClick={() => setTab(t.key)}
+                onClick={() => irA(t.key)}
                 className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition ${
                   tab === t.key ? "border-cobre text-musgo" : "border-transparent text-carbon/55 hover:text-carbon"
                 }`}
@@ -229,10 +265,33 @@ function FichaEmpresa() {
             ))}
           </div>
           <div key={tab} className="animate-fade-in">
+            {tab === "datos" && (
+              <Datos
+                empresa={empresa}
+                editarInicial={editarDatos}
+                onSaved={(e) => {
+                  setData(e);
+                  if (editarDatos) irA("siara");
+                }}
+                onDeleted={() => router.push("/empresas")}
+              />
+            )}
             {tab === "accionistas" && <AccionistasPanel empresa={empresa} />}
-            {tab === "vencimientos" && <Vencimientos empresa={empresa} />}
+            {tab === "siara" && (
+              <SiaraPanel
+                empresaId={id}
+                empresa={empresa as EmpresaSiara}
+                onEmpresaChange={(e) => setData(e)}
+                onEditarEmpresa={() => {
+                  setEditarDatos(true);
+                  setTab("datos");
+                }}
+              />
+            )}
+            {tab === "poderes" && <PoderesPanel empresaId={id} empresas={[empresa]} />}
+            {tab === "archivo" && <ArchivoPanel empresaId={id} empresas={[empresa]} />}
             {tab === "documentos" && <Documentos empresa={empresa} />}
-            {tab === "datos" && <Datos empresa={empresa} onSaved={(e) => setData(e)} onDeleted={() => router.push("/empresas")} />}
+            {tab === "vencimientos" && <Vencimientos empresa={empresa} />}
           </div>
         </>
       )}

@@ -1,7 +1,8 @@
-import { formatFecha } from "@/lib/dates";
+import { formatFecha, formatFechaLarga } from "@/lib/dates";
 import { fechaEnLetrasActa, horaTexto, montoGs, numeroALetras } from "@/lib/letras";
 import { formatNumero, formatPct, type FilaAccionista } from "@/lib/accionistas";
 import type { Empresa, TipoSociedad } from "@/lib/types";
+import type { PoderPrefill } from "@/lib/poderes";
 
 /**
  * Plantillas del generador de documentos. Son las versiones "llenables" de
@@ -33,17 +34,29 @@ export interface Campo {
   optionsFromAccionistas?: boolean;
 }
 
+export type GrupoPlantilla = "societario" | "poderes" | "familia" | "seprelad";
+
 export interface Plantilla {
+  /** Identificador estable: se guarda en `documentos.plantilla` y en
+   * `obligaciones.plantilla`. NUNCA cambiarlo (los documentos viejos dejarían
+   * de encontrar su plantilla). */
   key: string;
+  /** Código visible: prefijo del grupo + correlativo (SOC-01, POD-02…). */
   numero: string;
   titulo: string;
   descripcion: string;
   tipos: TipoSociedad[];
-  /** Sección del selector; si falta se deduce del número. */
-  grupo?: "societario" | "familia" | "seprelad";
+  /** Sección del selector; define el prefijo del código. */
+  grupo: GrupoPlantilla;
   campos: Campo[];
   tituloDoc: (d: Datos, ctx: Contexto) => string;
   render: (d: Datos, ctx: Contexto) => string;
+  /** Advertencia que el generador muestra arriba de la vista previa. */
+  aviso?: string;
+  /** Si el documento otorga un poder: datos para precargar el registro de poderes. */
+  registroPoder?: (d: Datos, ctx: Contexto) => PoderPrefill;
+  /** Si el documento revoca un poder: a quién y desde cuándo. */
+  revocacionPoder?: (d: Datos, ctx: Contexto) => { apoderado: string; documento: string; fecha: string };
 }
 
 export const AVISO_LEGAL =
@@ -85,8 +98,11 @@ function firmas(items: { nombre: string; cargo: string }[]): string {
   return `<div class="firmas">${items.map((i) => firma(i.nombre, i.cargo)).join("")}</div>`;
 }
 
-function encabezado(numero: string, titulo: string): string {
-  return `<p class="meta">NODOS Empresas · Plantilla ${numero}</p><h1>${esc(titulo)}</h1>`;
+/** Marcador que renderDocumento reemplaza por el código de la plantilla (p. ej. SOC-01). */
+const CODIGO = "%%CODIGO%%";
+
+function encabezado(titulo: string): string {
+  return `<p class="meta">NODOS Empresas · Plantilla ${CODIGO}</p><h1>${esc(titulo)}</h1>`;
 }
 
 function fechaActa(d: Datos, key = "fecha"): string {
@@ -197,7 +213,8 @@ const CAMPOS_ORDEN: Campo[] = [
 
 const actaDirectorioConvocatoria: Plantilla = {
   key: "acta-directorio-convocatoria",
-  numero: "01",
+  numero: "SOC-01",
+  grupo: "societario",
   titulo: "Acta de Directorio que convoca a Asamblea General Ordinaria",
   descripcion: "Aprueba memoria y balance, propone el destino de utilidades y convoca a los accionistas.",
   tipos: ["sa"],
@@ -219,7 +236,7 @@ const actaDirectorioConvocatoria: Plantilla = {
       ? ` y, de no reunirse el quórum legal, a las ${horaTexto(str(d, "hora_segunda"))} en segunda convocatoria`
       : "";
     return `
-${encabezado("01", "Acta de Directorio")}
+${encabezado("Acta de Directorio")}
 <p class="center"><strong>ACTA DE DIRECTORIO N° ${v(d, "numero_acta", "__")}</strong></p>
 <p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, siendo las ${horaTexto(str(d, "hora"))}, se reúnen en la sede social de ${denom(ctx)} (en adelante, "la Sociedad"), sita en ${domicilio(ctx)}, los miembros del Directorio que firman al pie${presentes.length ? `: ${presentes.map(esc).join(", ")}` : ""}.${str(d, "sindico") ? ` Se encuentra presente el Síndico Titular, ${esc(str(d, "sindico"))}.` : ""} Habiendo quórum suficiente conforme a los estatutos sociales, el Presidente declara abierta la sesión y pone a consideración el siguiente orden del día:</p>
 <p><strong>1. Consideración de la Memoria del Directorio, el Balance General, el Estado de Resultados y demás documentación del ejercicio cerrado el ${str(d, "cierre") ? formatFecha(str(d, "cierre")) : "[FECHA DE CIERRE]"}.</strong></p>
@@ -243,7 +260,8 @@ ${firmas([
 
 const edicto: Plantilla = {
   key: "edicto-convocatoria",
-  numero: "02",
+  numero: "SOC-02",
+  grupo: "societario",
   titulo: "Edicto de convocatoria a Asamblea General Ordinaria",
   descripcion: "El aviso a publicar 5 días en un diario, con 10 a 30 días de anticipación.",
   tipos: ["sa"],
@@ -259,7 +277,7 @@ const edicto: Plantilla = {
     const fecha = str(d, "fecha_asamblea");
     const segunda = str(d, "hora_segunda") ? ` y a las ${horaTexto(str(d, "hora_segunda"))} en segunda convocatoria` : "";
     return `
-${encabezado("02", "Edicto de convocatoria")}
+${encabezado("Edicto de convocatoria")}
 <div class="edicto">
 <p class="center"><strong>${esc(ctx.empresa.denominacion.toUpperCase())}</strong><br/><strong>CONVOCATORIA A ASAMBLEA GENERAL ORDINARIA</strong></p>
 <p>El Directorio de ${esc(ctx.empresa.denominacion)} convoca a los señores accionistas a Asamblea General Ordinaria a celebrarse el día ${fecha ? formatFecha(fecha) : '<span class="ph">[FECHA]</span>'}, a las ${horaTexto(str(d, "hora_asamblea"))} en primera convocatoria${segunda}, en la sede social sita en ${domicilio(ctx)}${ctx.empresa.ciudad ? `, ${esc(ctx.empresa.ciudad)}` : ""}, a fin de tratar el siguiente:</p>
@@ -280,7 +298,8 @@ function addDaysSafe(iso: string, n: number): string {
 
 const registroAsistencia: Plantilla = {
   key: "registro-asistencia",
-  numero: "03",
+  numero: "SOC-03",
+  grupo: "societario",
   titulo: "Registro de asistencia a Asamblea",
   descripcion: "Se arma solo con tu libro de accionistas: acciones, votos y porcentaje de cada uno.",
   tipos: ["sa", "eas"],
@@ -314,7 +333,7 @@ const registroAsistencia: Plantilla = {
       )
       .join("");
     return `
-${encabezado("03", "Registro de asistencia")}
+${encabezado("Registro de asistencia")}
 <p class="center"><strong>${esc(ctx.empresa.denominacion.toUpperCase())}</strong><br/>REGISTRO DE ASISTENCIA<br/>Asamblea General ${esc(str(d, "caracter") || "Ordinaria")} del ${str(d, "fecha_asamblea") ? formatFecha(str(d, "fecha_asamblea")) : '<span class="ph">[FECHA]</span>'}</p>
 <table class="tabla">
 <thead><tr><th>N°</th><th>Accionista</th><th>C.I. / RUC</th><th>Acciones</th><th>Votos</th><th>% capital</th><th>Representado por</th><th>Firma</th></tr></thead>
@@ -329,7 +348,8 @@ ${firmas([{ nombre: str(d, "presidente") ? esc(str(d, "presidente")) : "&nbsp;",
 
 const actaAsamblea: Plantilla = {
   key: "acta-asamblea-ordinaria",
-  numero: "04",
+  numero: "SOC-04",
+  grupo: "societario",
   titulo: "Acta de Asamblea General Ordinaria anual",
   descripcion: "Aprobación del balance, destino de utilidades, gestión y elección de autoridades.",
   tipos: ["sa"],
@@ -386,7 +406,7 @@ const actaAsamblea: Plantilla = {
     }
     n++;
     return `
-${encabezado("04", "Acta de Asamblea General Ordinaria")}
+${encabezado("Acta de Asamblea General Ordinaria")}
 <p class="center"><strong>ACTA DE ASAMBLEA GENERAL ORDINARIA N° ${v(d, "numero_acta", "__")}</strong></p>
 <p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, siendo las ${horaTexto(str(d, "hora"))}, se reúnen en la sede social de ${denom(ctx)} (en adelante, "la Sociedad"), sita en ${domicilio(ctx)}, los accionistas que figuran en el Registro de Asistencia, titulares de ${formatNumero(acciones)} acciones, equivalentes al ${formatPct(pct)} del capital integrado con derecho a voto.${str(d, "sindico") ? ` Se encuentra presente el Síndico Titular, ${esc(str(d, "sindico"))}.` : ""}</p>
 <p>Preside la Asamblea ${v(d, "presidente", "PRESIDENTE")} y actúa como Secretario ${v(d, "secretario", "SECRETARIO")}. El Presidente deja constancia de que la Asamblea fue convocada conforme a la ley y los estatutos sociales mediante publicaciones en el diario ${v(d, "diario", "DIARIO")} los días ${v(d, "fechas_publicacion", "FECHAS")}, y que existe quórum suficiente para sesionar en ${str(d, "convocatoria") === "segunda" ? "segunda" : "primera"} convocatoria. Acto seguido, se pasa a considerar el orden del día:</p>
@@ -414,7 +434,8 @@ ${firmas([
 
 const actaCargos: Plantilla = {
   key: "acta-distribucion-cargos",
-  numero: "05",
+  numero: "SOC-05",
+  grupo: "societario",
   titulo: "Acta de Directorio: distribución y aceptación de cargos",
   descripcion: "Define quién ocupa cada cargo y quién usa la firma social después de una elección.",
   tipos: ["sa"],
@@ -430,7 +451,7 @@ const actaCargos: Plantilla = {
   render: (d, ctx) => {
     const aut = parseAutoridades(d, "autoridades");
     return `
-${encabezado("05", "Distribución y aceptación de cargos")}
+${encabezado("Distribución y aceptación de cargos")}
 <p class="center"><strong>ACTA DE DIRECTORIO N° ${v(d, "numero_acta", "__")}</strong></p>
 <p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, siendo las ${horaTexto(str(d, "hora"))}, se reúnen en la sede social de ${denom(ctx)}, sita en ${domicilio(ctx)}, los miembros del Directorio electos por la Asamblea General Ordinaria de fecha ${str(d, "fecha_asamblea") ? formatFecha(str(d, "fecha_asamblea")) : '<span class="ph">[FECHA]</span>'}.${str(d, "sindico") ? ` Se encuentra presente el Síndico Titular, ${esc(str(d, "sindico"))}.` : ""} Habiendo quórum suficiente, se considera el siguiente orden del día:</p>
 <p><strong>1. Aceptación de cargos.</strong> Los directores electos manifiestan su aceptación de los cargos y declaran no estar comprendidos en ninguna de las prohibiciones o incompatibilidades legales para ejercerlos.</p>
@@ -447,7 +468,8 @@ ${firmas([...aut.map((a) => ({ nombre: esc(a.nombre) || "&nbsp;", cargo: a.cargo
 
 const actaPoderes: Plantilla = {
   key: "acta-poderes",
-  numero: "06",
+  numero: "POD-01",
+  grupo: "poderes",
   titulo: "Acta de Directorio: otorgamiento y revocación de poderes",
   descripcion: "Autoriza a una persona a actuar por la empresa y deja sin efecto poderes anteriores.",
   tipos: ["sa"],
@@ -495,19 +517,30 @@ const actaPoderes: Plantilla = {
     partes.push(`<p><strong>${n}. Formalización.</strong> Se autoriza al Presidente a comparecer ante escribano público para otorgar la escritura de poder en los términos aquí aprobados y a gestionar su inscripción en la Dirección General de los Registros Públicos cuando corresponda.</p>`);
     const fs = lines(d, "firmantes");
     return `
-${encabezado("06", "Otorgamiento y revocación de poderes")}
+${encabezado("Otorgamiento y revocación de poderes")}
 <p class="center"><strong>ACTA DE DIRECTORIO N° ${v(d, "numero_acta", "__")}</strong></p>
 <p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, siendo las ${horaTexto(str(d, "hora"))}, se reúnen en la sede social de ${denom(ctx)}, sita en ${domicilio(ctx)}, los miembros del Directorio que firman al pie. Habiendo quórum suficiente conforme a los estatutos sociales, se pasa a considerar el siguiente orden del día:</p>
 ${partes.join("\n")}
 <p>No habiendo más asuntos que tratar, se levanta la sesión, previa lectura y ratificación de la presente acta.</p>
 ${firmas((fs.length ? fs : ["", ""]).map((f, i) => ({ nombre: f ? esc(f) : "&nbsp;", cargo: i === 0 ? "Presidente" : "Director" })))}
-<p class="nota">Buena práctica: poderes especiales con límites de monto y firma conjunta para actos de alto impacto. Llevá un registro de poderes vigentes.</p>`;
+<p class="nota">Buena práctica: poderes especiales con límites de monto y firma conjunta para actos de alto impacto. Cuando se firme la escritura, registrá el poder en Documentos → Poderes para controlar su vigencia.</p>`;
   },
+  registroPoder: (d) => ({
+    apoderado: str(d, "apoderado"),
+    apoderado_documento: str(d, "apoderado_ci") || null,
+    tipo: str(d, "clase").startsWith("general") ? "general" : "especial",
+    facultades: lines(d, "facultades").join("\n") || null,
+    fecha_otorgamiento: str(d, "fecha"),
+    instrumento: "Escritura pública N° __ (aprobada por acta de Directorio)",
+    duracion_texto: str(d, "vigencia") || null,
+    notas: `Otorgamiento aprobado por acta de Directorio${str(d, "numero_acta") ? ` N° ${str(d, "numero_acta")}` : ""}${str(d, "fecha") ? ` del ${formatFecha(str(d, "fecha"))}` : ""}. Completá los datos de la escritura cuando se firme.`,
+  }),
 };
 
 const cartaPoder: Plantilla = {
   key: "carta-poder",
-  numero: "07",
+  numero: "SOC-06",
+  grupo: "societario",
   titulo: "Carta poder para representación en Asamblea",
   descripcion: "Para el accionista que no puede asistir y se hace representar.",
   tipos: ["sa", "eas"],
@@ -542,7 +575,7 @@ const cartaPoder: Plantilla = {
     const acciones = a ? formatNumero(a.acciones) : "[__]";
     const instr = str(d, "instrucciones");
     return `
-${encabezado("07", "Carta poder")}
+${encabezado("Carta poder")}
 <p class="right">${ciudad(d, ctx)}, ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : '<span class="ph">[FECHA]</span>'}</p>
 <p>Señores<br/>${denom(ctx)}<br/>Presente</p>
 <p><strong>Ref.: Carta poder – Asamblea General ${esc(str(d, "caracter") || "Ordinaria")} del ${str(d, "fecha_asamblea") ? formatFecha(str(d, "fecha_asamblea")) : '<span class="ph">[FECHA]</span>'}</strong></p>
@@ -556,7 +589,8 @@ ${firmas([{ nombre, cargo: a?.documento ? `${a.tipo_persona === "juridica" ? "RU
 
 const actaEas: Plantilla = {
   key: "acta-asamblea-eas",
-  numero: "08",
+  numero: "SOC-07",
+  grupo: "societario",
   titulo: "Acta de Asamblea de Accionistas de EAS — aprobación anual",
   descripcion: "Estados financieros, destino de utilidades, gestión y designación del órgano de administración.",
   tipos: ["eas"],
@@ -593,7 +627,7 @@ const actaEas: Plantilla = {
       : "La reunión fue convocada conforme a los estatutos sociales.";
     const aut = parseAutoridades(d, "administradores");
     return `
-${encabezado("08", "Acta de Asamblea de Accionistas (EAS)")}
+${encabezado("Acta de Asamblea de Accionistas (EAS)")}
 <p class="center"><strong>ACTA DE ASAMBLEA DE ACCIONISTAS N° ${v(d, "numero_acta", "__")}</strong></p>
 <p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, siendo las ${horaTexto(str(d, "hora"))}, se reúnen ${lugar}, los accionistas de ${denom(ctx)} titulares del ${formatPct(Number(str(d, "pct_presente") || "0"))} del capital con derecho a voto, según consta en el registro de asistencia. ${conv}</p>
 <p>Preside la reunión ${v(d, "presidente", "PRESIDENTE")} y actúa como secretario ${v(d, "secretario", "SECRETARIO")}. Verificado el quórum estatutario, se considera el siguiente orden del día:</p>
@@ -613,7 +647,8 @@ ${firmas([
 
 const actaUnico: Plantilla = {
   key: "acta-accionista-unico",
-  numero: "09",
+  numero: "SOC-08",
+  grupo: "societario",
   titulo: "Acta de decisiones del Accionista Único de EAS",
   descripcion: "Para la EAS de una sola persona: sus decisiones anuales también se documentan.",
   tipos: ["eas"],
@@ -630,7 +665,7 @@ const actaUnico: Plantilla = {
   ],
   tituloDoc: (d) => `Decisiones del accionista único ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : ""}`.trim(),
   render: (d, ctx) => `
-${encabezado("09", "Decisiones del Accionista Único")}
+${encabezado("Decisiones del Accionista Único")}
 <p class="center"><strong>ACTA DE DECISIONES DEL ACCIONISTA ÚNICO N° ${v(d, "numero_acta", "__")}</strong></p>
 <p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, ${v(d, "accionista", "NOMBRE")}${str(d, "accionista_ci") ? `, con C.I. N° ${esc(str(d, "accionista_ci"))}` : ""}, en su carácter de titular del cien por ciento (100%) de las acciones de ${denom(ctx)}${ctx.empresa.ruc ? `, RUC N° ${esc(ctx.empresa.ruc)}` : ""}, en ejercicio de las atribuciones que la ley y los estatutos confieren al órgano de gobierno, adopta las siguientes decisiones:</p>
 <p><strong>PRIMERA – Estados financieros.</strong> Aprueba los estados financieros del ejercicio cerrado el ${str(d, "cierre") ? formatFecha(str(d, "cierre")) : "[FECHA DE CIERRE]"}, que arrojan ${resultadoTexto(d)}.</p>
@@ -644,7 +679,8 @@ ${firmas([{ nombre: str(d, "accionista") ? esc(str(d, "accionista")) : "&nbsp;",
 
 const actaFamiliar: Plantilla = {
   key: "acta-contratacion-familiar",
-  numero: "13",
+  numero: "FAM-04",
+  grupo: "familia",
   titulo: "Acta que aprueba la contratación de un familiar",
   descripcion: "Deja constancia de que la contratación de un pariente se decidió con reglas objetivas.",
   tipos: ["sa", "eas", "srl"],
@@ -674,7 +710,7 @@ const actaFamiliar: Plantilla = {
   render: (d, ctx) => {
     const fs = lines(d, "firmantes");
     return `
-${encabezado("13", "Aprobación de contratación de un familiar")}
+${encabezado("Aprobación de contratación de un familiar")}
 <p class="center"><strong>ACTA DE ${ctx.empresa.tipo === "eas" ? "ÓRGANO DE ADMINISTRACIÓN" : ctx.empresa.tipo === "srl" ? "GERENCIA" : "DIRECTORIO"} N° ${v(d, "numero_acta", "__")}</strong></p>
 <p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, siendo las ${horaTexto(str(d, "hora"))}, se reúnen en la sede social de ${denom(ctx)}, sita en ${domicilio(ctx)}, los miembros que firman al pie. Habiendo quórum suficiente, se considera el siguiente orden del día:</p>
 <p><strong>1. Declaración de interés.</strong> ${str(d, "director_vinculado") ? `${esc(str(d, "director_vinculado"))} declara que ${v(d, "candidato", "CANDIDATO")} es su ${v(d, "parentesco", "PARENTESCO")} y, en consecuencia, manifiesta que se abstendrá de deliberar y votar en el punto siguiente, retirándose de la sala durante su tratamiento.` : `Ningún miembro presente declara vínculo familiar con ${v(d, "candidato", "CANDIDATO")}.`}</p>
@@ -701,7 +737,8 @@ function partesEmpresa(d: Datos, ctx: Contexto, rol: string): string {
 
 const contratoTrabajo: Plantilla = {
   key: "contrato-trabajo-familiar",
-  numero: "10",
+  numero: "FAM-01",
+  grupo: "familia",
   titulo: "Contrato de trabajo para un familiar que trabaja en la empresa",
   descripcion: "Formaliza la relación laboral de un hijo, sobrino o cónyuge como la de cualquier empleado. Cubre el contenido del art. 46 del Código del Trabajo.",
   tipos: TODOS_TIPOS,
@@ -765,7 +802,7 @@ const contratoTrabajo: Plantilla = {
         ? `por tiempo determinado, hasta el ${str(d, "fin") ? formatFecha(str(d, "fin")) : '<span class="ph">[FECHA DE FINALIZACIÓN]</span>'}`
         : "por tiempo indefinido";
     return `
-${encabezado("10", "Contrato de trabajo")}
+${encabezado("Contrato de trabajo")}
 <p class="center"><strong>CONTRATO INDIVIDUAL DE TRABAJO</strong></p>
 <p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, entre:</p>
 <p>${partesEmpresa(d, ctx, "EL EMPLEADOR")}; y</p>
@@ -789,13 +826,14 @@ ${firmas([
   { nombre: str(d, "representante") ? `${esc(str(d, "representante"))}<br/><span class="cargo">por ${esc(ctx.empresa.denominacion)}</span>` : "&nbsp;", cargo: "EL EMPLEADOR" },
   { nombre: str(d, "trabajador") ? esc(str(d, "trabajador")) : "&nbsp;", cargo: "EL TRABAJADOR" },
 ])}
-<p class="nota">Antes de firmar: aprobá la contratación con el acta de la plantilla 13 y respetá la política de familiares (plantilla 12). No pagues "sueldos" a familiares que en la práctica no trabajan.</p>`;
+<p class="nota">Antes de firmar: aprobá la contratación con el acta de la plantilla FAM-04 y respetá la política de familiares (plantilla FAM-03). No pagues "sueldos" a familiares que en la práctica no trabajan.</p>`;
   },
 };
 
 const contratoServicios: Plantilla = {
   key: "contrato-servicios-familiar",
-  numero: "11",
+  numero: "FAM-02",
+  grupo: "familia",
   titulo: "Contrato de prestación de servicios con un familiar independiente",
   descripcion: "Para el familiar profesional (contador, arquitecto, diseñador) que factura con su propio RUC, sin horario ni subordinación.",
   tipos: TODOS_TIPOS,
@@ -833,7 +871,7 @@ const contratoServicios: Plantilla = {
   render: (d, ctx) => {
     const servicios = lines(d, "servicios");
     return `
-${encabezado("11", "Contrato de prestación de servicios")}
+${encabezado("Contrato de prestación de servicios")}
 <p class="center"><strong>CONTRATO DE PRESTACIÓN DE SERVICIOS PROFESIONALES</strong></p>
 <p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, entre:</p>
 <p>${partesEmpresa(d, ctx, "LA EMPRESA")}; y</p>
@@ -855,13 +893,14 @@ ${firmas([
   { nombre: str(d, "representante") ? `${esc(str(d, "representante"))}<br/><span class="cargo">por ${esc(ctx.empresa.denominacion)}</span>` : "&nbsp;", cargo: "LA EMPRESA" },
   { nombre: str(d, "prestador") ? esc(str(d, "prestador")) : "&nbsp;", cargo: "EL PRESTADOR" },
 ])}
-<p class="nota">Este contrato no sirve para "disfrazar" una relación laboral: si en la práctica el familiar cumple horario, recibe órdenes y cobra un monto fijo mensual, la ley puede presumir un contrato de trabajo (Código del Trabajo, art. 48). En ese caso usá la plantilla 10.</p>`;
+<p class="nota">Este contrato no sirve para "disfrazar" una relación laboral: si en la práctica el familiar cumple horario, recibe órdenes y cobra un monto fijo mensual, la ley puede presumir un contrato de trabajo (Código del Trabajo, art. 48). En ese caso usá la plantilla FAM-01.</p>`;
   },
 };
 
 const politicaFamiliares: Plantilla = {
   key: "politica-familiares",
-  numero: "12",
+  numero: "FAM-03",
+  grupo: "familia",
   titulo: "Política de incorporación y remuneración de familiares",
   descripcion: "Reglamento interno corto: quién puede entrar, con qué requisitos, cómo se paga y quién evalúa. Primer paso hacia un protocolo familiar.",
   tipos: TODOS_TIPOS,
@@ -908,7 +947,7 @@ const politicaFamiliares: Plantilla = {
       : "";
     const sec = (t: string, body: string) => `<p><strong>${++n}. ${t}.</strong> ${body}</p>`;
     return `
-${encabezado("12", "Política de familiares")}
+${encabezado("Política de familiares")}
 <p class="center"><strong>${esc(ctx.empresa.denominacion.toUpperCase())}</strong><br/><strong>POLÍTICA DE INCORPORACIÓN Y REMUNERACIÓN DE FAMILIARES</strong><br/>Aprobada por ${esc(str(d, "organo") || "[ÓRGANO]")} en fecha ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : '<span class="ph">[FECHA]</span>'}</p>
 <p><strong>1. Objetivo.</strong> Establecer reglas claras, objetivas e iguales para la incorporación, remuneración, evaluación y salida de los familiares de los propietarios que trabajen en la empresa, para proteger tanto a la empresa como a las relaciones familiares.</p>
 <p><strong>2. Alcance.</strong> Se consideran "familiares" a los fines de esta política: ${v(d, "alcance", "ALCANCE")}.</p>
@@ -930,6 +969,188 @@ ${firmas([{ nombre: "&nbsp;", cargo: "Nombre, C.I. y fecha" }])}
   },
 };
 
+
+// ─── Poderes: cartas poder simples ──────────────────────────────────────
+// Solo para mandatos administrativos simples. Los poderes que la ley exige
+// otorgar por escritura pública NO se resuelven con estos modelos.
+
+const AVISO_ESCRITURA =
+  "Este modelo sirve solo para mandatos administrativos simples. Los poderes generales de administración, los poderes para actos de disposición (vender, gravar o donar bienes) y los poderes para juicio deben otorgarse por escritura pública ante escribano. Ante la duda, consultá con un profesional.";
+
+const NOTA_ESCRITURA = `<p class="nota"><strong>Importante:</strong> ${esc(AVISO_ESCRITURA)} Muchas instituciones piden además que la firma de quien otorga esté certificada por escribano.</p>`;
+
+function camposCartaPoder(facultades: string[]): Campo[] {
+  return [
+    ...CAMPOS_EMPLEADOR,
+    { key: "apoderado", label: "Apoderado (nombre completo)", type: "text", required: true },
+    { key: "apoderado_ci", label: "C.I. del apoderado", type: "text", required: true },
+    { key: "apoderado_domicilio", label: "Domicilio del apoderado", type: "text" },
+    { key: "facultades", label: "Facultades (una por línea)", type: "textarea", required: true, default: () => facultades.join("\n"), help: "Sé concreto: el poder alcanza solo a lo que está escrito." },
+    { key: "vence", label: "Vigente hasta", type: "date", help: "Vacío = hasta su revocación por escrito. Recomendado: un plazo concreto (por ejemplo, un año)." },
+  ];
+}
+
+function apoderadoTexto(d: Datos): string {
+  return `${v(d, "apoderado", "APODERADO")}, con C.I. N° ${v(d, "apoderado_ci", "C.I.")}${str(d, "apoderado_domicilio") ? `, domiciliado/a en ${esc(str(d, "apoderado_domicilio"))}` : ""}, en adelante "el Apoderado"`;
+}
+
+function vigenciaTexto(d: Datos): string {
+  return str(d, "vence")
+    ? `hasta el ${formatFecha(str(d, "vence"))} inclusive, salvo revocación anterior comunicada por escrito`
+    : "hasta su revocación expresa, comunicada por escrito al Apoderado y a la institución ante la cual se haya presentado";
+}
+
+function fechaLugar(d: Datos, ctx: Contexto): string {
+  return `<p class="right">${ciudad(d, ctx)}, ${str(d, "fecha") ? formatFechaLarga(str(d, "fecha")) : '<span class="ph">[FECHA]</span>'}</p>`;
+}
+
+function renderCartaPoder(d: Datos, ctx: Contexto, opts: { titulo: string; ante: string; limites: string; nota?: string }): string {
+  const fs = lines(d, "facultades");
+  return `
+${encabezado("Carta poder")}
+${fechaLugar(d, ctx)}
+<p class="center"><strong>CARTA PODER — ${esc(opts.titulo.toUpperCase())}</strong></p>
+<p>Por la presente, ${partesEmpresa(d, ctx, "la Poderdante")}, otorga PODER ESPECIAL a favor de ${apoderadoTexto(d)}, para que, en nombre y representación de la Poderdante, realice ante ${opts.ante} las siguientes gestiones:</p>
+<ol>${(fs.length ? fs : ["[FACULTADES]"]).map((f) => `<li>${esc(f)}</li>`).join("")}</ol>
+<p>${opts.limites}</p>
+<p>El presente poder tendrá vigencia ${vigenciaTexto(d)}. La Poderdante se reserva el derecho de revocarlo en cualquier momento.</p>
+<p>El Apoderado acepta el mandato y se compromete a rendir cuentas de su gestión y a devolver la documentación que reciba para el cumplimiento del encargo.</p>
+${firmas([
+  { nombre: str(d, "representante") ? esc(str(d, "representante")) : "&nbsp;", cargo: `${str(d, "representante_cargo") || "Representante"} — por ${ctx.empresa.denominacion}` },
+  { nombre: str(d, "apoderado") ? esc(str(d, "apoderado")) : "&nbsp;", cargo: "Apoderado — acepto el mandato" },
+])}
+${NOTA_ESCRITURA}
+${opts.nota ? `<p class="nota">${opts.nota}</p>` : ""}`;
+}
+
+function registroCartaPoder(instrumento: string) {
+  return (d: Datos): PoderPrefill => ({
+    apoderado: str(d, "apoderado"),
+    apoderado_documento: str(d, "apoderado_ci") || null,
+    tipo: "administrativo",
+    facultades: lines(d, "facultades").join("\n") || null,
+    fecha_otorgamiento: str(d, "fecha"),
+    instrumento,
+    fecha_vencimiento: str(d, "vence") || null,
+    duracion_texto: str(d, "vence") ? null : "Hasta su revocación por escrito",
+  });
+}
+
+const LIMITES_BASE =
+  "Este poder se limita a las gestiones enumeradas. No comprende la facultad de vender, gravar ni disponer de bienes, percibir sumas de dinero, contraer obligaciones, reconocer deudas, transigir ni representar a la Poderdante en juicio.";
+
+const cartaPoderAdministrativa: Plantilla = {
+  key: "pod-carta-administrativa",
+  numero: "POD-02",
+  grupo: "poderes",
+  titulo: "Carta poder simple para trámites administrativos",
+  descripcion: "Autoriza a una persona a presentar y retirar documentos y hacer seguimiento de trámites a nombre de la empresa.",
+  tipos: TODOS_TIPOS,
+  aviso: AVISO_ESCRITURA,
+  campos: [
+    ...camposCartaPoder([
+      "Presentar y retirar notas, solicitudes, formularios y documentos.",
+      "Solicitar y retirar certificados, constancias, copias y comprobantes a nombre de la Poderdante.",
+      "Realizar el seguimiento de expedientes y tomar vista de ellos.",
+      "Firmar cargos de recepción, constancias de presentación y notificaciones.",
+    ]),
+    { key: "ante", label: "Ante quién", type: "text", default: () => "reparticiones públicas, municipalidades y entidades privadas", help: "Ej.: la Municipalidad de Asunción y la ANDE." },
+  ],
+  tituloDoc: (d) => `Carta poder (trámites administrativos) — ${str(d, "apoderado") || "apoderado"}`,
+  render: (d, ctx) => renderCartaPoder(d, ctx, { titulo: "Trámites administrativos", ante: v(d, "ante", "INSTITUCIONES"), limites: LIMITES_BASE }),
+  registroPoder: registroCartaPoder("Carta poder simple — trámites administrativos"),
+};
+
+const cartaPoderDnit: Plantilla = {
+  key: "pod-carta-dnit",
+  numero: "POD-03",
+  grupo: "poderes",
+  titulo: "Carta poder para gestiones ante la DNIT (ex SET)",
+  descripcion: "Para presentar notas, retirar constancias y certificados y hacer seguimiento de trámites tributarios.",
+  tipos: TODOS_TIPOS,
+  aviso: AVISO_ESCRITURA,
+  campos: camposCartaPoder([
+    "Presentar notas, solicitudes y documentos y retirar las respuestas, constancias y resoluciones que se emitan.",
+    "Solicitar y retirar la constancia de RUC, el certificado de cumplimiento tributario y demás constancias a nombre de la Poderdante.",
+    "Realizar gestiones relacionadas con el timbrado de comprobantes y la actualización de datos del RUC.",
+    "Tomar vista de expedientes, notificarse de actuaciones y presentar la documentación que se requiera.",
+  ]),
+  tituloDoc: (d) => `Carta poder (DNIT) — ${str(d, "apoderado") || "apoderado"}`,
+  render: (d, ctx) =>
+    renderCartaPoder(d, ctx, {
+      titulo: "Gestiones ante la DNIT",
+      ante: "la Dirección Nacional de Ingresos Tributarios (DNIT)",
+      limites: `${LIMITES_BASE} Tampoco autoriza a acogerse a planes de facilidades de pago, renunciar a recursos ni consentir determinaciones tributarias.`,
+      nota: "La clave de acceso a los sistemas en línea de la DNIT (Marangatu) es personal: esta carta poder no autoriza a compartirla. Para algunos trámites la DNIT puede exigir firma certificada o un poder por escritura pública: verificá los requisitos vigentes del trámite antes de presentarla.",
+    }),
+  registroPoder: registroCartaPoder("Carta poder simple — gestiones ante la DNIT"),
+};
+
+const cartaPoderIpsMtess: Plantilla = {
+  key: "pod-carta-ips-mtess",
+  numero: "POD-04",
+  grupo: "poderes",
+  titulo: "Carta poder para trámites ante IPS y MTESS",
+  descripcion: "Para gestiones patronales ante el Instituto de Previsión Social y el Ministerio de Trabajo, Empleo y Seguridad Social.",
+  tipos: TODOS_TIPOS,
+  aviso: AVISO_ESCRITURA,
+  campos: camposCartaPoder([
+    "Realizar ante el Instituto de Previsión Social (IPS) gestiones de inscripción y actualización de datos patronales, y de altas, bajas y modificaciones de asegurados.",
+    "Solicitar y retirar constancias, certificados y estados de cuenta patronales ante el IPS.",
+    "Realizar ante el Ministerio de Trabajo, Empleo y Seguridad Social (MTESS) gestiones de inscripción y actualización en el registro obrero-patronal, presentar planillas y documentos laborales y retirar constancias.",
+    "Tomar vista de expedientes, notificarse y presentar la documentación que se requiera en trámites administrativos.",
+  ]),
+  tituloDoc: (d) => `Carta poder (IPS / MTESS) — ${str(d, "apoderado") || "apoderado"}`,
+  render: (d, ctx) =>
+    renderCartaPoder(d, ctx, {
+      titulo: "Trámites ante IPS y MTESS",
+      ante: "el Instituto de Previsión Social (IPS) y el Ministerio de Trabajo, Empleo y Seguridad Social (MTESS)",
+      limites: `${LIMITES_BASE} Tampoco autoriza a conciliar ni a asumir compromisos en audiencias o inspecciones laborales.`,
+      nota: "Las claves de los sistemas en línea del IPS y del MTESS son personales: esta carta poder no autoriza a compartirlas. Cada institución puede pedir requisitos propios (firma certificada, fotocopia de C.I., formularios): verificalos antes de presentarla.",
+    }),
+  registroPoder: registroCartaPoder("Carta poder simple — trámites ante IPS y MTESS"),
+};
+
+const revocacionCartaPoder: Plantilla = {
+  key: "pod-revocacion",
+  numero: "POD-05",
+  grupo: "poderes",
+  titulo: "Revocación de carta poder",
+  descripcion: "Deja sin efecto una carta poder simple y se notifica al apoderado y a las instituciones donde se presentó.",
+  tipos: TODOS_TIPOS,
+  aviso:
+    "Este modelo revoca cartas poder simples. Si el poder se otorgó por escritura pública, lo recomendable es revocarlo también por escritura pública ante escribano y anotar la revocación donde el poder se haya inscripto.",
+  campos: [
+    ...CAMPOS_EMPLEADOR,
+    { key: "apoderado", label: "Apoderado cuyo poder se revoca", type: "text", required: true },
+    { key: "apoderado_ci", label: "C.I. del apoderado", type: "text" },
+    { key: "poder_fecha", label: "Fecha del poder que se revoca", type: "date", required: true },
+    { key: "poder_descripcion", label: "Poder que se revoca", type: "text", default: () => "carta poder simple", help: "Ej.: carta poder simple para gestiones ante la DNIT." },
+    { key: "efecto", label: "Revocado desde", type: "date", help: "Vacío = desde la fecha de esta nota." },
+    { key: "devolver", label: "Pedir la devolución del original y de la documentación", type: "checkbox", default: () => true },
+    { key: "notificar", label: "Instituciones a notificar (una por línea)", type: "textarea", help: "Donde se presentó el poder: la revocación debe comunicarse a cada una." },
+  ],
+  tituloDoc: (d) => `Revocación de carta poder — ${str(d, "apoderado") || "apoderado"}`,
+  render: (d, ctx) => {
+    const efecto = str(d, "efecto") || str(d, "fecha");
+    const inst = lines(d, "notificar");
+    return `
+${encabezado("Revocación de carta poder")}
+${fechaLugar(d, ctx)}
+<p>Señor/a<br/>${v(d, "apoderado", "APODERADO")}${str(d, "apoderado_ci") ? `<br/>C.I. N° ${esc(str(d, "apoderado_ci"))}` : ""}<br/>Presente</p>
+<p><strong>Ref.: Revocación de poder</strong></p>
+<p>Por la presente, ${partesEmpresa(d, ctx, "la Poderdante")}, le comunica que REVOCA, con efecto a partir del ${efecto ? formatFecha(efecto) : '<span class="ph">[FECHA]</span>'}, el poder otorgado a su favor en fecha ${str(d, "poder_fecha") ? formatFecha(str(d, "poder_fecha")) : '<span class="ph">[FECHA DEL PODER]</span>'}, instrumentado mediante ${v(d, "poder_descripcion", "PODER")}.</p>
+<p>A partir de esa fecha, usted deja de estar facultado/a para actuar en nombre y representación de la Poderdante en las gestiones comprendidas en dicho poder.${on(d, "devolver") ? " Le solicitamos devolver el original del poder y toda la documentación de la Poderdante que obre en su poder dentro de los cinco (5) días hábiles de recibida la presente." : ""}</p>
+${inst.length ? `<p>Esta revocación será comunicada a:</p><ul>${inst.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>` : ""}
+<p>Atentamente,</p>
+${firmas([
+  { nombre: str(d, "representante") ? esc(str(d, "representante")) : "&nbsp;", cargo: `${str(d, "representante_cargo") || "Representante"} — por ${ctx.empresa.denominacion}` },
+  { nombre: str(d, "apoderado") ? esc(str(d, "apoderado")) : "&nbsp;", cargo: "Recibí — firma, aclaración y fecha" },
+])}
+<p class="nota">Notificá la revocación al apoderado (guardá su recibo) y a cada institución o tercero ante quien se presentó el poder: frente a quienes no la conozcan, la revocación podría no serles oponible. Después, marcá el poder como revocado en Documentos → Poderes.</p>`;
+  },
+  revocacionPoder: (d) => ({ apoderado: str(d, "apoderado"), documento: str(d, "apoderado_ci"), fecha: str(d, "efecto") || str(d, "fecha") }),
+};
 
 // ─── SEPRELAD (PLA/FT) ──────────────────────────────────────────────────
 // Para empresas que son sujetos obligados (Ley 1015/97, art. 13). Nunca
@@ -955,7 +1176,7 @@ function organo(ctx: Contexto): string {
 
 const actaOficialCumplimiento: Plantilla = {
   key: "sep-acta-oficial-cumplimiento",
-  numero: "S1",
+  numero: "SEP-01",
   grupo: "seprelad",
   titulo: "Acta de designación del oficial de cumplimiento",
   descripcion: "La máxima autoridad designa al oficial de cumplimiento titular (y su interino), con autonomía y recursos.",
@@ -975,7 +1196,7 @@ const actaOficialCumplimiento: Plantilla = {
   render: (d, ctx) => {
     const fs = lines(d, "firmantes");
     return `
-${encabezado("S1", "Designación del oficial de cumplimiento")}
+${encabezado("Designación del oficial de cumplimiento")}
 <p class="center"><strong>ACTA DE ${organo(ctx)} N° ${v(d, "numero_acta", "__")}</strong></p>
 <p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, siendo las ${horaTexto(str(d, "hora"))}, se reúnen en la sede social de ${denom(ctx)}${ctx.empresa.ruc ? `, RUC ${esc(ctx.empresa.ruc)}` : ""}, sita en ${domicilio(ctx)}, los miembros que firman al pie, con quórum suficiente, para tratar el siguiente orden del día:</p>
 <p><strong>1. Designación del oficial de cumplimiento.</strong> En su carácter de sujeto obligado conforme al artículo 13 de la Ley N° 1015/97 y a la ${baseSector(d, { "201": "artículos 7, 8 y 10", "176": "artículos 13 y 14", "490": "artículos 25 a 29" })}, se resuelve por unanimidad designar como oficial de cumplimiento titular a ${v(d, "oc_nombre", "NOMBRE")}${str(d, "oc_ci") ? `, C.I. N° ${esc(str(d, "oc_ci"))}` : ""}${str(d, "oc_cargo") ? `, quien ocupa el cargo de ${esc(str(d, "oc_cargo"))}` : ""}.${str(d, "interino_nombre") ? ` Se designa como oficial de cumplimiento interino, para los casos de ausencia, renuncia o remoción del titular, a ${esc(str(d, "interino_nombre"))}${str(d, "interino_ci") ? `, C.I. N° ${esc(str(d, "interino_ci"))}` : ""}.` : ""}</p>
@@ -989,7 +1210,7 @@ ${firmas([...(fs.length ? fs : [""]).map((f) => ({ nombre: f ? esc(f) : "&nbsp;"
 
 const notaOficialCumplimiento: Plantilla = {
   key: "sep-nota-oficial-cumplimiento",
-  numero: "S2",
+  numero: "SEP-02",
   grupo: "seprelad",
   titulo: "Nota a SEPRELAD: oficial de cumplimiento",
   descripcion: "Comunica la designación, el cambio de datos, la remoción o el interino del oficial de cumplimiento.",
@@ -1028,7 +1249,7 @@ const notaOficialCumplimiento: Plantilla = {
     const asunto = { designacion: "Comunicación de designación", cambio: "Comunicación de cambio de datos", remocion: "Comunicación de remoción", interino: "Comunicación de oficial de cumplimiento interino" }[motivo];
     const art = baseSector(d, { "201": "artículo 10", "176": "artículo 14", "490": "artículos 27 a 29" });
     return `
-${encabezado("S2", `${asunto} del oficial de cumplimiento`)}
+${encabezado(`${asunto} del oficial de cumplimiento`)}
 <p class="right">${ciudad(d, ctx)}, ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : '<span class="ph">[FECHA]</span>'}</p>
 <p>Señor/a Ministro/a Secretario/a Ejecutivo/a<br/>Secretaría de Prevención de Lavado de Dinero o Bienes (SEPRELAD)<br/>Presente</p>
 <p><strong>Ref.: ${esc(asunto ?? "")} del oficial de cumplimiento — ${esc(ctx.empresa.denominacion)}${ctx.empresa.ruc ? `, RUC ${esc(ctx.empresa.ruc)}` : ""}</strong></p>
@@ -1063,7 +1284,7 @@ ${firmas([{ nombre: str(d, "firmante") ? esc(str(d, "firmante")) : "&nbsp;", car
 
 const debidaDiligencia: Plantilla = {
   key: "sep-debida-diligencia",
-  numero: "S3",
+  numero: "SEP-03",
   grupo: "seprelad",
   titulo: "Formulario de debida diligencia del cliente",
   descripcion: "Conozca a su cliente: datos mínimos de persona física o jurídica, origen de fondos y beneficiarios finales.",
@@ -1091,7 +1312,7 @@ const debidaDiligencia: Plantilla = {
       ? ["Razón social", "RUC", "Escritura de constitución y modificaciones (N°, fecha, escribano)", "Domicilio legal", "Teléfono y correo", "Representantes y apoderados (nombre, C.I., facultades)", "Actividad principal", "Origen de los fondos de la operación", "Respaldo de ingresos presentado"]
       : ["Nombre y apellido", "Documento de identidad (tipo y N°)", "Nacionalidad", "Domicilio", "Teléfono y correo", "RUC o constancia de no contribuyente", "Profesión o actividad", "Origen de los fondos de la operación", "Respaldo de ingresos presentado", "¿Es persona expuesta políticamente (PEP)? Cargo y período"];
     return `
-${encabezado("S3", `Formulario de debida diligencia — ${juridica ? "persona jurídica" : "persona física"}`)}
+${encabezado(`Formulario de debida diligencia — ${juridica ? "persona jurídica" : "persona física"}`)}
 <p><strong>Sujeto obligado:</strong> ${denom(ctx)}${ctx.empresa.ruc ? ` · RUC ${esc(ctx.empresa.ruc)}` : ""} · <strong>Fecha:</strong> ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : "____"} · <strong>Régimen:</strong> ${esc(str(d, "regimen") || "general")}</p>
 <p><strong>Operación o relación:</strong> ${v(d, "operacion", "DESCRIPCIÓN")}</p>
 <table class="tabla"><tbody>${filas.map(fila).join("")}</tbody></table>
@@ -1113,7 +1334,7 @@ ${firmas([{ nombre: "&nbsp;", cargo: "Firma del cliente / representante" }, { no
 
 const djOrigenFondos: Plantilla = {
   key: "sep-dj-origen-fondos",
-  numero: "S4",
+  numero: "SEP-04",
   grupo: "seprelad",
   titulo: "Declaración jurada de origen de fondos y beneficiario final",
   descripcion: "El cliente declara de dónde vienen los fondos y quiénes son los beneficiarios finales.",
@@ -1133,7 +1354,7 @@ const djOrigenFondos: Plantilla = {
   render: (d, ctx) => {
     const bfs = lines(d, "beneficiarios").map((l) => l.split("|").map((x) => x.trim()));
     return `
-${encabezado("S4", "Declaración jurada de origen de fondos y beneficiario final")}
+${encabezado("Declaración jurada de origen de fondos y beneficiario final")}
 <p>En ${ciudad(d, ctx)}, a los ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : "____"}, ${v(d, "declarante", "DECLARANTE")}${str(d, "declarante_ci") ? `, con C.I. N° ${esc(str(d, "declarante_ci"))}` : ""}${str(d, "en_representacion") ? `, en representación de ${esc(str(d, "en_representacion"))}` : ""}, declara bajo fe de juramento ante ${denom(ctx)}:</p>
 <p><strong>1.</strong> Que los fondos utilizados en la operación ${v(d, "operacion", "OPERACIÓN")}${str(d, "monto") ? `, por ${esc(str(d, "monto"))}` : ""}, provienen de: ${v(d, "origen", "ORIGEN DE LOS FONDOS")}, y no tienen relación con actividades ilícitas ni con el financiamiento del terrorismo.</p>
 <p><strong>2.</strong> Que los beneficiarios finales, entendidos como las personas físicas que poseen al menos el 10% del capital, más del 25% de los votos o ejercen el control final (Ley N° 6446/2019, art. 4), son:</p>
@@ -1146,7 +1367,7 @@ ${firmas([{ nombre: str(d, "declarante") ? esc(str(d, "declarante")) : "&nbsp;",
 
 const constanciaManual: Plantilla = {
   key: "sep-constancia-manual",
-  numero: "S5",
+  numero: "SEP-05",
   grupo: "seprelad",
   titulo: "Constancia de conocimiento del manual y el código de ética PLA/FT",
   descripcion: "Directores y empleados firman que recibieron y conocen el manual de prevención y el código de ética.",
@@ -1160,7 +1381,7 @@ const constanciaManual: Plantilla = {
   render: (d, ctx) => {
     const ps = lines(d, "personas").map((l) => l.split("|").map((x) => x.trim()));
     return `
-${encabezado("S5", "Constancia de toma de conocimiento")}
+${encabezado("Constancia de toma de conocimiento")}
 <p>Quienes firman al pie, directores y empleados de ${denom(ctx)}, declaran haber recibido, leído y comprendido el <strong>Manual de Prevención de Lavado de Dinero y Financiamiento del Terrorismo</strong> (versión ${v(d, "version", "__")}) y el <strong>Código de Ética y Conducta</strong> de la empresa, y se comprometen a cumplirlos, incluido el deber de reserva sobre la información vinculada a la prevención.</p>
 <table class="tabla"><thead><tr><th>Nombre y apellido</th><th>C.I.</th><th>Cargo</th><th>Firma</th></tr></thead><tbody>${(ps.length ? ps : [["", "", ""]]).map(([n = "", c = "", g = ""]) => `<tr><td>${esc(n) || "&nbsp;"}</td><td>${esc(c)}</td><td>${esc(g)}</td><td style="width:30%"></td></tr>`).join("")}</tbody></table>
 <p>Fecha: ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : "____"}</p>
@@ -1170,7 +1391,7 @@ ${encabezado("S5", "Constancia de toma de conocimiento")}
 
 const planCapacitacion: Plantilla = {
   key: "sep-plan-capacitacion",
-  numero: "S6",
+  numero: "SEP-06",
   grupo: "seprelad",
   titulo: "Plan anual y registro de capacitación PLA/FT",
   descripcion: "Programa del año con temas, destinatarios y fechas, más la planilla de asistencia de cada sesión.",
@@ -1191,7 +1412,7 @@ const planCapacitacion: Plantilla = {
   render: (d, ctx) => {
     const ss = lines(d, "sesiones").map((l) => l.split("|").map((x) => x.trim()));
     return `
-${encabezado("S6", `Plan anual de capacitación PLA/FT ${esc(str(d, "anio"))}`)}
+${encabezado(`Plan anual de capacitación PLA/FT ${esc(str(d, "anio"))}`)}
 <p>${denom(ctx)} aprueba el siguiente programa anual de capacitación en prevención de lavado de dinero y financiamiento del terrorismo, a cargo de ${v(d, "responsable", "OFICIAL DE CUMPLIMIENTO")}.</p>
 <table class="tabla"><thead><tr><th>Fecha</th><th>Tema</th><th>Destinatarios</th><th>Modalidad</th></tr></thead><tbody>${ss.map(([f = "", t = "", de = "", m = ""]) => `<tr><td>${esc(f)}</td><td>${esc(t)}</td><td>${esc(de)}</td><td>${esc(m)}</td></tr>`).join("")}</tbody></table>
 <p>Aprobado el ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : "____"}.</p>
@@ -1205,7 +1426,7 @@ ${firmas([{ nombre: "&nbsp;", cargo: "Por la máxima autoridad" }, { nombre: str
 
 const informeControlInterno: Plantilla = {
   key: "sep-informe-control-interno",
-  numero: "S7",
+  numero: "SEP-07",
   grupo: "seprelad",
   titulo: "Informe anual de control interno PLA/FT",
   descripcion: "Estructura del informe anual con los puntos del Anexo II de la Res. 201/2020.",
@@ -1232,7 +1453,7 @@ const informeControlInterno: Plantilla = {
       "Otros aspectos relevantes y plan de mejoras.",
     ];
     return `
-${encabezado("S7", `Informe anual de control interno — ejercicio ${esc(str(d, "ejercicio"))}`)}
+${encabezado(`Informe anual de control interno — ejercicio ${esc(str(d, "ejercicio"))}`)}
 <p><strong>Sujeto obligado:</strong> ${denom(ctx)}${ctx.empresa.ruc ? ` · RUC ${esc(ctx.empresa.ruc)}` : ""}<br/><strong>Elaborado por:</strong> ${v(d, "responsable", "RESPONSABLE")} · <strong>Fecha:</strong> ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : "____"}</p>
 ${puntos.map((p, i) => `<p><strong>${i + 1}. ${esc(p)}</strong></p><p><span class="ph">[Desarrollo]</span></p>`).join("")}
 ${firmas([{ nombre: str(d, "responsable") ? esc(str(d, "responsable")) : "&nbsp;", cargo: "Oficial de cumplimiento" }])}
@@ -1246,7 +1467,6 @@ export const PLANTILLAS: Plantilla[] = [
   registroAsistencia,
   actaAsamblea,
   actaCargos,
-  actaPoderes,
   cartaPoder,
   actaEas,
   actaUnico,
@@ -1254,6 +1474,11 @@ export const PLANTILLAS: Plantilla[] = [
   contratoServicios,
   politicaFamiliares,
   actaFamiliar,
+  actaPoderes,
+  cartaPoderAdministrativa,
+  cartaPoderDnit,
+  cartaPoderIpsMtess,
+  revocacionCartaPoder,
   actaOficialCumplimiento,
   notaOficialCumplimiento,
   debidaDiligencia,
@@ -1263,16 +1488,56 @@ export const PLANTILLAS: Plantilla[] = [
   informeControlInterno,
 ];
 
-export type GrupoPlantilla = "societario" | "familia" | "seprelad";
-
+/** Orden de las secciones del selector y prefijo de cada código. */
 export const GRUPO_LABELS: Record<GrupoPlantilla, string> = {
   societario: "Sociedad y asambleas",
+  poderes: "Poderes",
   familia: "Familiares en la empresa",
   seprelad: "Cumplimiento SEPRELAD (PLA/FT)",
 };
 
+export const GRUPO_PREFIJO: Record<GrupoPlantilla, string> = {
+  societario: "SOC",
+  poderes: "POD",
+  familia: "FAM",
+  seprelad: "SEP",
+};
+
 export function grupoDe(p: Plantilla): GrupoPlantilla {
-  return p.grupo ?? (Number(p.numero) >= 10 ? "familia" : "societario");
+  return p.grupo;
+}
+
+/**
+ * Códigos anteriores a la numeración por grupos (hasta oct. 2026), por si
+ * alguien busca una plantilla con el número viejo o lo ve en un documento
+ * guardado antes del cambio. Las `key` no cambiaron.
+ */
+export const CODIGO_ANTERIOR: Record<string, string> = {
+  "acta-directorio-convocatoria": "01",
+  "edicto-convocatoria": "02",
+  "registro-asistencia": "03",
+  "acta-asamblea-ordinaria": "04",
+  "acta-distribucion-cargos": "05",
+  "acta-poderes": "06",
+  "carta-poder": "07",
+  "acta-asamblea-eas": "08",
+  "acta-accionista-unico": "09",
+  "contrato-trabajo-familiar": "10",
+  "contrato-servicios-familiar": "11",
+  "politica-familiares": "12",
+  "acta-contratacion-familiar": "13",
+  "sep-acta-oficial-cumplimiento": "S1",
+  "sep-nota-oficial-cumplimiento": "S2",
+  "sep-debida-diligencia": "S3",
+  "sep-dj-origen-fondos": "S4",
+  "sep-constancia-manual": "S5",
+  "sep-plan-capacitacion": "S6",
+  "sep-informe-control-interno": "S7",
+};
+
+/** Código visible de una plantilla por su key ("" si ya no existe). */
+export function codigoPlantilla(key: string | null | undefined): string {
+  return getPlantilla(key)?.numero ?? "";
 }
 
 export function getPlantilla(key: string | null | undefined): Plantilla | undefined {
@@ -1290,5 +1555,5 @@ export function valoresIniciales(p: Plantilla, ctx: Contexto): Datos {
 
 /** Documento completo con el aviso legal, listo para vista previa o descarga. */
 export function renderDocumento(p: Plantilla, d: Datos, ctx: Contexto): string {
-  return `${p.render(d, ctx)}<p class="aviso"><strong>Aviso:</strong> ${esc(AVISO_LEGAL)}</p>`;
+  return `${p.render(d, ctx).split(CODIGO).join(esc(p.numero))}<p class="aviso"><strong>Aviso:</strong> ${esc(AVISO_LEGAL)}</p>`;
 }

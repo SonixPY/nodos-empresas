@@ -80,7 +80,7 @@ export default function AppsMenu({ perfil }: { perfil: PerfilVisible | null }) {
                     <Icon size={18} className="mt-0.5 shrink-0 text-cobre" />
                     <span className="min-w-0">
                       <span className="block text-sm font-medium text-musgo">
-                        {a.id === "inicio" ? "nodoscompliance.com" : a.nombre}
+                        {a.id === "inicio" ? "NODOS" : a.nombre}
                         {actual && <span className="t-caption ml-2 text-carbon/45">estás acá</span>}
                       </span>
                       <span className="block text-xs leading-snug text-carbon/55">{a.descripcion}</span>

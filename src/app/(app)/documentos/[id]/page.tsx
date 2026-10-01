@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Download, Printer, Trash2 } from "lucide-react";
+import { Printer, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import { descargarWord, imprimir } from "@/lib/descargas";
+import { imprimir } from "@/lib/descargas";
+import { codigoPlantilla } from "@/lib/plantillas";
 import { formatFecha } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
 import DocPreview from "@/components/DocPreview";
@@ -48,13 +49,13 @@ export default function DocumentoPage() {
     const { error: err } = await supabase.from("documentos").delete().eq("id", doc.id);
     if (err) return showToast(`No se pudo eliminar: ${err.message}`, "error");
     showToast("Documento eliminado.");
-    router.push("/documentos");
+    router.push("/documentos/guardados");
   }
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <Link href="/documentos" className="text-xs text-carbon/55 hover:text-cobre-hover">
-        ← Documentos
+      <Link href="/documentos/guardados" className="text-xs text-carbon/55 hover:text-cobre-hover">
+        ← Documentos guardados
       </Link>
       {loading ? (
         <SkeletonBlock className="mt-4 h-96" />
@@ -72,17 +73,16 @@ export default function DocumentoPage() {
                   </Link>
                 ) : null}
                 {" · "}generado el {formatFecha(doc.created_at)}
+                {codigoPlantilla(doc.plantilla) ? ` · plantilla ${codigoPlantilla(doc.plantilla)}` : ""}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" className="btn btn-ghost" onClick={() => descargarWord(doc.titulo, doc.contenido_html)}>
-                <Download size={15} /> Word
-              </button>
               <button
                 type="button"
                 className="btn btn-ghost"
                 onClick={() => {
-                  if (!imprimir(doc.titulo, doc.contenido_html)) showToast("Permití ventanas emergentes para imprimir.", "error");
+                  if (!imprimir(doc.titulo, doc.contenido_html, { denominacion: empresa?.denominacion }))
+                    showToast("Permití ventanas emergentes para imprimir.", "error");
                 }}
               >
                 <Printer size={15} /> Imprimir / PDF

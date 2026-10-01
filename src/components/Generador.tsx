@@ -2,15 +2,17 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Printer, Save } from "lucide-react";
+import { Printer, Save, ShieldAlert } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAccionistas } from "@/lib/data";
 import { calcularParticipaciones } from "@/lib/accionistas";
 import { GRUPO_LABELS, PLANTILLAS, getPlantilla, grupoDe, type GrupoPlantilla, renderDocumento, valoresIniciales, type Campo, type Contexto, type Datos } from "@/lib/plantillas";
-import { descargarWord, imprimir } from "@/lib/descargas";
+import { imprimir } from "@/lib/descargas";
 import { todayIso } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
 import DocPreview from "@/components/DocPreview";
+import { RegistrarPoderDialog, RevocarPoderDialog } from "@/components/RegistrarPoderDialog";
+import type { PoderPrefill } from "@/lib/poderes";
 import { TIPO_CORTO, type Documento, type Empresa } from "@/lib/types";
 
 function CampoInput({
@@ -129,6 +131,13 @@ export default function Generador({
   }, [plantilla, ctx, datosPorClave, claveDatos]);
 
   const [saving, setSaving] = useState(false);
+  // Después de guardar una carta poder (o su revocación) se ofrece
+  // actualizar el registro de poderes antes de ir al documento.
+  const [oferta, setOferta] = useState<
+    | { tipo: "registrar"; doc: Documento; prefill: PoderPrefill }
+    | { tipo: "revocar"; doc: Documento; apoderado: string; fecha: string }
+    | null
+  >(null);
 
   if (empresas.length === 0) {
     return (
@@ -164,14 +173,31 @@ export default function Generador({
       .single();
     setSaving(false);
     if (error) return showToast(`No se pudo guardar: ${error.message}`, "error");
-    showToast("Documento guardado en el historial.");
-    onSaved(data as Documento);
+    showToast("Documento guardado.");
+    const doc = data as Documento;
+    if (plantilla.registroPoder && ctx) return setOferta({ tipo: "registrar", doc, prefill: plantilla.registroPoder(datos, ctx) });
+    if (plantilla.revocacionPoder && ctx) {
+      const r = plantilla.revocacionPoder(datos, ctx);
+      return setOferta({ tipo: "revocar", doc, apoderado: r.apoderado, fecha: r.fecha });
+    }
+    onSaved(doc);
+  }
+
+  function cerrarOferta() {
+    if (!oferta) return;
+    const doc = oferta.doc;
+    setOferta(null);
+    onSaved(doc);
   }
 
   const campos = plantilla.campos.filter((c) => !c.showIf || datos[c.showIf] === true);
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+      {oferta?.tipo === "registrar" && (
+        <RegistrarPoderDialog empresa={empresa} prefill={oferta.prefill} documentoId={oferta.doc.id} onClose={cerrarOferta} />
+      )}
+      {oferta?.tipo === "revocar" && <RevocarPoderDialog empresa={empresa} apoderado={oferta.apoderado} fecha={oferta.fecha} onClose={cerrarOferta} />}
       <div className="space-y-4">
         <div className="card space-y-3">
           <div>
@@ -216,21 +242,25 @@ export default function Generador({
       <div className="space-y-3 lg:sticky lg:top-20 lg:self-start">
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className="btn btn-primary" onClick={guardar} disabled={saving}>
-            <Save size={15} /> {saving ? "Guardando..." : "Guardar en historial"}
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={() => descargarWord(titulo, html)}>
-            <Download size={15} /> Word
+            <Save size={15} /> {saving ? "Guardando..." : "Guardar"}
           </button>
           <button
             type="button"
             className="btn btn-ghost"
             onClick={() => {
-              if (!imprimir(titulo, html)) showToast("Tu navegador bloqueó la ventana. Permití ventanas emergentes.", "error");
+              if (!imprimir(titulo, html, { denominacion: empresa.denominacion }))
+                showToast("Tu navegador bloqueó la ventana. Permití ventanas emergentes.", "error");
             }}
           >
             <Printer size={15} /> Imprimir / PDF
           </button>
         </div>
+        {plantilla.aviso && (
+          <p className="flex gap-2 rounded-sm border px-3 py-2 text-xs leading-snug text-carbon/80" style={{ borderColor: "rgba(184,115,74,0.45)", background: "rgba(184,115,74,0.07)" }}>
+            <ShieldAlert size={15} className="mt-px shrink-0 text-cobre" />
+            <span>{plantilla.aviso}</span>
+          </p>
+        )}
         {faltan.length > 0 && (
           <p className="text-xs text-cobre">Faltan datos obligatorios: {faltan.join(", ")}. Los espacios pendientes aparecen resaltados.</p>
         )}

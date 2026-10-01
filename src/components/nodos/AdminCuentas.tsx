@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { KeyRound, Pencil, Search, Trash2, X, Check } from "lucide-react";
+import { Copy, KeyRound, Mail, Pencil, RefreshCw, Search, Trash2, X, Check } from "lucide-react";
 import { useToast } from "@/components/ToastProvider";
 import { SITIOS } from "@/lib/nodos/sitios";
 
@@ -66,6 +66,7 @@ export default function AdminCuentas() {
   const [editando, setEditando] = useState<string | null>(null);
   const [borrador, setBorrador] = useState({ nombre: "", usuario: "", email: "" });
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [claveDe, setClaveDe] = useState<Cuenta | null>(null);
 
   async function load() {
     setError(null);
@@ -107,7 +108,6 @@ export default function AdminCuentas() {
   }
 
   async function recuperar(u: Cuenta) {
-    if (!confirm(`¿Enviar a ${u.email} un email para elegir una contraseña nueva?`)) return;
     setOcupado(u.id);
     const res = await fetch(`/api/admin/users/${u.id}/recuperar`, { method: "POST" });
     const data = await res.json().catch(() => null);
@@ -310,9 +310,9 @@ export default function AdminCuentas() {
                         </button>
                         <button
                           type="button"
-                          title="Enviar email para cambiar la contraseña"
+                          title="Contraseña: definir una temporal o enviar email de recuperación"
                           disabled={ocupado === u.id}
-                          onClick={() => recuperar(u)}
+                          onClick={() => setClaveDe(u)}
                           className="rounded p-1.5 text-carbon/60 hover:bg-marfil hover:text-musgo disabled:opacity-40"
                         >
                           <KeyRound size={15} />
@@ -342,10 +342,149 @@ export default function AdminCuentas() {
           </table>
         </div>
       )}
+      {claveDe && (
+        <ClaveModal
+          cuenta={claveDe}
+          onCerrar={() => setClaveDe(null)}
+          onEnviarEmail={async () => {
+            await recuperar(claveDe);
+            setClaveDe(null);
+          }}
+        />
+      )}
       <p className="t-caption mt-4 text-carbon/50">
         Suspender bloquea el ingreso a todas las páginas. Quitar el acceso a una app solo impide entrar a esa app; los
         datos se conservan.
       </p>
     </>
+  );
+}
+
+/** Generador de contraseñas temporales legibles (sin caracteres ambiguos). */
+function claveTemporal(): string {
+  const letras = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const arr = new Uint32Array(12);
+  crypto.getRandomValues(arr);
+  const base = Array.from(arr, (n) => letras[n % letras.length]).join("");
+  return `${base.slice(0, 4)}-${base.slice(4, 8)}-${base.slice(8, 12)}`;
+}
+
+function ClaveModal({
+  cuenta,
+  onCerrar,
+  onEnviarEmail,
+}: {
+  cuenta: { id: string; email: string; nombre: string | null; usuario: string | null };
+  onCerrar: () => void;
+  onEnviarEmail: () => Promise<void>;
+}) {
+  const { showToast } = useToast();
+  const [clave, setClave] = useState("");
+  const [ver, setVer] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [lista, setLista] = useState(false);
+  const quien = cuenta.usuario ? `@${cuenta.usuario}` : cuenta.nombre || cuenta.email;
+
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onCerrar();
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
+  }, [onCerrar]);
+
+  async function guardar(e: React.FormEvent) {
+    e.preventDefault();
+    if (clave.length < 8) return showToast("La contraseña necesita al menos 8 caracteres.", "error");
+    setGuardando(true);
+    const res = await fetch(`/api/admin/users/${cuenta.id}/clave`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clave }),
+    });
+    const data = await res.json().catch(() => null);
+    setGuardando(false);
+    if (!res.ok) return showToast(data?.message ?? "No se pudo cambiar la contraseña.", "error");
+    setLista(true);
+    showToast(`Contraseña de ${quien} actualizada.`);
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-carbon/40 p-4 sm:items-center" onMouseDown={onCerrar}>
+      <div className="card w-full max-w-md" role="dialog" aria-modal="true" aria-label="Contraseña de la cuenta" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="flex items-center gap-2">
+              <KeyRound size={17} className="text-cobre" /> Contraseña
+            </h3>
+            <p className="truncate text-sm text-carbon/60">{quien}</p>
+          </div>
+          <button type="button" onClick={onCerrar} className="rounded p-1.5 text-carbon/60 hover:bg-marfil" aria-label="Cerrar">
+            <X size={16} />
+          </button>
+        </div>
+
+        {lista ? (
+          <div className="space-y-3 text-sm">
+            <p>
+              Listo. Pasale la contraseña temporal a la persona por un canal privado y pedile que la cambie desde{" "}
+              <strong>Mi cuenta</strong> al ingresar.
+            </p>
+            <button type="button" className="btn btn-primary w-full" onClick={onCerrar}>
+              Cerrar
+            </button>
+          </div>
+        ) : (
+          <>
+            <form onSubmit={guardar} className="space-y-2">
+              <label className="field-label" htmlFor="clave-temporal">
+                Definir una contraseña temporal
+              </label>
+              <div className="flex gap-1.5">
+                <input
+                  id="clave-temporal"
+                  className="input min-w-0 flex-1 font-mono"
+                  type={ver ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={clave}
+                  onChange={(e) => setClave(e.target.value)}
+                  placeholder="Mínimo 8 caracteres"
+                />
+                <button
+                  type="button"
+                  className="btn btn-ghost px-2.5"
+                  title="Generar una contraseña segura"
+                  onClick={() => {
+                    setClave(claveTemporal());
+                    setVer(true);
+                  }}
+                >
+                  <RefreshCw size={15} />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost px-2.5"
+                  title="Copiar"
+                  disabled={!clave}
+                  onClick={() => navigator.clipboard?.writeText(clave).then(() => showToast("Copiada."))}
+                >
+                  <Copy size={15} />
+                </button>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-carbon/60">
+                <input type="checkbox" checked={ver} onChange={(e) => setVer(e.target.checked)} /> Mostrar
+              </label>
+              <button type="submit" className="btn btn-primary w-full" disabled={guardando || clave.length < 8}>
+                <Check size={15} /> {guardando ? "Guardando…" : "Guardar contraseña"}
+              </button>
+            </form>
+            <div className="my-4 flex items-center gap-3 text-xs text-carbon/45">
+              <span className="h-px flex-1 bg-[var(--line)]" /> o <span className="h-px flex-1 bg-[var(--line)]" />
+            </div>
+            <button type="button" className="btn btn-ghost w-full" onClick={onEnviarEmail}>
+              <Mail size={15} /> Enviar email para que la elija la persona
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
