@@ -83,7 +83,7 @@ export default function ObligacionesLista({
   }
 
   return (
-    <ul className="divide-y rounded-sm border bg-white" style={{ borderColor: "var(--line)" }}>
+    <ul className="divide-y divide-[var(--line)] rounded-sm border bg-white" style={{ borderColor: "var(--line)" }}>
       {obligaciones.map((o) => {
         const plantilla = getPlantilla(o.plantilla);
         const open = abierta === o.id;

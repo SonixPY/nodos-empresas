@@ -48,7 +48,7 @@ export default function ProximosVencimientos({
         </div>
       ) : (
         <div className="overflow-hidden rounded-[var(--radius-md)] border bg-white" style={{ borderColor: "var(--line)" }}>
-          <ul className="divide-y" style={{ borderColor: "var(--line)" }}>
+          <ul className="divide-y divide-[var(--line)]">
             {obligaciones.map((o) => {
               const d = parseIso(o.fecha);
               const hecha = o.estado === "hecho";

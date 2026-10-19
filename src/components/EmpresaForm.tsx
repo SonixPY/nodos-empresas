@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { MESES } from "@/lib/dates";
-import { TIPO_LABELS, type Empresa, type NuevaEmpresa, type TipoSociedad } from "@/lib/types";
+import { esSociedad, REGIMEN_LABELS, TIPO_LABELS, type Empresa, type NuevaEmpresa, type RegimenTributario, type TipoSociedad } from "@/lib/types";
 import type { CamposSiaraEmpresa } from "@/lib/siara";
 import { RUBRO_LABEL, RUBROS } from "@/lib/novedades";
 import { mensajeError } from "@/lib/nodos/errores";
@@ -83,7 +83,14 @@ export default function EmpresaForm({
     }
     setSaving(true);
     setError(null);
-    const payload = { ...f, denominacion: f.denominacion.trim(), tiene_sindico: f.tipo === "sa" ? f.tiene_sindico : false };
+    // Unipersonal y RUC personal no tienen órganos ni capital social.
+    const persona = !esSociedad(f.tipo);
+    const payload = {
+      ...f,
+      denominacion: f.denominacion.trim(),
+      tiene_sindico: f.tipo === "sa" ? f.tiene_sindico : false,
+      ...(persona ? { vencimiento_mandato: null, capital_integrado: null } : {}),
+    };
     const res = empresa
       ? await supabase.from("empresas").update(payload).eq("id", empresa.id).select().single()
       : await supabase.from("empresas").insert(payload).select().single();
@@ -97,23 +104,24 @@ export default function EmpresaForm({
 
   return (
     <form onSubmit={handleSubmit} className="card animate-slide-up">
-      <h2 className="mb-4">{empresa ? "Editar datos de la empresa" : "Nueva empresa"}</h2>
+      <h2 className="mb-4">{empresa ? "Editar datos" : "Nueva empresa o actividad"}</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="sm:col-span-2">
           <label className="field-label">
-            Denominación social<span className="required-mark">*</span>
+            {esSociedad(f.tipo) ? "Denominación social" : "Nombre del titular o nombre comercial"}
+            <span className="required-mark">*</span>
           </label>
           <input
             className="input"
             value={f.denominacion}
             onChange={(e) => set("denominacion", e.target.value)}
-            placeholder="Ej.: Agroganadera López S.A."
+            placeholder={esSociedad(f.tipo) ? "Ej.: Agroganadera López S.A." : "Ej.: Estudio Contable Benítez"}
             autoFocus={!empresa}
           />
         </div>
         <div>
           <label className="field-label">
-            Tipo societario<span className="required-mark">*</span>
+            Tipo de entidad<span className="required-mark">*</span>
           </label>
           <select className="input" value={f.tipo} onChange={(e) => set("tipo", e.target.value as TipoSociedad)}>
             {(Object.keys(TIPO_LABELS) as TipoSociedad[]).map((t) => (
@@ -154,27 +162,42 @@ export default function EmpresaForm({
             </p>
           ) : (
             empresa &&
-            !f.rubro && (
-              <p className="mt-1 text-xs text-cobre-hover">
-                Todavía no indicaste el rubro: elegilo para ver novedades pensadas para esta empresa.
-              </p>
-            )
+            !f.rubro && <p className="mt-1 text-xs text-cobre-hover">Todavía no indicaste el rubro: elegilo para ver novedades pensadas para esta empresa.</p>
           )}
         </div>
         <div>
           <label className="field-label">RUC</label>
-          <input className="input" value={f.ruc ?? ""} onChange={txt("ruc")} placeholder="80000000-0" />
+          <input className="input" value={f.ruc ?? ""} onChange={txt("ruc")} placeholder={esSociedad(f.tipo) ? "80000000-0" : "1234567-8"} />
+        </div>
+        <div>
+          <label className="field-label" htmlFor="empresa-regimen">
+            Régimen tributario
+          </label>
+          <select
+            id="empresa-regimen"
+            className="input"
+            value={f.regimen_tributario ?? ""}
+            onChange={(e) => set("regimen_tributario", (e.target.value || null) as RegimenTributario | null)}
+          >
+            <option value="">Sin especificar</option>
+            {(Object.keys(REGIMEN_LABELS) as RegimenTributario[]).map((r) => (
+              <option key={r} value={r}>
+                {REGIMEN_LABELS[r]}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-[11px] leading-snug text-carbon/50">Como figura en tu RUC. Es informativo: NODOS no liquida impuestos.</p>
         </div>
         <div>
           <label className="field-label">Ciudad</label>
           <input className="input" value={f.ciudad ?? ""} onChange={txt("ciudad")} />
         </div>
         <div>
-          <label className="field-label">Domicilio social</label>
+          <label className="field-label">{esSociedad(f.tipo) ? "Domicilio social" : "Domicilio"}</label>
           <input className="input" value={f.domicilio ?? ""} onChange={txt("domicilio")} placeholder="Calle, número, barrio" />
         </div>
         <div>
-          <label className="field-label">Fecha de constitución</label>
+          <label className="field-label">{esSociedad(f.tipo) ? "Fecha de constitución" : "Inicio de actividades"}</label>
           <input type="date" className="input" value={f.fecha_constitucion ?? ""} onChange={txt("fecha_constitucion")} />
         </div>
         <div>
@@ -187,20 +210,24 @@ export default function EmpresaForm({
             ))}
           </select>
         </div>
-        <div>
-          <label className="field-label">Vence el mandato de las autoridades</label>
-          <input type="date" className="input" value={f.vencimiento_mandato ?? ""} onChange={txt("vencimiento_mandato")} />
-        </div>
-        <div>
-          <label className="field-label">Capital integrado (Gs.)</label>
-          <input
-            type="number"
-            min="0"
-            className="input"
-            value={f.capital_integrado ?? ""}
-            onChange={(e) => set("capital_integrado", e.target.value === "" ? null : Number(e.target.value))}
-          />
-        </div>
+        {esSociedad(f.tipo) && (
+          <>
+            <div>
+              <label className="field-label">Vence el mandato de las autoridades</label>
+              <input type="date" className="input" value={f.vencimiento_mandato ?? ""} onChange={txt("vencimiento_mandato")} />
+            </div>
+            <div>
+              <label className="field-label">Capital integrado (Gs.)</label>
+              <input
+                type="number"
+                min="0"
+                className="input"
+                value={f.capital_integrado ?? ""}
+                onChange={(e) => set("capital_integrado", e.target.value === "" ? null : Number(e.target.value))}
+              />
+            </div>
+          </>
+        )}
         {f.tipo === "sa" && (
           <div>
             <label className="field-label opacity-0 select-none" aria-hidden="true">
@@ -212,22 +239,24 @@ export default function EmpresaForm({
             </label>
           </div>
         )}
-        <div className="sm:col-span-2 lg:col-span-3">
-          <button
-            type="button"
-            className="flex w-full items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left text-sm font-medium text-musgo"
-            style={{ borderColor: "var(--line)", background: "rgba(242,238,230,0.6)" }}
-            onClick={() => setVerSiara((v) => !v)}
-            aria-expanded={verSiara}
-          >
-            <span>
-              Datos registrales para SIARA
-              <span className="block text-xs font-normal text-carbon/55">Correo institucional, departamento, barrio, inscripción, valor nominal…</span>
-            </span>
-            <span className="text-xs text-carbon/50">{verSiara ? "Ocultar" : "Completar"}</span>
-          </button>
-        </div>
-        {verSiara && (
+        {esSociedad(f.tipo) && (
+          <div className="sm:col-span-2 lg:col-span-3">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left text-sm font-medium text-musgo"
+              style={{ borderColor: "var(--line)", background: "rgba(242,238,230,0.6)" }}
+              onClick={() => setVerSiara((v) => !v)}
+              aria-expanded={verSiara}
+            >
+              <span>
+                Datos registrales para SIARA
+                <span className="block text-xs font-normal text-carbon/55">Correo institucional, departamento, barrio, inscripción, valor nominal…</span>
+              </span>
+              <span className="text-xs text-carbon/50">{verSiara ? "Ocultar" : "Completar"}</span>
+            </button>
+          </div>
+        )}
+        {verSiara && esSociedad(f.tipo) && (
           <>
             {CAMPOS_SIARA.map((c) => (
               <div key={c.k} className={c.wide ? "sm:col-span-2" : ""}>

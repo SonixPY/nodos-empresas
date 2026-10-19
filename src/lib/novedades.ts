@@ -85,6 +85,7 @@ const RUBRO_DE_SECTOR: Record<Sector, Rubro> = {
   inmobiliaria: "inmobiliario",
   osfl: "osfl",
   remesas: "financiero",
+  caudales: "transporte",
 };
 
 /** Datos mínimos de una empresa para decidir qué temas le aplican. Se arma

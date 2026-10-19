@@ -6,7 +6,11 @@ import { SSO_FLAG, cookieDomainFor, urlIngreso } from "@/lib/nodos/sitios";
 import { supabaseAnonKey as supabaseAnonKey_, supabaseUrl as supabaseUrlLimpia } from "@/lib/nodos/sitios";
 
 // Rutas que se ven sin sesión.
-const PUBLICAS = ["/login", "/signup", "/recuperar", "/nueva-clave", "/auth/callback", "/soporte", "/sin-acceso"];
+// /vincular: aceptar la invitación de una empresa (la página pide ingresar si hace falta).
+const PUBLICAS = ["/login", "/signup", "/recuperar", "/nueva-clave", "/auth/callback", "/soporte", "/sin-acceso", "/vincular"];
+// Con sesión, pero sin pedir acceso a la app ni plan: NODOS Práctica es
+// gratis para cualquier cuenta NODOS (las cuentas suspendidas no entran).
+const LIBRES = ["/practica"];
 // Rutas de ingreso: con sesión abierta no tienen sentido.
 const INGRESO = ["/login", "/signup", "/recuperar"];
 // Con sesión pero sin plan vigente, solo se puede llegar a estas (si no, el
@@ -107,10 +111,12 @@ export async function proxy(request: NextRequest) {
     .select(`acceso_${APP_ID}, suspendido`)
     .eq("id", user.id)
     .maybeSingle<Record<string, boolean | null>>();
+  const libre = empiezaCon(pathname, LIBRES);
   // Si la migración de cuentas todavía no corrió, no bloqueamos a nadie.
-  if (!error && perfil && (perfil.suspendido === true || perfil[`acceso_${APP_ID}`] === false)) {
+  if (!error && perfil && (perfil.suspendido === true || (!libre && perfil[`acceso_${APP_ID}`] === false))) {
     return redirigir("/sin-acceso");
   }
+  if (libre) return marcarSso(response);
 
   // Cobro de suscripciones: SOLO con SUSCRIPCIONES_ACTIVAS=true (las dos apps).
   // tiene_acceso_app decide en la base (admin, cortesía, prueba, plan vigente

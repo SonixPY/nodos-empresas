@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, CalendarClock, CalendarPlus, FileText, Plus, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarPlus, FileSpreadsheet, FileText, Plus, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { generarCalendarioSeprelad, guardarPerfilSeprelad, useEmpresas, useObligaciones, usePerfilSeprelad } from "@/lib/data";
 import {
@@ -321,6 +321,24 @@ function CumplimientoContenido() {
             </div>
           </div>
 
+          {(perfil.sectores.includes("inmobiliaria") || perfil.sectores.includes("caudales")) && (
+            <Link
+              href={`/cumplimiento/ro?empresa=${empresa.id}`}
+              className="card flex flex-wrap items-center justify-between gap-3 transition hover:border-cobre/50"
+            >
+              <span className="flex items-start gap-3">
+                <FileSpreadsheet size={20} className="mt-0.5 shrink-0 text-cobre" />
+                <span>
+                  <span className="block font-display text-lg text-musgo">Reporte de Operaciones (RO)</span>
+                  <span className="block text-sm text-carbon/65">
+                    Subí la planilla del trimestre, revisá las observaciones y descargá el archivo para la plataforma. Se procesa en tu navegador: no se guarda.
+                  </span>
+                </span>
+              </span>
+              <span className="btn btn-primary">Armar el RO</span>
+            </Link>
+          )}
+
           <section>
             <h2 className="mb-3">
               Vencimientos SEPRELAD <span className="font-sans text-sm font-normal text-carbon/50">· {pendientes.length} pendientes</span>
@@ -364,8 +382,8 @@ export default function CumplimientoPage() {
         <p className="t-caption uppercase tracking-[0.14em] text-cobre-hover">PLA/FT · Ley 1015/97</p>
         <h1 className="mt-1">Cumplimiento SEPRELAD</h1>
         <p className="mt-1 max-w-3xl text-carbon/65">
-          Para empresas que son sujetos obligados: inmobiliarias y desarrolladoras, fundaciones familiares y
-          remesadoras. Vencimientos, hechos con plazo y documentos base, con la resolución que corresponde a cada uno.
+          Para empresas que son sujetos obligados: inmobiliarias y desarrolladoras, fundaciones familiares,
+          remesadoras y transportadoras de caudales. Vencimientos, hechos con plazo y documentos base, con la resolución que corresponde a cada uno.
         </p>
       </header>
       <Suspense fallback={null}>

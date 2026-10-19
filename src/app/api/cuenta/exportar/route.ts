@@ -31,6 +31,10 @@ const TABLAS: { app: "finanzas" | "empresas" | "cuenta"; tabla: string; id: bool
   { app: "finanzas", tabla: "resumen_layout", id: true },
   { app: "finanzas", tabla: "portfolio_layout", id: true },
   { app: "finanzas", tabla: "trading_layout", id: true },
+  { app: "finanzas", tabla: "espacios", id: true },
+  { app: "finanzas", tabla: "ingresos", id: true },
+  { app: "finanzas", tabla: "preferencias", id: false },
+  { app: "finanzas", tabla: "practica_partidas", id: true },
   // NODOS Empresas
   { app: "empresas", tabla: "empresas", id: true },
   { app: "empresas", tabla: "accionistas", id: true },
@@ -43,6 +47,9 @@ const TABLAS: { app: "finanzas" | "empresas" | "cuenta"; tabla: string; id: bool
   { app: "empresas", tabla: "archivos", id: true },
   { app: "empresas", tabla: "perfil_seprelad", id: false },
   { app: "empresas", tabla: "notificaciones_enviadas", id: true },
+  { app: "empresas", tabla: "eventos_entidad", id: true },
+  { app: "empresas", tabla: "ro_generaciones", id: true },
+  { app: "empresas", tabla: "ro_reglas_empresa", id: false },
   // Cuenta NODOS (las dos apps): suscripción y pagos, si la migración ya corrió.
   { app: "cuenta", tabla: "suscripciones", id: true },
   { app: "cuenta", tabla: "pagos", id: true },

@@ -1157,6 +1157,9 @@ ${firmas([
 // incluyen contenido de un ROS: ese reporte es confidencial y va solo por SIRO.
 
 const TODAS: TipoSociedad[] = ["sa", "eas", "srl"];
+// Formularios que también usa un sujeto obligado persona física (unipersonal
+// o RUC personal): no mencionan órganos societarios.
+const TODAS_Y_PERSONAS: TipoSociedad[] = [...TODAS, "unipersonal", "ruc_personal"];
 
 const SECTOR_OPCIONES = [
   { value: "201", label: "Inmobiliaria (Res. 201/2020)" },
@@ -1288,7 +1291,7 @@ const debidaDiligencia: Plantilla = {
   grupo: "seprelad",
   titulo: "Formulario de debida diligencia del cliente",
   descripcion: "Conozca a su cliente: datos mínimos de persona física o jurídica, origen de fondos y beneficiarios finales.",
-  tipos: TODAS,
+  tipos: TODAS_Y_PERSONAS,
   campos: [
     { key: "fecha", label: "Fecha", type: "date", required: true },
     {
@@ -1338,7 +1341,7 @@ const djOrigenFondos: Plantilla = {
   grupo: "seprelad",
   titulo: "Declaración jurada de origen de fondos y beneficiario final",
   descripcion: "El cliente declara de dónde vienen los fondos y quiénes son los beneficiarios finales.",
-  tipos: TODAS,
+  tipos: TODAS_Y_PERSONAS,
   campos: [
     { key: "fecha", label: "Fecha", type: "date", required: true },
     { key: "ciudad", label: "Ciudad", type: "text", default: (c) => c.empresa.ciudad ?? "Asunción" },
@@ -1371,7 +1374,7 @@ const constanciaManual: Plantilla = {
   grupo: "seprelad",
   titulo: "Constancia de conocimiento del manual y el código de ética PLA/FT",
   descripcion: "Directores y empleados firman que recibieron y conocen el manual de prevención y el código de ética.",
-  tipos: TODAS,
+  tipos: TODAS_Y_PERSONAS,
   campos: [
     { key: "fecha", label: "Fecha", type: "date", required: true },
     { key: "version", label: "Versión del manual", type: "text", default: () => "1.0" },
@@ -1395,7 +1398,7 @@ const planCapacitacion: Plantilla = {
   grupo: "seprelad",
   titulo: "Plan anual y registro de capacitación PLA/FT",
   descripcion: "Programa del año con temas, destinatarios y fechas, más la planilla de asistencia de cada sesión.",
-  tipos: TODAS,
+  tipos: TODAS_Y_PERSONAS,
   campos: [
     { key: "fecha", label: "Fecha de aprobación", type: "date", required: true },
     { key: "anio", label: "Año del plan", type: "text", default: () => String(new Date().getFullYear()) },

@@ -16,7 +16,7 @@ import type { Empresa, NuevaObligacion } from "@/lib/types";
  * prorrogar plazos (p. ej. Res. 158/2026): cargá la prórroga a mano.
  */
 
-export type Sector = "inmobiliaria" | "osfl" | "remesas";
+export type Sector = "inmobiliaria" | "osfl" | "remesas" | "caudales";
 
 export const SECTORES: Record<Sector, { label: string; norma: string; alcance: string }> = {
   inmobiliaria: {
@@ -35,6 +35,12 @@ export const SECTORES: Record<Sector, { label: string; norma: string; alcance: s
     label: "Remesas / transferencias de dinero",
     norma: "Res. SEPRELAD 176/2020",
     alcance: "Envío o recepción de remesas, giros u órdenes de pago, físicas o electrónicas (Res. 176/2020, art. 1).",
+  },
+  caudales: {
+    label: "Transportadora de caudales",
+    norma: "Res. SEPRELAD 208/2014 (con sus modificaciones)",
+    alcance:
+      "Transporte o atesoramiento de valores o caudales (Res. 208/2014, art. 1). El calendario de este sector todavía no es automático: cargá sus plazos como tareas. El Reporte de Operaciones se arma abajo.",
   },
 };
 

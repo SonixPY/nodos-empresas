@@ -19,7 +19,7 @@ import ObligacionForm from "@/components/ObligacionForm";
 import NovedadesEmpresas from "@/components/NovedadesEmpresas";
 import { SkeletonBlock } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
-import { TIPO_LABELS, type Empresa } from "@/lib/types";
+import { esSociedad, REGIMEN_LABELS, TIPO_LABELS, type Empresa } from "@/lib/types";
 import type { EmpresaSiara } from "@/lib/siara";
 import { esRubro, RUBRO_LABEL } from "@/lib/novedades";
 
@@ -33,6 +33,11 @@ const TABS = [
   { key: "vencimientos", label: "Vencimientos" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
+
+/** Unipersonal y RUC personal no tienen libro de accionistas ni SIARA (Ley
+ * 6446/2019 alcanza a personas y estructuras jurídicas). */
+const SOLO_SOCIEDADES: Tab[] = ["accionistas", "siara"];
+const tabsPara = (e: Empresa) => TABS.filter((t) => esSociedad(e.tipo) || !SOLO_SOCIEDADES.includes(t.key));
 
 function Datos({
   empresa,
@@ -74,15 +79,19 @@ function Datos({
     );
   }
 
+  const sociedad = esSociedad(empresa.tipo);
   const filas: [string, string][] = [
-    ["Tipo societario", TIPO_LABELS[empresa.tipo]],
+    ["Tipo de entidad", TIPO_LABELS[empresa.tipo]],
     ["RUC", empresa.ruc ?? "—"],
     ["Domicilio", [empresa.domicilio, empresa.ciudad].filter(Boolean).join(", ") || "—"],
-    ["Constitución", formatFecha(empresa.fecha_constitucion)],
+    [sociedad ? "Constitución" : "Inicio de actividades", formatFecha(empresa.fecha_constitucion)],
     ["Cierre del ejercicio", `Fin de ${MESES[(empresa.cierre_mes || 12) - 1]}`],
-    ["Vence el mandato", formatFecha(empresa.vencimiento_mandato)],
-    ["Capital integrado", empresa.capital_integrado ? formatPyg(empresa.capital_integrado) : "—"],
   ];
+  if (sociedad) {
+    filas.push(["Vence el mandato", formatFecha(empresa.vencimiento_mandato)]);
+    filas.push(["Capital integrado", empresa.capital_integrado ? formatPyg(empresa.capital_integrado) : "—"]);
+  }
+  if (empresa.regimen_tributario) filas.push(["Régimen tributario", REGIMEN_LABELS[empresa.regimen_tributario]]);
   if (esRubro(empresa.rubro)) filas.push(["Rubro", RUBRO_LABEL[empresa.rubro]]);
   if (empresa.tipo === "sa") filas.push(["Síndico", empresa.tiene_sindico ? "Sí" : "No"]);
   // Datos registrales para SIARA (migración 007), si están cargados.
@@ -127,6 +136,7 @@ function Vencimientos({ empresa }: { empresa: Empresa }) {
   const [nueva, setNueva] = useState(false);
   const [generando, setGenerando] = useState(false);
   const anio = new Date().getFullYear();
+  const sociedad = esSociedad(empresa.tipo);
 
   const visibles = data.filter((o) => (filtro === "todas" ? true : filtro === "hechas" ? o.estado === "hecho" : o.estado === "pendiente"));
 
@@ -150,7 +160,7 @@ function Vencimientos({ empresa }: { empresa: Empresa }) {
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
-          {[anio, anio + 1].map((y) => (
+          {sociedad && [anio, anio + 1].map((y) => (
             <button key={y} type="button" className="btn btn-ghost" onClick={() => generar(y)} disabled={generando}>
               <CalendarPlus size={15} /> Calendario {y}
             </button>
@@ -179,14 +189,24 @@ function Vencimientos({ empresa }: { empresa: Empresa }) {
           onChange={(id, patch) => setData((prev) => aplicarCambio(prev, id, patch))}
           vacio={
             data.length === 0 ? (
-              <EmptyState
-                compacta
-                icon={CalendarClock}
-                titulo="Esta empresa todavía no tiene vencimientos"
-                texto={`Generá el calendario ${anio}: asambleas, balance, SIARA y mandatos según el tipo de sociedad y el mes de cierre.`}
-                accion={{ label: `Generar calendario ${anio}`, icon: CalendarPlus, onClick: () => generar(anio) }}
-                secundaria={{ label: "Agregar a mano", icon: Plus, onClick: () => setNueva(true) }}
-              />
+              sociedad ? (
+                <EmptyState
+                  compacta
+                  icon={CalendarClock}
+                  titulo="Esta empresa todavía no tiene vencimientos"
+                  texto={`Generá el calendario ${anio}: asambleas, balance, SIARA y mandatos según el tipo de sociedad y el mes de cierre.`}
+                  accion={{ label: `Generar calendario ${anio}`, icon: CalendarPlus, onClick: () => generar(anio) }}
+                  secundaria={{ label: "Agregar a mano", icon: Plus, onClick: () => setNueva(true) }}
+                />
+              ) : (
+                <EmptyState
+                  compacta
+                  icon={CalendarClock}
+                  titulo="Todavía no cargaste vencimientos"
+                  texto="Sin asambleas ni actas, lo tuyo son los vencimientos de la DNIT, el IPS y lo que pida tu actividad. Cargalos como tareas: la fecha de la DNIT depende de la terminación de tu RUC."
+                  accion={{ label: "Agregar vencimiento", icon: Plus, onClick: () => setNueva(true) }}
+                />
+              )
             ) : filtro === "pendientes" ? (
               "No hay vencimientos pendientes."
             ) : (
@@ -196,7 +216,7 @@ function Vencimientos({ empresa }: { empresa: Empresa }) {
         />
       )}
       <p className="text-xs text-carbon/55">
-        El calendario automático sale del tipo societario y el mes de cierre. Los plazos en días hábiles descuentan fines de semana y feriados fijos, pero no los trasladables: tomalos como
+        {sociedad ? "El calendario automático sale del tipo societario y el mes de cierre." : "Para unipersonales y RUC personal no hay calendario societario: cargá tus vencimientos a mano."} Los plazos en días hábiles descuentan fines de semana y feriados fijos, pero no los trasladables: tomalos como
         referencia y confirmalos. Tocá una tarea para ver el detalle y la base legal.
       </p>
     </div>
@@ -221,7 +241,7 @@ function Documentos({ empresa }: { empresa: Empresa }) {
           accion={{ label: "Generar documento", icon: FilePlus2, href: `/documentos?empresa=${empresa.id}` }}
         />
       ) : (
-        <ul className="divide-y rounded-sm border bg-white" style={{ borderColor: "var(--line)" }}>
+        <ul className="divide-y divide-[var(--line)] rounded-sm border bg-white" style={{ borderColor: "var(--line)" }}>
           {data.map((d) => (
             <li key={d.id}>
               <Link href={`/documentos/${d.id}`} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm hover:bg-marfil/60">
@@ -242,7 +262,9 @@ function FichaEmpresa() {
   const router = useRouter();
   const { data: empresa, setData, loading, error } = useEmpresa(id);
   const tabParam = params.get("tab") as Tab | null;
-  const [tab, setTab] = useState<Tab>(TABS.some((t) => t.key === tabParam) ? (tabParam as Tab) : "datos");
+  const [tabElegida, setTab] = useState<Tab>(TABS.some((t) => t.key === tabParam) ? (tabParam as Tab) : "datos");
+  // Si la entidad no tiene esa pestaña (p. ej. Accionistas en un unipersonal), se muestra Datos.
+  const tab: Tab = empresa && !tabsPara(empresa).some((t) => t.key === tabElegida) ? "datos" : tabElegida;
   const [editarDatos, setEditarDatos] = useState(false);
 
   function irA(t: Tab) {
@@ -275,7 +297,7 @@ function FichaEmpresa() {
             style={{ borderColor: "var(--line)" }}
             role="tablist"
           >
-            {TABS.map((t) => (
+            {tabsPara(empresa).map((t) => (
               <button
                 key={t.key}
                 type="button"

@@ -20,7 +20,7 @@ interface Estado<T> {
  * Hook genérico: corre una consulta al montar (y cada vez que cambia `key`)
  * y expone `reload` para volver a traer los datos después de un cambio.
  */
-function useQuery<T>(key: string, fetcher: () => PromiseLike<{ data: T | null; error: { message: string } | null }>, initial: T): Estado<T> {
+export function useQuery<T>(key: string, fetcher: () => PromiseLike<{ data: T | null; error: { message: string } | null }>, initial: T): Estado<T> {
   const [data, setData] = useState<T>(initial);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

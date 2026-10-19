@@ -23,6 +23,13 @@ export const SITIOS = {
     url: "https://empresas.nodoscompliance.com",
     descripcion: "Actas, vencimientos, libro de accionistas y cumplimiento SEPRELAD.",
   },
+  // NODOS 1.0: gratis para cualquier cuenta; vive en Finanzas, en /practica.
+  practica: {
+    nombre: "NODOS Práctica",
+    corto: "Práctica",
+    url: "https://finanzas.nodoscompliance.com/practica",
+    descripcion: "Practicá finanzas y ser empresario con una empresa ficticia. Gratis.",
+  },
 } as const;
 
 /** Correo del departamento de IT al que llegan los pedidos de soporte. */

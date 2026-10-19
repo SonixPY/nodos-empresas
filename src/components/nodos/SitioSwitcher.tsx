@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, ChevronDown, Globe, Wallet } from "lucide-react";
+import { Building2, ChevronDown, Globe, GraduationCap, Wallet } from "lucide-react";
 import { APP_ID } from "@/lib/nodos/app";
 import { SITIOS } from "@/lib/nodos/sitios";
 import { useDesplegable } from "@/lib/nodos/useDesplegable";
@@ -10,16 +10,20 @@ const PAGINAS = [
   { id: "inicio", icon: Globe, nombre: "NODOS", detalle: "Sitio principal. El punto de encuentro entre finanzas, proyectos y ley.", url: SITIOS.inicio.url },
   { id: "finanzas", icon: Wallet, nombre: SITIOS.finanzas.nombre, detalle: SITIOS.finanzas.descripcion, url: SITIOS.finanzas.url },
   { id: "empresas", icon: Building2, nombre: SITIOS.empresas.nombre, detalle: SITIOS.empresas.descripcion, url: SITIOS.empresas.url },
+  { id: "practica", icon: GraduationCap, nombre: SITIOS.practica.nombre, detalle: SITIOS.practica.descripcion, url: SITIOS.practica.url },
 ] as const;
 
 /**
  * Logo + nombre de la app en el header. Al pasar el mouse o tocarlo despliega
- * las páginas NODOS (sitio principal, Finanzas, Empresas) con la misma sesión.
+ * las páginas NODOS (sitio principal, Finanzas, Empresas, Práctica) con la
+ * misma sesión. `pagina` permite marcar NODOS Práctica, que vive dentro de
+ * Finanzas pero tiene su propio encabezado.
  */
-export default function SitioSwitcher() {
+export default function SitioSwitcher({ pagina }: { pagina?: "practica" } = {}) {
   const { open, rootRef, triggerRef, panelRef, onTriggerClick, onTriggerKeyDown, onPointerEnter, onPointerLeave, onBlur, onPanelClick } =
     useDesplegable({ hover: true });
-  const actual = SITIOS[APP_ID];
+  const idActual = pagina ?? APP_ID;
+  const actual = SITIOS[idActual];
 
   return (
     <div ref={rootRef} className="relative min-w-0" onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave} onBlur={onBlur}>
@@ -58,7 +62,7 @@ export default function SitioSwitcher() {
             <p className="t-caption px-3 pb-1 pt-1.5 uppercase tracking-[0.12em] text-carbon/45">Páginas NODOS</p>
             <ul>
               {PAGINAS.map((p) => {
-                const esActual = p.id === APP_ID;
+                const esActual = p.id === idActual;
                 const Icon = p.icon;
                 const contenido = (
                   <>
@@ -78,7 +82,7 @@ export default function SitioSwitcher() {
                 return (
                   <li key={p.id} role="none">
                     {esActual ? (
-                      <Link href="/" role="menuitem" aria-current="page" className={clase}>
+                      <Link href={p.id === "practica" ? "/practica" : "/"} role="menuitem" aria-current="page" className={clase}>
                         {contenido}
                       </Link>
                     ) : (

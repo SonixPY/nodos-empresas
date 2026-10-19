@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRightLeft, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { ArrowRightLeft, Banknote, Link2, Pencil, Plus, Trash2, Unlink, Users } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAccionistas, useMovimientos } from "@/lib/data";
 import { calcularParticipaciones, formatNumero, formatPct, UMBRAL_CAPITAL_PCT, UMBRAL_VOTOS_PCT } from "@/lib/accionistas";
@@ -13,6 +13,7 @@ import { mensajeError } from "@/lib/nodos/errores";
 import Accordion from "@/components/Accordion";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import { desconectarSocio, DistribuirUtilidadesDialog, InvitarSocioDialog, PublicadoParaSocios } from "@/components/SociosNodos";
 import { MOVIMIENTO_LABELS, type Accionista, type Empresa, type NuevoAccionista, type TipoMovimiento, type TipoPersona } from "@/lib/types";
 
 function vacio(empresaId: string): NuevoAccionista {
@@ -27,6 +28,7 @@ function vacio(empresaId: string): NuevoAccionista {
     cargo: null,
     email: null,
     telefono: null,
+    residente: true,
   };
 }
 
@@ -42,6 +44,7 @@ function aNuevo(a: Accionista): NuevoAccionista {
     cargo: a.cargo,
     email: a.email,
     telefono: a.telefono,
+    residente: a.residente ?? true,
   };
 }
 
@@ -146,6 +149,15 @@ function AccionistaForm({
         <div>
           <label className="field-label">Teléfono</label>
           <input className="input" value={f.telefono ?? ""} onChange={txt("telefono")} />
+        </div>
+        <div>
+          <label className="field-label opacity-0 select-none" aria-hidden="true">
+            Residencia
+          </label>
+          <label className="input flex items-center gap-2 text-sm text-carbon/70">
+            <input type="checkbox" checked={f.residente ?? true} onChange={(e) => set("residente", e.target.checked)} />
+            Residente en Paraguay
+          </label>
         </div>
       </div>
       {error && <p className="mt-2 text-sm text-bad">{error}</p>}
@@ -345,6 +357,10 @@ export default function AccionistasPanel({ empresa, onChanged }: { empresa: Empr
   const movs = useMovimientos(empresa.id);
   const [modo, setModo] = useState<"nada" | "nuevo" | "editar" | "movimiento">("nada");
   const [editando, setEditando] = useState<Accionista | null>(null);
+  const [invitando, setInvitando] = useState<Accionista | null>(null);
+  const [distribuyendo, setDistribuyendo] = useState(false);
+  // Cambia al registrar algo que publica eventos, para recargar esa lista.
+  const [versionEventos, setVersionEventos] = useState(0);
 
   const { filas, totalAcciones, totalVotos } = calcularParticipaciones(accionistas);
   const posiblesBF = filas.filter((f) => f.posibleBF);
@@ -353,6 +369,7 @@ export default function AccionistasPanel({ empresa, onChanged }: { empresa: Empr
     setModo("nada");
     setEditando(null);
     await Promise.all([reload(), movs.reload()]);
+    setVersionEventos((v) => v + 1);
     onChanged?.();
   }
 
@@ -371,7 +388,10 @@ export default function AccionistasPanel({ empresa, onChanged }: { empresa: Empr
           {filas.length} accionista{filas.length === 1 ? "" : "s"} · {formatNumero(totalAcciones)} acciones · {formatNumero(totalVotos)} votos
           {empresa.capital_integrado ? ` · Capital integrado ${formatPyg(empresa.capital_integrado)}` : ""}
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn btn-ghost" onClick={() => setDistribuyendo(true)} disabled={totalAcciones <= 0}>
+            <Banknote size={15} /> Distribuir utilidades
+          </button>
           <button type="button" className="btn btn-ghost" onClick={() => setModo(modo === "movimiento" ? "nada" : "movimiento")} disabled={accionistas.length === 0}>
             <ArrowRightLeft size={15} /> Registrar movimiento
           </button>
@@ -433,6 +453,7 @@ export default function AccionistasPanel({ empresa, onChanged }: { empresa: Empr
                 <th className="text-right">% votos</th>
                 <th>Cargo / vínculo</th>
                 <th>Beneficiario final</th>
+                <th>NODOS</th>
                 <th></th>
               </tr>
             </thead>
@@ -453,6 +474,29 @@ export default function AccionistasPanel({ empresa, onChanged }: { empresa: Empr
                       <span className="rounded-full px-2 py-0.5 font-medium text-cobre" style={{ background: "rgba(184,115,74,0.12)" }}>
                         {f.tipo_persona === "juridica" ? "Ver cadena de control" : "Posible BF"}
                       </span>
+                    ) : (
+                      <span className="text-carbon/40">—</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap text-xs">
+                    {f.usuario_vinculado ? (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="rounded-full px-2 py-0.5 font-medium text-good" style={{ background: "rgba(63,107,82,0.12)" }}>
+                          Conectado
+                        </span>
+                        <button
+                          type="button"
+                          title="Desconectar cuenta NODOS"
+                          className="rounded-full p-1 text-carbon/45 hover:text-bad"
+                          onClick={() => desconectarSocio(f, refrescar, showToast)}
+                        >
+                          <Unlink size={13} />
+                        </button>
+                      </span>
+                    ) : f.tipo_persona === "fisica" ? (
+                      <button type="button" className="inline-flex items-center gap-1 font-medium text-cobre-hover hover:underline" onClick={() => setInvitando(f)}>
+                        <Link2 size={13} /> Invitar
+                      </button>
                     ) : (
                       <span className="text-carbon/40">—</span>
                     )}
@@ -487,6 +531,25 @@ export default function AccionistasPanel({ empresa, onChanged }: { empresa: Empr
           de control y administración que esta herramienta no evalúa, y para accionistas personas jurídicas hay que identificar a las personas físicas de la
           cadena de control. Es una alerta para revisar, no una determinación.
         </p>
+      )}
+
+      {filas.length > 0 && (
+        <Accordion title="Publicado para los socios" subtitle="Dividendos, aportes y cesiones que ven en NODOS Finanzas">
+          <PublicadoParaSocios key={versionEventos} empresaId={empresa.id} accionistas={accionistas} />
+        </Accordion>
+      )}
+
+      {invitando && <InvitarSocioDialog accionista={invitando} onClose={() => setInvitando(null)} />}
+      {distribuyendo && (
+        <DistribuirUtilidadesDialog
+          empresa={empresa}
+          accionistas={accionistas}
+          onClose={() => setDistribuyendo(false)}
+          onPublicado={() => {
+            setDistribuyendo(false);
+            refrescar();
+          }}
+        />
       )}
 
       <Accordion title="Historial de movimientos" badge={`${movs.data.length}`}>
