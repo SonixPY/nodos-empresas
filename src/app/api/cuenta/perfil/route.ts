@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { leerJson, origenValido, preflight, responder, texto } from "@/lib/nodos/cuentaApi";
 import { USUARIO_REGEX } from "@/lib/nodos/sitios";
+import { mensajeError } from "@/lib/nodos/errores";
 
 export const OPTIONS = preflight;
 
@@ -41,7 +42,7 @@ export async function PATCH(request: Request) {
   }
   const { data, error } = await admin.from("profiles").update(cambios).eq("id", user.id).select("nombre, usuario").maybeSingle();
   if (error) {
-    const msg = error.code === "23505" ? "Ese usuario ya está tomado. Probá con otro." : error.message;
+    const msg = error.code === "23505" ? "Ese usuario ya está tomado. Probá con otro." : mensajeError(error, "No se pudo guardar el perfil.");
     return responder(request, 400, { message: msg });
   }
   return responder(request, 200, { ok: true, perfil: data });

@@ -12,6 +12,7 @@ import { useToast } from "@/components/ToastProvider";
 import DocPreview from "@/components/DocPreview";
 import { SkeletonBlock } from "@/components/Skeleton";
 import type { Documento, Empresa } from "@/lib/types";
+import { mensajeError } from "@/lib/nodos/errores";
 
 export default function DocumentoPage() {
   const { id } = useParams<{ id: string }>();
@@ -28,7 +29,7 @@ export default function DocumentoPage() {
       const { data, error: err } = await supabase.from("documentos").select("*").eq("id", id).maybeSingle();
       if (!active) return;
       if (err || !data) {
-        setError(err?.message ?? "No se encontró el documento.");
+        setError(err ? mensajeError(err) : "No se encontró el documento.");
         setLoading(false);
         return;
       }
@@ -47,7 +48,7 @@ export default function DocumentoPage() {
   async function eliminar() {
     if (!doc || !confirm("¿Eliminar este documento del historial?")) return;
     const { error: err } = await supabase.from("documentos").delete().eq("id", doc.id);
-    if (err) return showToast(`No se pudo eliminar: ${err.message}`, "error");
+    if (err) return showToast(`No se pudo eliminar: ${mensajeError(err)}`, "error");
     showToast("Documento eliminado.");
     router.push("/documentos/guardados");
   }

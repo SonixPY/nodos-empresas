@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ToastProvider";
 import { ORIGEN_LABEL, TEMA_LABEL, type Lead, type Origen, type Tema } from "@/lib/panel";
+import { mensajeError } from "@/lib/nodos/errores";
 
 /** Alta manual de un lead (llegó por WhatsApp, Instagram, un evento...). */
 export default function LeadForm({ onCreated, onCancel }: { onCreated: (l: Lead) => void; onCancel: () => void }) {
@@ -31,7 +32,7 @@ export default function LeadForm({ onCreated, onCancel }: { onCreated: (l: Lead)
       .select()
       .single();
     setSaving(false);
-    if (error) return showToast(`No se pudo guardar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo guardar: ${mensajeError(error)}`, "error");
     await supabase.from("lead_actividades").insert({ lead_id: data.id, tipo: "sistema", texto: `Lead cargado a mano (origen: ${ORIGEN_LABEL[f.origen]}).` });
     showToast("Lead cargado.");
     onCreated(data as Lead);

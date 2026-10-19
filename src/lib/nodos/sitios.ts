@@ -79,10 +79,18 @@ export function esUrlNodos(url: string | null | undefined): url is string {
   }
 }
 
-/** Pantalla única de ingreso (en nodoscompliance.com). `vista`: "crear" o "recuperar". */
-export function urlIngreso(volverA?: string | null, vista?: "crear" | "recuperar"): string {
+/** Avisos que la pantalla de ingreso sabe mostrar (`?aviso=`). Lista fija. */
+export type AvisoIngreso = "link_vencido";
+
+/**
+ * Pantalla única de ingreso (en nodoscompliance.com). `vista`: "crear" o
+ * "recuperar". `aviso`: mensaje a mostrar arriba (p. ej. "link_vencido"
+ * cuando un link de confirmación o de recuperar contraseña ya no sirve).
+ */
+export function urlIngreso(volverA?: string | null, vista?: "crear" | "recuperar", aviso?: AvisoIngreso): string {
   const u = new URL("/ingresar", SITIOS.inicio.url);
   if (esUrlNodos(volverA)) u.searchParams.set("next", volverA);
+  if (aviso) u.searchParams.set("aviso", aviso);
   if (vista) u.hash = vista;
   return u.toString();
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Nodos Empresas",
+  title: "NODOS Empresas",
   description: "Gobierno corporativo para empresas familiares de Paraguay: actas, vencimientos y libro de accionistas.",
 };
 

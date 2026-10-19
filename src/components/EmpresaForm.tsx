@@ -6,6 +6,7 @@ import { MESES } from "@/lib/dates";
 import { TIPO_LABELS, type Empresa, type NuevaEmpresa, type TipoSociedad } from "@/lib/types";
 import type { CamposSiaraEmpresa } from "@/lib/siara";
 import { RUBRO_LABEL, RUBROS } from "@/lib/novedades";
+import { mensajeError } from "@/lib/nodos/errores";
 
 /** Datos de la empresa + los que pide SIARA (columnas de la migración 007). */
 type FormEmpresa = NuevaEmpresa & Partial<Omit<CamposSiaraEmpresa, "siara_ultima_declaracion" | "siara_numero_solicitud">>;
@@ -88,7 +89,7 @@ export default function EmpresaForm({
       : await supabase.from("empresas").insert(payload).select().single();
     setSaving(false);
     if (res.error) {
-      setError(`No se pudo guardar: ${res.error.message}`);
+      setError(`No se pudo guardar: ${mensajeError(res.error)}`);
       return;
     }
     onSaved(res.data as Empresa);

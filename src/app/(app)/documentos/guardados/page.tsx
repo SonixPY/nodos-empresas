@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { FilePlus2, FileText, Search } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useDocumentos, useEmpresas } from "@/lib/data";
 import { formatFecha } from "@/lib/dates";
@@ -12,6 +12,8 @@ import { useToast } from "@/components/ToastProvider";
 import DocumentosNav from "@/components/DocumentosNav";
 import BulkDeleteBar from "@/components/BulkDeleteBar";
 import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
+import { mensajeError } from "@/lib/nodos/errores";
 
 export default function GuardadosPage() {
   const { showToast } = useToast();
@@ -50,7 +52,7 @@ export default function GuardadosPage() {
     setDeleting(true);
     const { error } = await supabase.from("documentos").delete().in("id", sel.selectedIds);
     setDeleting(false);
-    if (error) return showToast(`No se pudo eliminar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo eliminar: ${mensajeError(error)}`, "error");
     const borrados = new Set(sel.selectedIds);
     documentos.setData((prev) => prev.filter((d) => !borrados.has(d.id)));
     sel.clear();
@@ -110,13 +112,12 @@ export default function GuardadosPage() {
       {documentos.loading ? (
         <SkeletonTable rows={5} cols={4} />
       ) : documentos.data.length === 0 ? (
-        <div className="card text-sm text-carbon/65">
-          Todavía no guardaste documentos.{" "}
-          <Link href="/documentos" className="text-cobre-hover hover:underline">
-            Generá el primero
-          </Link>
-          .
-        </div>
+        <EmptyState
+          icon={FileText}
+          titulo="Todavía no guardaste documentos"
+          texto="Las actas, poderes y notas que generes quedan acá con su código (SOC, POD, FAM, SEP), listas para volver a abrir o imprimir en PDF."
+          accion={{ label: "Generar el primero", icon: FilePlus2, href: "/documentos" }}
+        />
       ) : filas.length === 0 ? (
         <div className="card text-sm text-carbon/65">No hay documentos con esos filtros.</div>
       ) : (

@@ -3,12 +3,12 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CalendarPlus, FileText, Pencil, Plus, Trash2 } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+import { ArrowLeft, CalendarClock, CalendarPlus, FilePlus2, FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import { generarCalendario, useDocumentos, useEmpresa, useObligaciones } from "@/lib/data";
 import { formatFecha, MESES } from "@/lib/dates";
 import { formatPyg } from "@/lib/format";
 import { useToast } from "@/components/ToastProvider";
+import { mensajeError } from "@/lib/nodos/errores";
 import EmpresaForm from "@/components/EmpresaForm";
 import AccionistasPanel from "@/components/AccionistasPanel";
 import SiaraPanel from "@/components/SiaraPanel";
@@ -18,6 +18,7 @@ import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista
 import ObligacionForm from "@/components/ObligacionForm";
 import NovedadesEmpresas from "@/components/NovedadesEmpresas";
 import { SkeletonBlock } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
 import { TIPO_LABELS, type Empresa } from "@/lib/types";
 import type { EmpresaSiara } from "@/lib/siara";
 import { esRubro, RUBRO_LABEL } from "@/lib/novedades";
@@ -49,9 +50,12 @@ function Datos({
   const { showToast } = useToast();
 
   async function eliminar() {
-    if (!confirm(`¿Eliminar ${empresa.denominacion}? Se borran también sus accionistas, vencimientos y documentos. No se puede deshacer.`)) return;
-    const { error } = await supabase.from("empresas").delete().eq("id", empresa.id);
-    if (error) return showToast(`No se pudo eliminar: ${error.message}`, "error");
+    if (!confirm(`¿Eliminar ${empresa.denominacion}? Se borran también sus accionistas, vencimientos, documentos y archivos subidos. No se puede deshacer.`)) return;
+    // Pasa por el servidor: borra también los archivos de Storage de la empresa.
+    const res = await fetch(`/api/empresas/${empresa.id}`, { method: "DELETE" }).catch((e: unknown) => e);
+    if (!(res instanceof Response)) return showToast(`No se pudo eliminar: ${mensajeError(res)}`, "error");
+    const body = (await res.json().catch(() => null)) as { message?: string } | null;
+    if (!res.ok) return showToast(`No se pudo eliminar: ${body?.message ?? "error del servidor."}`, "error");
     showToast("Empresa eliminada.");
     onDeleted();
   }
@@ -173,7 +177,22 @@ function Vencimientos({ empresa }: { empresa: Empresa }) {
         <ObligacionesLista
           obligaciones={visibles}
           onChange={(id, patch) => setData((prev) => aplicarCambio(prev, id, patch))}
-          vacio={filtro === "pendientes" ? "No hay vencimientos pendientes." : "Nada para mostrar."}
+          vacio={
+            data.length === 0 ? (
+              <EmptyState
+                compacta
+                icon={CalendarClock}
+                titulo="Esta empresa todavía no tiene vencimientos"
+                texto={`Generá el calendario ${anio}: asambleas, balance, SIARA y mandatos según el tipo de sociedad y el mes de cierre.`}
+                accion={{ label: `Generar calendario ${anio}`, icon: CalendarPlus, onClick: () => generar(anio) }}
+                secundaria={{ label: "Agregar a mano", icon: Plus, onClick: () => setNueva(true) }}
+              />
+            ) : filtro === "pendientes" ? (
+              "No hay vencimientos pendientes."
+            ) : (
+              "Nada para mostrar."
+            )
+          }
         />
       )}
       <p className="text-xs text-carbon/55">
@@ -194,9 +213,13 @@ function Documentos({ empresa }: { empresa: Empresa }) {
       {loading ? (
         <SkeletonBlock className="h-24" />
       ) : data.length === 0 ? (
-        <p className="rounded border border-dashed p-6 text-center text-sm text-carbon/60" style={{ borderColor: "var(--line)" }}>
-          Todavía no generaste documentos para esta empresa.
-        </p>
+        <EmptyState
+          compacta
+          icon={FileText}
+          titulo="Todavía no generaste documentos para esta empresa"
+          texto="Actas, poderes y notas con los datos de la empresa y sus accionistas ya precargados. Lo que guardes aparece acá."
+          accion={{ label: "Generar documento", icon: FilePlus2, href: `/documentos?empresa=${empresa.id}` }}
+        />
       ) : (
         <ul className="divide-y rounded-sm border bg-white" style={{ borderColor: "var(--line)" }}>
           {data.map((d) => (

@@ -3,13 +3,15 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Building2, Plus } from "lucide-react";
 import { useEmpresas, generarCalendario } from "@/lib/data";
 import { formatFecha, MESES } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
 import EmpresaForm from "@/components/EmpresaForm";
 import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
 import { TIPO_CORTO, type Empresa } from "@/lib/types";
+import { mensajeError } from "@/lib/nodos/errores";
 
 function EmpresasContenido() {
   const router = useRouter();
@@ -47,15 +49,18 @@ function EmpresasContenido() {
         </div>
       )}
 
-      {error && <p className="mb-4 text-sm text-bad">Error: {error}</p>}
+      {error && <p className="mb-4 text-sm text-bad">No se pudieron cargar las empresas: {mensajeError(error)}</p>}
 
       {loading ? (
         <SkeletonTable rows={3} cols={5} />
       ) : empresas.length === 0 ? (
         !creando && (
-          <p className="rounded border border-dashed p-8 text-center text-sm text-carbon/60" style={{ borderColor: "var(--line)" }}>
-            Todavía no cargaste empresas.
-          </p>
+          <EmptyState
+            icon={Building2}
+            titulo="Todavía no cargaste empresas"
+            texto="Cada sociedad que administrás, con su tipo, rubro y mes de cierre. Con eso armamos su calendario de vencimientos y precargamos los documentos."
+            accion={{ label: "Cargar primera empresa", icon: Plus, onClick: () => setCreando(true) }}
+          />
         )
       ) : (
         <div className="table-shell">

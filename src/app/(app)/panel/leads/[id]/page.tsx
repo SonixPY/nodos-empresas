@@ -20,6 +20,7 @@ import {
   type Lead,
   type TipoActividad,
 } from "@/lib/panel";
+import { mensajeError } from "@/lib/nodos/errores";
 
 function fechaHora(iso: string) {
   return new Date(iso).toLocaleString("es-PY", { dateStyle: "short", timeStyle: "short" });
@@ -43,7 +44,7 @@ export default function LeadPage() {
         supabase.from("leads").select("*").eq("id", id).maybeSingle(),
         supabase.from("lead_actividades").select("*").eq("lead_id", id).order("created_at", { ascending: false }),
       ]);
-      if (l.error || !l.data) return setError(l.error?.message ?? "No se encontró el lead.");
+      if (l.error || !l.data) return setError(l.error ? mensajeError(l.error) : "No se encontró el lead.");
       setLead(l.data as Lead);
       setBorrador(l.data as Lead);
       setActividades((a.data as Actividad[]) ?? []);
@@ -72,7 +73,7 @@ export default function LeadPage() {
     };
     const { data, error: err } = await supabase.from("leads").update(cambios).eq("id", id).select().single();
     setSaving(false);
-    if (err) return showToast(`No se pudo guardar: ${err.message}`, "error");
+    if (err) return showToast(`No se pudo guardar: ${mensajeError(err)}`, "error");
     if (lead.etapa !== borrador.etapa) await registrar("etapa", `${ETAPA_LABEL[lead.etapa]} › ${ETAPA_LABEL[borrador.etapa]}`);
     setLead(data as Lead);
     setBorrador(data as Lead);
@@ -89,7 +90,7 @@ export default function LeadPage() {
   async function eliminar() {
     if (!lead || !confirm(`¿Eliminar el lead de ${lead.nombre} y todo su historial?`)) return;
     const { error: err } = await supabase.from("leads").delete().eq("id", id);
-    if (err) return showToast(`No se pudo eliminar: ${err.message}`, "error");
+    if (err) return showToast(`No se pudo eliminar: ${mensajeError(err)}`, "error");
     showToast("Lead eliminado.");
     router.push("/panel/leads");
   }

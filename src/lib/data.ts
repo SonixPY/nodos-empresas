@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { generarObligacionesAnuales } from "@/lib/calendario";
-import { generarObligacionesSeprelad, type PerfilSeprelad } from "@/lib/seprelad";
+import { fechaInicioSeprelad, generarObligacionesSeprelad, type PerfilSeprelad } from "@/lib/seprelad";
+import { mensajeError } from "@/lib/nodos/errores";
 import type { Accionista, Documento, Empresa, MovimientoAcciones, Obligacion } from "@/lib/types";
 import type { NotaNodos } from "@/lib/novedades";
 
@@ -98,17 +99,18 @@ export function useDocumentos(empresaId: string | null) {
 }
 
 /**
- * Inserta las obligaciones del calendario anual. Si ya se generó ese año,
- * no duplica (índice único empresa + regla + año) y no pisa lo que el
- * usuario ya marcó como hecho.
+ * Inserta las obligaciones del calendario anual desde hoy en adelante (lo ya
+ * vencido no se crea). Si ya se generó ese año, no duplica (índice único
+ * empresa + regla + año) y no pisa lo que el usuario ya marcó como hecho.
  */
 export async function generarCalendario(empresa: Empresa, anio: number): Promise<{ nuevas: number; error: string | null }> {
   const filas = generarObligacionesAnuales(empresa, anio);
+  if (filas.length === 0) return { nuevas: 0, error: null };
   const { data, error } = await supabase
     .from("obligaciones")
     .upsert(filas, { onConflict: "empresa_id,regla,anio", ignoreDuplicates: true })
     .select("id");
-  return { nuevas: data?.length ?? 0, error: error?.message ?? null };
+  return { nuevas: data?.length ?? 0, error: error ? mensajeError(error) : null };
 }
 
 export async function marcarObligacion(id: string, hecho: boolean) {
@@ -165,16 +167,24 @@ export async function guardarPerfilSeprelad(perfil: PerfilSeprelad) {
     .single();
 }
 
+/**
+ * Calendario SEPRELAD del año desde hoy (o desde la inscripción, si es
+ * posterior). `omitidas`: vencimientos del año anteriores a esa fecha, que no
+ * se crean para no arrancar con atrasados que nunca correspondieron.
+ */
 export async function generarCalendarioSeprelad(
   empresa: Empresa,
   perfil: PerfilSeprelad,
   anio: number
-): Promise<{ nuevas: number; error: string | null }> {
-  const filas = generarObligacionesSeprelad(empresa, perfil, anio);
-  if (filas.length === 0) return { nuevas: 0, error: null };
+): Promise<{ nuevas: number; omitidas: number; desde: string; error: string | null }> {
+  const desde = fechaInicioSeprelad(perfil);
+  const todas = generarObligacionesSeprelad(empresa, perfil, anio, null);
+  const filas = todas.filter((f) => f.fecha >= desde);
+  const omitidas = todas.length - filas.length;
+  if (filas.length === 0) return { nuevas: 0, omitidas, desde, error: null };
   const { data, error } = await supabase
     .from("obligaciones")
     .upsert(filas, { onConflict: "empresa_id,regla,anio", ignoreDuplicates: true })
     .select("id");
-  return { nuevas: data?.length ?? 0, error: error?.message ?? null };
+  return { nuevas: data?.length ?? 0, omitidas, desde, error: error ? mensajeError(error) : null };
 }

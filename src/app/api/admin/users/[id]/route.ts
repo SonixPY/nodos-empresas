@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { limpiarCambios, requireAdmin } from "@/lib/nodos/adminApi";
+import { BUCKET_ARCHIVOS_EMPRESAS, borrarCarpeta } from "@/lib/nodos/storage";
+import { mensajeError, mensajeErrorAuth } from "@/lib/nodos/errores";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Modifica una cuenta: rol, acceso por app, suspensión, nombre o email. Vale para las tres páginas NODOS. */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -26,7 +30,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       // Suspender también bloquea el inicio de sesión en Supabase Auth.
       ...(cambios.suspendido !== undefined ? { ban_duration: cambios.suspendido ? "876000h" : "none" } : {}),
     });
-    if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ message: mensajeErrorAuth(error, "No se pudo actualizar la cuenta.") }, { status: 500 });
   }
 
   const { error } = await admin.from("profiles").update(cambios).eq("id", id);
@@ -37,7 +41,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       {
         message: pendiente
           ? "Falta correr la migración de cuentas NODOS (000_cuentas_nodos.sql) en Supabase."
-          : error.message,
+          : mensajeError(error, "No se pudo actualizar la cuenta."),
       },
       { status: 500 }
     );
@@ -55,11 +59,23 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     return NextResponse.json({ message: "No te podés eliminar a vos mismo desde acá." }, { status: 400 });
   }
 
+  if (!UUID.test(id)) return NextResponse.json({ message: "Cuenta inválida." }, { status: 400 });
+
   const admin = createSupabaseAdminClient();
+  // Primero los archivos subidos (<user_id>/… en Storage): el cascade de la
+  // base no los alcanza. Si Storage falla, la cuenta no se borra.
+  try {
+    await borrarCarpeta(admin, BUCKET_ARCHIVOS_EMPRESAS, id);
+  } catch (e) {
+    return NextResponse.json(
+      { message: `No se pudieron borrar los archivos de la cuenta: ${mensajeError(e)} La cuenta no se eliminó.` },
+      { status: 500 }
+    );
+  }
   // Borra la cuenta de auth.users; el `on delete cascade` borra sus datos en
   // Finanzas y en Empresas, y su fila de `profiles`.
   const { error } = await admin.auth.admin.deleteUser(id);
-  if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ message: mensajeErrorAuth(error, "No se pudo eliminar la cuenta.") }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

@@ -5,10 +5,12 @@ import { AtSign, Check, KeyRound, Loader2, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ToastProvider";
 import { USUARIO_REGEX } from "@/lib/nodos/sitios";
+import { mensajeErrorAuth } from "@/lib/nodos/errores";
+import DatosYBaja from "@/components/nodos/DatosYBaja";
 
 type Disponible = "libre" | "tomado" | "invalido" | "propio" | "verificando" | null;
 
-/** Mi cuenta: nombre, usuario (lo que ven los demás) y contraseña. */
+/** Mi cuenta: nombre, usuario (lo que ven los demás), contraseña, descarga de datos y baja. */
 export default function CuentaPage() {
   const { showToast } = useToast();
   const [cargando, setCargando] = useState(true);
@@ -94,7 +96,7 @@ export default function CuentaPage() {
     setCambiandoClave(true);
     const { error } = await supabase.auth.updateUser({ password: clave });
     setCambiandoClave(false);
-    if (error) return showToast(error.message, "error");
+    if (error) return showToast(mensajeErrorAuth(error, "No se pudo cambiar la contraseña."), "error");
     setClave("");
     setClave2("");
     showToast("Contraseña cambiada.");
@@ -203,6 +205,8 @@ export default function CuentaPage() {
               {cambiandoClave ? <Loader2 size={15} className="animate-spin" /> : <KeyRound size={15} />} Cambiar contraseña
             </button>
           </form>
+
+          <DatosYBaja email={email} usuario={original.usuario} />
         </div>
       )}
     </main>

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useNotasNodos } from "@/lib/data";
 import { formatFecha } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
+import { mensajeError } from "@/lib/nodos/errores";
 import { SkeletonBlock } from "@/components/Skeleton";
 import { NotaPreview } from "@/components/NovedadesEmpresas";
 import { RUBRO_LABEL, RUBROS, TEMAS_NORMATIVA, temaPorId, urlSegura, DISCLAIMER_NOVEDADES, type NotaNodos, type Rubro } from "@/lib/novedades";
@@ -28,6 +29,9 @@ const NUEVA: Borrador = {
 
 const SECTOR_IDS = Object.keys(SECTORES) as Sector[];
 
+/** Largo en caracteres como lo cuenta Postgres (un emoji = 1), no en unidades UTF-16. */
+const largo = (s: string | null | undefined) => [...(s ?? "")].length;
+
 function toggle<T>(lista: T[], v: T): T[] {
   return lista.includes(v) ? lista.filter((x) => x !== v) : [...lista, v];
 }
@@ -47,16 +51,22 @@ function Editor({ inicial, onGuardada, onCerrar }: { inicial: Borrador; onGuarda
     const titulo = n.titulo.trim();
     const resumen = n.resumen.trim();
     const linkTxt = (n.link ?? "").trim();
-    if (titulo.length < 3) return setError("El título necesita al menos 3 caracteres.");
-    if (resumen.length < 3) return setError("Escribí un resumen.");
-    if (linkTxt && !urlSegura(linkTxt)) return setError("El link tiene que empezar con https:// (o http://).");
+    const cuerpo = (n.cuerpo ?? "").trim();
+    const link = linkTxt ? urlSegura(linkTxt) : null;
+    if (largo(titulo) < 3) return setError("El título necesita al menos 3 caracteres.");
+    if (largo(titulo) > 200) return setError("El título puede tener hasta 200 caracteres.");
+    if (largo(resumen) < 3) return setError("Escribí un resumen.");
+    if (largo(resumen) > 600) return setError("El resumen puede tener hasta 600 caracteres.");
+    if (largo(cuerpo) > 8000) return setError("El desarrollo puede tener hasta 8000 caracteres.");
+    if (linkTxt && !link) return setError("El link tiene que empezar con https:// (o http://).");
+    if (link && (largo(link) > 2000 || /\s/.test(link))) return setError("El link es demasiado largo o tiene espacios (máximo 2000 caracteres).");
     setGuardando(true);
     setError(null);
     const payload = {
       titulo,
       resumen,
-      cuerpo: (n.cuerpo ?? "").trim() || null,
-      link: linkTxt ? urlSegura(linkTxt) : null,
+      cuerpo: cuerpo || null,
+      link,
       organismo: n.organismo || null,
       rubros: n.rubros,
       sectores_seprelad: n.sectores_seprelad,
@@ -65,7 +75,7 @@ function Editor({ inicial, onGuardada, onCerrar }: { inicial: Borrador; onGuarda
     };
     const res = n.id ? await supabase.from("notas_nodos").update(payload).eq("id", n.id) : await supabase.from("notas_nodos").insert(payload);
     setGuardando(false);
-    if (res.error) return setError(`No se pudo guardar: ${res.error.message}`);
+    if (res.error) return setError(`No se pudo guardar: ${mensajeError(res.error)}`);
     showToast(n.publicada ? "Nota guardada y publicada." : "Borrador guardado.");
     onGuardada();
   }
@@ -106,7 +116,7 @@ function Editor({ inicial, onGuardada, onCerrar }: { inicial: Borrador; onGuarda
               Resumen<span className="required-mark">*</span>
             </label>
             <textarea id="nota-resumen" className="input" rows={3} maxLength={600} value={n.resumen} onChange={(e) => set("resumen", e.target.value)} />
-            <p className="mt-1 text-right text-[11px] text-carbon/45">{n.resumen.length}/600</p>
+            <p className="mt-1 text-right text-[11px] text-carbon/45">{largo(n.resumen)}/600</p>
           </div>
           <div className="sm:col-span-2">
             <label className="field-label" htmlFor="nota-cuerpo">
@@ -118,7 +128,7 @@ function Editor({ inicial, onGuardada, onCerrar }: { inicial: Borrador; onGuarda
             <label className="field-label" htmlFor="nota-link">
               Link a la fuente
             </label>
-            <input id="nota-link" className="input" placeholder="https://" value={n.link ?? ""} onChange={(e) => set("link", e.target.value)} />
+            <input id="nota-link" className="input" placeholder="https://" maxLength={2000} value={n.link ?? ""} onChange={(e) => set("link", e.target.value)} />
           </div>
           <div>
             <label className="field-label" htmlFor="nota-organismo">
@@ -202,7 +212,7 @@ export default function NotasPage() {
 
   async function publicar(n: NotaNodos, publicada: boolean) {
     const { error } = await supabase.from("notas_nodos").update({ publicada }).eq("id", n.id);
-    if (error) return showToast(`No se pudo actualizar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo actualizar: ${mensajeError(error)}`, "error");
     showToast(publicada ? "Nota publicada." : "Nota despublicada.");
     reload();
   }
@@ -210,7 +220,7 @@ export default function NotasPage() {
   async function eliminar(n: NotaNodos) {
     if (!confirm(`¿Eliminar la nota “${n.titulo}”? No se puede deshacer.`)) return;
     const { error } = await supabase.from("notas_nodos").delete().eq("id", n.id);
-    if (error) return showToast(`No se pudo eliminar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo eliminar: ${mensajeError(error)}`, "error");
     showToast("Nota eliminada.");
     reload();
   }
@@ -252,7 +262,7 @@ export default function NotasPage() {
         />
       )}
 
-      {error && <p className="mb-4 text-sm text-bad">Error cargando notas: {error}</p>}
+      {error && <p className="mb-4 text-sm text-bad">No se pudieron cargar las notas: {mensajeError(error)}</p>}
 
       {loading ? (
         <SkeletonBlock className="h-40 w-full" />

@@ -1,4 +1,4 @@
-import { addBusinessDays, addDays, lastDayOfMonth, parseIso, toIso } from "@/lib/dates";
+import { addBusinessDays, addDays, lastDayOfMonth, parseIso, toIso, todayIso } from "@/lib/dates";
 import type { CategoriaObligacion, Empresa, NuevaObligacion, TipoSociedad } from "@/lib/types";
 
 /**
@@ -214,7 +214,12 @@ const REGLAS: Regla[] = [
   },
 ];
 
-export function generarObligacionesAnuales(empresa: Empresa, anio: number): NuevaObligacion[] {
+/**
+ * Calendario anual de la empresa. Con `desde` (por defecto hoy) solo devuelve
+ * lo que vence ese día o después: generar el año en curso a mitad de año no
+ * crea vencimientos que ya nacen atrasados. Con `null`, el año completo.
+ */
+export function generarObligacionesAnuales(empresa: Empresa, anio: number, desde: string | null = todayIso()): NuevaObligacion[] {
   const ctx = contextoAnual(empresa, anio);
   const out: NuevaObligacion[] = [];
   for (const r of REGLAS) {
@@ -233,7 +238,7 @@ export function generarObligacionesAnuales(empresa: Empresa, anio: number): Nuev
       plantilla: r.plantilla ?? null,
     });
   }
-  return out.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  return out.filter((o) => desde == null || o.fecha >= desde).sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
 /**

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { requireAdmin } from "@/lib/nodos/adminApi";
+import { mensajeErrorAuth } from "@/lib/nodos/errores";
 
 /** El administrador define una contraseña (temporal) para una cuenta. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -16,6 +17,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const admin = createSupabaseAdminClient();
   const { error } = await admin.auth.admin.updateUserById(id, { password: clave });
-  if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ message: mensajeErrorAuth(error, "No se pudo cambiar la contraseña.") }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

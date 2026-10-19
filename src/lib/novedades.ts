@@ -1,13 +1,14 @@
 import type { Sector } from "@/lib/seprelad";
+import type { FiltroTema } from "@/lib/novedadesRss";
 
 /**
  * Novedades para tus empresas: catálogo FIJO de temas.
  *
  * Privacidad: lo único que viaja del navegador a /api/novedades son los `id`
- * de este catálogo. Las búsquedas que el servidor le hace a Google News salen
- * de `queries` (texto fijo, igual para todos los clientes), así que no revelan
- * quién pregunta ni qué empresas tiene. Nunca se buscan nombres de empresas,
- * RUC ni personas. El cruce "¿te afecta?" (`aplicaA`) corre en el navegador
+ * de este catálogo. El servidor baja siempre la misma lista fija de feeds RSS
+ * de medios (src/lib/novedadesRss.ts → FEEDS) y filtra con las `claves` de
+ * cada tema (texto fijo, igual para todos): ningún tercero ve qué temas pide
+ * nadie. Nunca se buscan nombres de empresas, RUC ni personas. El cruce "¿te afecta?" (`aplicaA`) corre en el navegador
  * con los datos propios del usuario (RLS) y no se manda a ningún lado.
  *
  * Este archivo lo usan el servidor (whitelist) y el cliente (etiquetas y
@@ -119,8 +120,9 @@ export interface Tema {
   tipo: TipoTema;
   /** Etiqueta corta del chip. */
   label: string;
-  /** Búsquedas fijas en Google News (se combinan y deduplican). */
-  queries: string[];
+  /** Palabras clave fijas con las que el servidor filtra los feeds (sin
+   * tildes; "*" = prefijo). Ver `coincide` en src/lib/novedadesRss.ts. */
+  filtro: FiltroTema;
   /** ¿A qué empresas del usuario les puede afectar? (corre en el navegador). */
   aplicaA: (e: EmpresaCtx) => boolean;
 }
@@ -130,6 +132,8 @@ const sujetoObligado = (e: EmpresaCtx) => e.sectores.length > 0;
 const conSector = (s: Sector) => (e: EmpresaCtx) => e.sectores.includes(s);
 const deRubro = (r: Rubro) => (e: EmpresaCtx) => e.rubro === r;
 
+const CLAVES_SEPRELAD = ["seprelad", "lavado de activos", "lavado de dinero", "antilavado"];
+
 /** Normativa: un tema por organismo. Los temas por sector SEPRELAD van antes
  * que el general para que, si un titular aparece en los dos, quede con la
  * etiqueta más específica. */
@@ -138,56 +142,58 @@ export const TEMAS_NORMATIVA: Tema[] = [
     id: "seprelad-inmobiliaria",
     tipo: "normativa",
     label: "SEPRELAD · Inmobiliarias",
-    queries: ["SEPRELAD inmobiliarias", "SEPRELAD sector inmobiliario"],
+    filtro: { claves: CLAVES_SEPRELAD, y: ["inmobiliari*", "inmueble*", "bienes raices"] },
     aplicaA: conSector("inmobiliaria"),
   },
   {
     id: "seprelad-osfl",
     tipo: "normativa",
     label: "SEPRELAD · OSFL",
-    queries: ["SEPRELAD organizaciones sin fines de lucro", "SEPRELAD OSFL"],
+    filtro: { claves: CLAVES_SEPRELAD, y: ["osfl", "sin fines de lucro", "fundacion*", "ong", "ongs"] },
     aplicaA: conSector("osfl"),
   },
   {
     id: "seprelad-remesas",
     tipo: "normativa",
     label: "SEPRELAD · Remesas",
-    queries: ["SEPRELAD remesadoras", "SEPRELAD remesas de dinero"],
+    filtro: { claves: CLAVES_SEPRELAD, y: ["remesa*", "remesador*", "giros", "casa* de cambio*"] },
     aplicaA: conSector("remesas"),
   },
   {
     id: "seprelad",
     tipo: "normativa",
     label: "SEPRELAD",
-    queries: ["SEPRELAD resolución", "site:seprelad.gov.py"],
+    filtro: { claves: [...CLAVES_SEPRELAD, "gafilat", "gafi", "financiamiento del terrorismo", "sujetos obligados"] },
     aplicaA: sujetoObligado,
   },
   {
     id: "dnit",
     tipo: "normativa",
     label: "DNIT (ex SET)",
-    queries: ["DNIT resolución general", "site:dnit.gov.py"],
+    filtro: {
+      claves: ["dnit", "tributacion", "tributari*", "impuesto*", "iva", "irp", "factura electronica", "sifen", "ekuatia", "marangatu", "recaudacion"],
+    },
     aplicaA: todas,
   },
   {
     id: "mef-siara",
     tipo: "normativa",
     label: "MEF · Beneficiarios finales",
-    queries: ["SIARA beneficiarios finales", "Ministerio de Economía personas y estructuras jurídicas"],
+    filtro: { claves: ["siara", "beneficiario* final*", "personas y estructuras juridicas", "abogacia del tesoro"] },
     aplicaA: todas,
   },
   {
     id: "registros",
     tipo: "normativa",
     label: "Registros Públicos",
-    queries: ["Dirección General de los Registros Públicos"],
+    filtro: { claves: ["registros publicos", "dgrp", "registro publico de comercio", "registro de personas juridicas"] },
     aplicaA: todas,
   },
   {
     id: "ips",
     tipo: "normativa",
     label: "IPS",
-    queries: ["IPS empleadores resolución", "Instituto de Previsión Social empleadores"],
+    filtro: { claves: ["ips", "instituto de prevision social", "aporte* obrero*", "aporte* patronal*", "seguro social"] },
     // No guardamos si la empresa tiene personal: se asume que puede tenerlo.
     aplicaA: todas,
   },
@@ -195,37 +201,38 @@ export const TEMAS_NORMATIVA: Tema[] = [
     id: "mtess",
     tipo: "normativa",
     label: "MTESS",
-    queries: ["Ministerio de Trabajo Paraguay resolución", "MTESS resolución"],
+    filtro: { claves: ["mtess", "ministerio de trabajo", "salario minimo", "inspeccion laboral", "contrato colectivo"] },
     aplicaA: todas,
   },
   {
     id: "bcp",
     tipo: "normativa",
     label: "BCP",
-    queries: ["Banco Central del Paraguay resolución", "site:bcp.gov.py"],
+    filtro: { claves: ["bcp", "banco central del paraguay", "tasa de politica monetaria", "superintendencia de bancos"] },
     aplicaA: (e) => e.rubro === "financiero" || e.sectores.includes("remesas"),
   },
 ];
 
-const QUERIES_RUBRO: Record<Rubro, string[]> = {
-  agro: ["agronegocios Paraguay", "ganadería Paraguay"],
-  inmobiliario: ["sector inmobiliario Paraguay", "construcción Paraguay"],
-  comercio: ["sector comercial Paraguay", "importadores Paraguay"],
-  industria: ["industria Paraguay", "Unión Industrial Paraguaya"],
-  servicios: ["servicios profesionales Paraguay", "pymes Paraguay"],
-  transporte: ["transporte de cargas Paraguay", "logística Paraguay"],
-  tecnologia: ["tecnología empresas Paraguay", "startups Paraguay"],
-  financiero: ["sector financiero Paraguay", "remesas Paraguay"],
-  salud: ["sector salud privado Paraguay", "Ministerio de Salud Paraguay"],
-  educacion: ["educación privada Paraguay", "Ministerio de Educación Paraguay"],
-  osfl: ["organizaciones sin fines de lucro Paraguay", "fundaciones Paraguay"],
+/** Palabras clave por rubro (sin tildes; "*" = prefijo). */
+const FILTRO_RUBRO: Record<Rubro, FiltroTema> = {
+  agro: { claves: ["soja", "ganad*", "agro*", "cosecha*", "trigo", "maiz", "carne vacuna", "frigorifico*", "granos", "zafra", "senacsa", "capeco"] },
+  inmobiliario: { claves: ["inmobiliari*", "inmueble*", "construccion", "constructora*", "vivienda*", "loteamiento*", "bienes raices", "cavialpa"] },
+  comercio: { claves: ["comercio", "comerciante*", "importador*", "importacion*", "contrabando", "supermercado*", "consumo masivo", "ventas minoristas"] },
+  industria: { claves: ["industria*", "industrial*", "uip", "fabrica*", "manufactur*", "maquila*"] },
+  servicios: { claves: ["pyme*", "mipyme*", "emprendedor*", "servicios profesionales", "consultora*"] },
+  transporte: { claves: ["transporte de carga*", "logistic*", "flete*", "hidrovia", "naviera*", "camioner*", "puerto*"] },
+  tecnologia: { claves: ["tecnologi*", "startup*", "software", "inteligencia artificial", "fintech*", "ciberseguridad", "conatel", "transformacion digital"] },
+  financiero: { claves: ["banca", "bancos", "entidades financieras", "financiera*", "cooperativa*", "credito*", "remesa*", "incoop", "fintech*", "tasa* de interes"] },
+  salud: { claves: ["salud", "hospital*", "clinica*", "sanatorio*", "farmac*", "medicamento*", "dinavisa"] },
+  educacion: { claves: ["educacion", "educativ*", "colegio*", "escuela*", "universidad*", "mec", "docente*"] },
+  osfl: { claves: ["osfl", "sin fines de lucro", "fundacion*", "asociacion* civil*", "ong", "ongs", "voluntariado"] },
 };
 
 export const TEMAS_RUBRO: Tema[] = RUBROS.map((r) => ({
   id: `rubro-${r}`,
   tipo: "rubro",
   label: RUBRO_LABEL[r],
-  queries: QUERIES_RUBRO[r],
+  filtro: FILTRO_RUBRO[r],
   aplicaA: deRubro(r),
 }));
 

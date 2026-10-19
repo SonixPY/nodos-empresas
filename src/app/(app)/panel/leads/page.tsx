@@ -21,6 +21,7 @@ import {
   type Lead,
   type Tema,
 } from "@/lib/panel";
+import { mensajeError } from "@/lib/nodos/errores";
 
 function Seguimiento({ fecha }: { fecha: string | null }) {
   if (!fecha) return <span className="text-carbon/35">—</span>;
@@ -68,7 +69,7 @@ function LeadsContenido() {
     const { error: err } = await supabase.from("leads").update({ etapa }).eq("id", l.id);
     if (err) {
       setLeads((prev) => (prev ?? []).map((x) => (x.id === l.id ? { ...x, etapa: l.etapa } : x)));
-      return showToast(`No se pudo mover: ${err.message}`, "error");
+      return showToast(`No se pudo mover: ${mensajeError(err)}`, "error");
     }
     await supabase.from("lead_actividades").insert({ lead_id: l.id, tipo: "etapa", texto: `${ETAPA_LABEL[l.etapa]} › ${ETAPA_LABEL[etapa]}` });
   }
@@ -139,12 +140,14 @@ function LeadsContenido() {
       {leads === null ? (
         <SkeletonTable rows={5} cols={4} />
       ) : vista === "tablero" ? (
-        <div className="-mx-4 overflow-x-auto px-4 pb-2">
-          <div className="grid min-w-[1100px] grid-cols-6 gap-3">
+        // Celular: columnas lado a lado con scroll horizontal. Desde md: 3 x 2
+        // sin scroll; desde xl (1280 px): las 6 etapas en una fila.
+        <div className="-mx-4 overflow-x-auto px-4 pb-2 md:mx-0 md:overflow-visible md:px-0">
+          <div className="grid min-w-[960px] grid-cols-6 gap-3 md:min-w-0 md:grid-cols-3 xl:grid-cols-6">
             {ETAPAS.map((e) => {
               const col = filtrados.filter((l) => l.etapa === e.id);
               return (
-                <div key={e.id} className="rounded-lg bg-white/60 p-2">
+                <div key={e.id} className="min-w-0 rounded-lg bg-white/60 p-2">
                   <p className="mb-2 flex items-center justify-between px-1 text-xs font-semibold uppercase tracking-wide text-carbon/60">
                     <span className="flex items-center gap-1.5">
                       <span className="inline-block h-2 w-2 rounded-full" style={{ background: e.color }} /> {e.label}

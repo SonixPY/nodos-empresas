@@ -11,6 +11,9 @@ import {
   Printer,
   Trash2,
   UserPlus,
+  Users,
+  UserCheck,
+  Briefcase,
 } from "lucide-react";
 import { useAccionistas } from "@/lib/data";
 import { daysUntil, formatFecha, todayIso } from "@/lib/dates";
@@ -57,7 +60,9 @@ import {
 } from "@/lib/siara";
 import { useToast } from "@/components/ToastProvider";
 import { SkeletonBlock } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
 import { TIPO_LABELS, type Accionista } from "@/lib/types";
+import { mensajeError } from "@/lib/nodos/errores";
 
 // ─── piezas chicas ───────────────────────────────────────────────────────
 
@@ -196,7 +201,7 @@ function Seguimiento({ empresa, onEmpresaChange }: { empresa: EmpresaSiara; onEm
       siara_numero_solicitud: numero.trim() || null,
     });
     setSaving(false);
-    if (error) return showToast(`No se pudo guardar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo guardar: ${mensajeError(error)}`, "error");
     showToast("Declaración registrada.");
     setEditando(false);
     onEmpresaChange?.(data as EmpresaSiara);
@@ -274,7 +279,7 @@ function BeneficiarioForm({
     setSaving(true);
     const { data, error: dbErr } = await guardarBeneficiario(f, editandoId);
     setSaving(false);
-    if (dbErr) return setError(`No se pudo guardar: ${dbErr.message}`);
+    if (dbErr) return setError(`No se pudo guardar: ${mensajeError(dbErr)}`);
     onSaved(data as BeneficiarioFinal);
   }
 
@@ -458,7 +463,7 @@ function BeneficiarioItem({ b, onEditar, onBorrado }: { b: BeneficiarioFinal; on
   async function borrar() {
     if (!confirm(`¿Eliminar a ${b.nombre} de los beneficiarios finales? Si dejó de serlo, mejor cargá la fecha en "Dejó de ser BF el".`)) return;
     const { error } = await eliminarBeneficiario(b.id);
-    if (error) return showToast(`No se pudo eliminar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo eliminar: ${mensajeError(error)}`, "error");
     showToast("Beneficiario final eliminado.");
     onBorrado();
   }
@@ -534,7 +539,7 @@ function AdministradorForm({
     setSaving(true);
     const { data, error: dbErr } = await guardarAdministrador(f, editandoId);
     setSaving(false);
-    if (dbErr) return setError(`No se pudo guardar: ${dbErr.message}`);
+    if (dbErr) return setError(`No se pudo guardar: ${mensajeError(dbErr)}`);
     onSaved(data as Administrador);
   }
 
@@ -673,7 +678,7 @@ function AdministradorItem({
   async function borrar() {
     if (!confirm(`¿Eliminar a ${a.nombre}? Si tenía vencimiento de mandato, también se quita de la agenda. Si cesó en el cargo, mejor desmarcá "En funciones".`)) return;
     const { error } = await eliminarAdministrador(a.id);
-    if (error) return showToast(`No se pudo eliminar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo eliminar: ${mensajeError(error)}`, "error");
     showToast("Eliminado.");
     onBorrado();
   }
@@ -923,7 +928,12 @@ export default function SiaraPanel({
         {cargando ? (
           <SkeletonBlock className="h-20" />
         ) : filas.length === 0 ? (
-          <p className="text-sm text-carbon/60">Todavía no hay accionistas cargados. Cargalos en la pestaña “Accionistas”.</p>
+          <EmptyState
+            compacta
+            icon={Users}
+            titulo={empresa.tipo === "srl" ? "Todavía no hay socios cargados" : "Todavía no hay accionistas cargados"}
+            texto="El SIARA toma la participación de cada uno del libro de accionistas. Cargalos en la pestaña “Accionistas” y vuelven solos acá."
+          />
         ) : (
           <>
             <ul className="space-y-2 sm:hidden">
@@ -1027,10 +1037,13 @@ export default function SiaraPanel({
             <SkeletonBlock className="h-20" />
           ) : bfQ.data.length === 0 ? (
             !bfForm && (
-              <p className="rounded border border-dashed p-5 text-center text-sm text-carbon/60" style={{ borderColor: "var(--line)" }}>
-                Ningún beneficiario final cargado. Toda sociedad tiene al menos uno: si nadie supera los umbrales de capital o votos, se declara a quien ejerce el control o la
-                administración (art. 4, literales c a e).
-              </p>
+              <EmptyState
+                compacta
+                icon={UserCheck}
+                titulo="Ningún beneficiario final cargado"
+                texto="Toda sociedad tiene al menos uno: si nadie supera los umbrales de capital o votos, se declara a quien ejerce el control o la administración (art. 4, literales c a e)."
+                accion={{ label: "Agregar beneficiario", icon: Plus, onClick: () => setBfForm({ inicial: beneficiarioVacio(empresaId), id: null }) }}
+              />
             )
           ) : (
             <ul className="space-y-2">
@@ -1093,9 +1106,21 @@ export default function SiaraPanel({
             <SkeletonBlock className="h-20" />
           ) : admQ.data.length === 0 ? (
             !admForm && (
-              <p className="rounded border border-dashed p-5 text-center text-sm text-carbon/60" style={{ borderColor: "var(--line)" }}>
-                Cargá a quienes integran el órgano de administración y al representante legal.
-              </p>
+              <EmptyState
+                compacta
+                icon={Briefcase}
+                titulo="Todavía no cargaste administradores"
+                texto="Quienes integran el órgano de administración y el representante legal. Si cargás el vencimiento del mandato, queda en la agenda."
+                accion={{
+                  label: "Agregar",
+                  icon: Plus,
+                  onClick: () =>
+                    setAdmForm({
+                      inicial: { ...administradorVacio(empresaId, empresa), cargo: empresa.tipo === "srl" ? "gerente" : "director_titular" },
+                      id: null,
+                    }),
+                }}
+              />
             )
           ) : (
             <ul className="space-y-2">

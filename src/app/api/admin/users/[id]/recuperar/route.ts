@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { requireAdmin } from "@/lib/nodos/adminApi";
 import { supabaseAnonKey as supabaseAnonKey_, supabaseUrl as supabaseUrlLimpia } from "@/lib/nodos/sitios";
+import { mensajeErrorAuth } from "@/lib/nodos/errores";
 
 /** Envía a la cuenta un email para elegir una contraseña nueva. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -23,7 +24,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { error: envioError } = await publico.auth.resetPasswordForEmail(data.user.email, {
     redirectTo: `${origen}/nueva-clave`,
   });
-  if (envioError) return NextResponse.json({ message: envioError.message }, { status: 500 });
+  if (envioError) return NextResponse.json({ message: mensajeErrorAuth(envioError, "No se pudo enviar el email.") }, { status: 500 });
 
   return NextResponse.json({ ok: true, email: data.user.email });
 }

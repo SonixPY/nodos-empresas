@@ -60,3 +60,20 @@ export const texto = (v: unknown, max: number) => (typeof v === "string" ? v.tri
 export async function leerJson(request: Request): Promise<Record<string, unknown> | null> {
   return (await request.json().catch(() => null)) as Record<string, unknown> | null;
 }
+
+/**
+ * Versión de los Términos y la Política de privacidad que se acepta al crear
+ * la cuenta (nodoscompliance.com/terminos). Cambiarla cuando se publique una
+ * versión nueva: queda guardada en el perfil junto con la fecha.
+ */
+export const TERMINOS_VERSION = "2026-10";
+
+/**
+ * POST con estado (pagos, Panel): además del origen, exige JSON. Un
+ * formulario HTML de otra web no puede mandar application/json sin pasar
+ * por el preflight de CORS, que solo aceptamos para las páginas NODOS.
+ */
+export function pedidoSeguro(request: Request): boolean {
+  const tipo = request.headers.get("content-type") ?? "";
+  return origenValido(request) && tipo.toLowerCase().startsWith("application/json");
+}

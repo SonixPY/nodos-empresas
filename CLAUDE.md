@@ -16,7 +16,7 @@ Dueño: Mauricio Vaceque (maurivaceque@gmail.com, GitHub SonixPY). Responder sie
 - `profiles`: nombre, usuario, is_admin, acceso_finanzas, acceso_empresas, suspendido. Los perfiles solo se escriben desde el servidor (service role).
 
 ## Archivos compartidos (idénticos en finanzas-app y nodos-empresas)
-`src/lib/nodos/*` (salvo `app.ts`, que define APP_ID), `src/components/nodos/*`, `src/proxy.ts`, `src/lib/supabase{Client,Server,Admin}.ts`, `src/app/api/admin/**`, `src/app/api/cuenta/**`, `src/app/auth/callback`, páginas `login`, `signup`, `recuperar`, `nueva-clave`, `soporte`, `sin-acceso`, `src/app/(app)/admin/*`, `src/app/(app)/cuenta/page.tsx`, `ToastProvider`, `Skeleton`, `Spinner`, `BulkDeleteBar`, `PageTransition`, `supabase/000_cuentas_nodos.sql`.
+`src/lib/nodos/*` (salvo `app.ts`, que define APP_ID), `src/components/nodos/*`, `src/proxy.ts`, `src/lib/supabase{Client,Server,Admin}.ts`, `src/app/api/admin/**`, `src/app/api/cuenta/**`, `src/app/auth/callback`, páginas `login`, `signup`, `recuperar`, `nueva-clave`, `soporte`, `sin-acceso`, `src/app/(app)/admin/*`, `src/app/(app)/cuenta/page.tsx`, `src/app/(app)/plan/page.tsx`, `src/app/api/admin/suscripciones/**`, `src/app/api/admin/planes/**`, `ToastProvider`, `Skeleton`, `Spinner`, `BulkDeleteBar`, `PageTransition`, `EmptyState`, `resumen/PrimerosPasos`, `supabase/000_cuentas_nodos.sql`, la migración de suscripciones (Empresas `011` = Finanzas `025`).
 Si cambiás uno, copialo al otro repo y verificá con `cmp`. Nunca dejar que difieran.
 
 ## Reglas fijas del dueño
@@ -34,3 +34,6 @@ Si cambiás uno, copialo al otro repo y verificá con `cmp`. Nunca dejar que dif
 
 ## Este repo: NODOS Empresas + NODOS Panel
 Empresas (ficha con Datos, Accionistas, SIARA, Poderes, Archivo, Documentos, Vencimientos), vencimientos con calendario, generador de documentos (códigos SOC/POD/FAM/SEP, sin descarga Word), SEPRELAD (`/cumplimiento`), novedades (`/api/novedades`), Panel (leads, contenido, notas NODOS) y la API de cuentas que usa `nodoscompliance.com/ingresar`. Migraciones `supabase/001…009`; RLS de equipo con `puede_acceder(user_id)` y trigger `dueno_desde_empresa()`.
+
+## Suscripciones (v1)
+Cobro con Polar (checkout alojado, webhooks firmados en `empresas…/api/pagos/webhook/polar`) + pagos manuales desde Panel → Suscripciones. Acceso decidido por `tiene_acceso_app(app)`; el proxy solo corta si `SUSCRIPCIONES_ACTIVAS=true` (falla abierto si la base no responde, nunca ante firmas inválidas). Tablas de cobro sin escritura desde el navegador; `eventos_pago` inmutable. Variables: `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET`, `POLAR_SERVER` (solo Empresas), `SUSCRIPCIONES_ACTIVAS` (ambas).

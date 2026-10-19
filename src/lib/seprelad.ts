@@ -1,4 +1,4 @@
-import { addBusinessDays, addDays, lastDayOfMonth, toIso } from "@/lib/dates";
+import { addBusinessDays, addDays, lastDayOfMonth, toIso, todayIso } from "@/lib/dates";
 import type { Empresa, NuevaObligacion } from "@/lib/types";
 
 /**
@@ -312,7 +312,28 @@ export function reglasAplicables(perfil: PerfilSeprelad): ReglaSeprelad[] {
   return REGLAS_SEPRELAD.filter((r) => aplica(r, perfil));
 }
 
-export function generarObligacionesSeprelad(empresa: Empresa, perfil: PerfilSeprelad, anio: number): NuevaObligacion[] {
+/**
+ * Desde qué fecha se generan vencimientos: hoy, o la fecha de inscripción en
+ * SEPRELAD si es posterior. Lo que venció antes de que el perfil existiera
+ * no se crea (si no, un perfil cargado en octubre arrancaba con decenas de
+ * "atrasados" que nunca le correspondieron).
+ */
+export function fechaInicioSeprelad(perfil: PerfilSeprelad, hoy: string = todayIso()): string {
+  const inscripcion = perfil.fecha_inscripcion ?? "";
+  return inscripcion > hoy ? inscripcion : hoy;
+}
+
+/**
+ * Vencimientos del año para el perfil. Con `desde` (por defecto
+ * `fechaInicioSeprelad`) solo devuelve los que vencen ese día o después;
+ * con `null`, el año completo.
+ */
+export function generarObligacionesSeprelad(
+  empresa: Empresa,
+  perfil: PerfilSeprelad,
+  anio: number,
+  desde: string | null = fechaInicioSeprelad(perfil)
+): NuevaObligacion[] {
   const m = empresa.cierre_mes || 12;
   const ctx: Ctx = {
     anio,
@@ -339,7 +360,7 @@ export function generarObligacionesSeprelad(empresa: Empresa, perfil: PerfilSepr
       });
     });
   }
-  return out.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  return out.filter((o) => desde == null || o.fecha >= desde).sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
 // ── Hechos que disparan plazos ───────────────────────────────────────────

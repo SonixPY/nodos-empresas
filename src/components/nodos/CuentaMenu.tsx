@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AtSign, ChevronDown, ChevronRight, Gauge, LifeBuoy, LogOut, UserRound } from "lucide-react";
+import { AtSign, ChevronDown, ChevronRight, CreditCard, Gauge, LifeBuoy, LogOut, UserRound } from "lucide-react";
 import { SITIOS, nombreVisible } from "@/lib/nodos/sitios";
 import { PANEL_SECCIONES, panelEsLocal, panelHref, panelSeccionActiva } from "@/lib/nodos/panel";
 import { cerrarSesion } from "@/lib/nodos/usePerfil";
@@ -49,7 +49,7 @@ export function GrupoMenu({
 
 /**
  * Menú de cuenta del header: Mi cuenta, herramientas propias de la app (slot),
- * Soporte, NODOS Panel para administradores y Salir.
+ * Mi plan, Soporte, NODOS Panel para administradores y Salir.
  */
 export default function CuentaMenu({
   perfil,
@@ -119,6 +119,9 @@ export default function CuentaMenu({
           {herramientas && <div className="border-b border-[var(--line)] p-1.5">{herramientas(cerrar)}</div>}
 
           <div className="p-1.5">
+            <Link href="/plan" role="menuitem" className={MENU_ITEM}>
+              <CreditCard size={16} aria-hidden className="shrink-0 text-musgo" /> Mi plan
+            </Link>
             <Link href="/soporte" role="menuitem" className={MENU_ITEM}>
               <LifeBuoy size={16} aria-hidden className="shrink-0 text-musgo" /> Soporte
             </Link>

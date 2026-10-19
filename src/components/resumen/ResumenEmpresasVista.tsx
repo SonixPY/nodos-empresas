@@ -6,6 +6,7 @@ import { daysUntil, todayIso } from "@/lib/dates";
 import { ResumenAccionesRapidas, ResumenBanner, ResumenStatTiles } from "@/components/resumen/ResumenBanner";
 import ProximosVencimientos from "@/components/resumen/ProximosVencimientos";
 import type { Empresa, Obligacion } from "@/lib/types";
+import { mensajeError } from "@/lib/nodos/errores";
 
 const MAX_PROXIMOS = 6;
 
@@ -35,6 +36,7 @@ export default function ResumenEmpresasVista({
   recientes,
   onChange,
   pie,
+  primerosPasos,
 }: {
   nombre: string | null;
   empresas: Empresa[];
@@ -47,6 +49,8 @@ export default function ResumenEmpresasVista({
   recientes: Set<string>;
   onChange: (id: string, patch: Partial<Obligacion> | null) => void;
   pie?: React.ReactNode;
+  /** Tarjeta de primeros pasos (cuenta nueva o con pasos pendientes). */
+  primerosPasos?: React.ReactNode;
 }) {
   const hoy = todayIso();
   const mes = hoy.slice(0, 7);
@@ -78,22 +82,26 @@ export default function ResumenEmpresasVista({
 
       {error && (
         <div className="mb-6 rounded-sm border p-4 text-sm text-bad" style={{ borderColor: "var(--color-bad)", background: "rgba(178,59,59,0.06)" }}>
-          Error cargando datos: {error}
+          No se pudieron cargar los datos: {mensajeError(error)}
         </div>
       )}
 
+      {primerosPasos}
+
       {sinEmpresas ? (
-        <div className="card mx-auto max-w-xl text-center">
-          <Building2 className="mx-auto mb-3 text-cobre" size={28} />
-          <h2>Empezá cargando tu primera empresa</h2>
-          <p className="mt-2 text-sm text-carbon/65">
-            Con el tipo de sociedad y el mes de cierre armamos el calendario de vencimientos del año. Después cargás el libro de accionistas y ya
-            podés generar actas con los datos precargados.
-          </p>
-          <Link href="/empresas?nueva=1" className="btn btn-primary mt-5">
-            Cargar empresa
-          </Link>
-        </div>
+        primerosPasos ? null : (
+          <div className="card mx-auto max-w-xl text-center">
+            <Building2 className="mx-auto mb-3 text-cobre" size={28} />
+            <h2>Empezá cargando tu primera empresa</h2>
+            <p className="mt-2 text-sm text-carbon/65">
+              Con el tipo de sociedad y el mes de cierre armamos el calendario de vencimientos del año. Después cargás el libro de accionistas y ya
+              podés generar actas con los datos precargados.
+            </p>
+            <Link href="/empresas?nueva=1" className="btn btn-primary mt-5">
+              Cargar empresa
+            </Link>
+          </div>
+        )
       ) : (
         <div className="space-y-6">
           <ResumenStatTiles loading={loading} data={{ empresas: empresas.length, proximos30, atrasados, hechosMes }} />

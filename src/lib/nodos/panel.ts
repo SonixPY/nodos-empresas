@@ -1,7 +1,7 @@
 // Secciones de NODOS Panel (solo administradores). El Panel de control, Leads,
 // Contenido y Notas viven en NODOS Empresas; la Administración de cuentas
 // existe en las dos apps (cada una usa la suya).
-import { CalendarDays, LayoutDashboard, Newspaper, ShieldCheck, Users } from "lucide-react";
+import { CalendarDays, CreditCard, LayoutDashboard, Newspaper, ShieldCheck, Users } from "lucide-react";
 import { APP_ID } from "@/lib/nodos/app";
 import { SITIOS } from "@/lib/nodos/sitios";
 
@@ -10,6 +10,7 @@ export const PANEL_SECCIONES = [
   { ruta: "/panel/leads", label: "Leads", corto: "Leads", icon: Users },
   { ruta: "/panel/contenido", label: "Contenido", corto: "Contenido", icon: CalendarDays },
   { ruta: "/panel/notas", label: "Notas", corto: "Notas", icon: Newspaper },
+  { ruta: "/panel/suscripciones", label: "Suscripciones", corto: "Planes", icon: CreditCard },
   { ruta: "/admin", label: "Administración de cuentas", corto: "Cuentas", icon: ShieldCheck },
 ] as const;
 

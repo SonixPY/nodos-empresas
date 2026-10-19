@@ -1,6 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
+import { headers } from "next/headers";
 import { hashIp, leerJson, origenValido, preflight, responder, texto } from "@/lib/nodos/cuentaApi";
+import { SSO_FLAG, cookieDomainFor } from "@/lib/nodos/sitios";
 
 const MAX_FALLIDOS = 10; // por conexión, cada 15 minutos
 const VENTANA_MS = 15 * 60 * 1000;
@@ -53,10 +55,26 @@ export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password: clave });
   if (error || !data.user) {
-    if (error?.message?.toLowerCase().includes("not confirmed")) {
+    // Email sin confirmar o cuenta suspendida: no son contraseñas erradas, no
+    // cuentan como intento fallido (una cuenta suspendida igual no puede entrar).
+    if (error?.code === "email_not_confirmed" || error?.message?.toLowerCase().includes("not confirmed")) {
       return responder(request, 401, { message: "Todavía no confirmaste tu email. Revisá tu bandeja de entrada." });
+    }
+    if (error?.code === "user_banned" || /banned/i.test(error?.message ?? "")) {
+      return responder(request, 403, { message: "Tu cuenta está suspendida. Escribinos a soporte." });
     }
     return fallo();
   }
-  return responder(request, 200, { ok: true });
+
+  const res = responder(request, 200, { ok: true });
+  // Marca el navegador como ya pasado al inicio de sesión compartido, así el
+  // proxy no lo hace volver a ingresar. Solo si no trae cookies de sesión
+  // viejas de este subdominio: esas las sigue limpiando el proxy en la
+  // primera visita (borrarlas acá pisaría la sesión recién creada).
+  const domain = cookieDomainFor((await headers()).get("host"));
+  const cookiesPrevias = (request.headers.get("cookie") ?? "").split(";").map((c) => c.trim().split("=")[0]);
+  if (domain && !cookiesPrevias.includes(SSO_FLAG) && !cookiesPrevias.some((n) => n.startsWith("sb-"))) {
+    res.cookies.set(SSO_FLAG, "1", { domain, path: "/", maxAge: 60 * 60 * 24 * 400, sameSite: "lax", secure: true });
+  }
+  return res;
 }

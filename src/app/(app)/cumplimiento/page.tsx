@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, CalendarPlus, FileText, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarPlus, FileText, Plus, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { generarCalendarioSeprelad, guardarPerfilSeprelad, useEmpresas, useObligaciones, usePerfilSeprelad } from "@/lib/data";
 import {
@@ -17,10 +17,12 @@ import {
   type Sector,
 } from "@/lib/seprelad";
 import { PLANTILLAS, grupoDe } from "@/lib/plantillas";
-import { todayIso } from "@/lib/dates";
+import { formatFecha, todayIso } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
+import { mensajeError } from "@/lib/nodos/errores";
 import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista";
 import { SkeletonBlock } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
 import type { Empresa, Obligacion } from "@/lib/types";
 
 function PerfilForm({ empresa, inicial, onSaved }: { empresa: Empresa; inicial: PerfilSeprelad; onSaved: (p: PerfilSeprelad) => void }) {
@@ -43,7 +45,7 @@ function PerfilForm({ empresa, inicial, onSaved }: { empresa: Empresa; inicial: 
     };
     const { data, error } = await guardarPerfilSeprelad(limpio);
     setSaving(false);
-    if (error) return showToast(`No se pudo guardar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo guardar: ${mensajeError(error)}`, "error");
     showToast("Perfil SEPRELAD guardado.");
     onSaved(data as PerfilSeprelad);
   }
@@ -170,10 +172,17 @@ function CumplimientoContenido() {
   async function generar() {
     if (!empresa || !perfil) return;
     setGenerando(true);
-    const { nuevas, error } = await generarCalendarioSeprelad(empresa, perfil, anio);
+    const { nuevas, omitidas, desde, error } = await generarCalendarioSeprelad(empresa, perfil, anio);
     setGenerando(false);
     if (error) return showToast(`No se pudo generar: ${error}`, "error");
-    showToast(nuevas ? `Se agregaron ${nuevas} vencimientos SEPRELAD de ${anio}.` : `El calendario SEPRELAD de ${anio} ya estaba al día.`);
+    const nota = omitidas ? ` Las fechas anteriores al ${formatFecha(desde)} no se agregan.` : "";
+    showToast(
+      nuevas
+        ? `Se agregaron ${nuevas} vencimientos SEPRELAD de ${anio}.${nota}`
+        : omitidas && anio < new Date().getFullYear()
+          ? `Los vencimientos SEPRELAD de ${anio} ya pasaron: no se agregan.`
+          : `El calendario SEPRELAD de ${anio} ya estaba al día.${nota}`
+    );
     obligaciones.reload();
   }
 
@@ -183,7 +192,7 @@ function CumplimientoContenido() {
     if (!ev || !empresa) return;
     const fila = obligacionPorEvento(empresa.id, ev, fechaEvento, detalleEvento.trim());
     const { error } = await supabase.from("obligaciones").insert(fila);
-    if (error) return showToast(`No se pudo registrar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo registrar: ${mensajeError(error)}`, "error");
     showToast(`Listo: vence el ${fila.fecha.split("-").reverse().join("/")}.`);
     setEvento("");
     setDetalleEvento("");
@@ -193,13 +202,12 @@ function CumplimientoContenido() {
   if (empresas.loading) return <SkeletonBlock className="h-64" />;
   if (!empresa || !perfil) {
     return (
-      <div className="card text-carbon/70">
-        Primero cargá una empresa en{" "}
-        <Link href="/empresas" className="text-cobre-hover underline">
-          Empresas
-        </Link>
-        .
-      </div>
+      <EmptyState
+        icon={ShieldCheck}
+        titulo="Primero cargá una empresa"
+        texto="Acá marcás si cada empresa es sujeto obligado ante la SEPRELAD y armás su calendario anual de obligaciones y los documentos del sistema de prevención."
+        accion={{ label: "Cargar empresa", icon: Plus, href: "/empresas?nueva=1" }}
+      />
     );
   }
 
@@ -246,7 +254,13 @@ function CumplimientoContenido() {
                   </button>
                 </div>
               </div>
-              {!perfilQ.data && <p className="t-caption mt-2 text-cobre-hover">Guardá el perfil para poder generar el calendario.</p>}
+              {!perfilQ.data ? (
+                <p className="t-caption mt-2 text-cobre-hover">Guardá el perfil para poder generar el calendario.</p>
+              ) : (
+                <p className="t-caption mt-2 text-carbon/50">
+                  El calendario agrega los vencimientos desde hoy (o desde la fecha de inscripción, si es posterior). Lo que ya venció no se carga.
+                </p>
+              )}
               <ul className="mt-4 divide-y divide-[var(--line)]">
                 {reglas.map((r) => (
                   <li key={r.regla} className="py-2.5">
@@ -314,7 +328,15 @@ function CumplimientoContenido() {
             <ObligacionesLista
               obligaciones={deSeprelad}
               onChange={(id, patch) => obligaciones.setData((prev: Obligacion[]) => aplicarCambio(prev, id, patch))}
-              vacio="Todavía no generaste el calendario SEPRELAD de este año."
+              vacio={
+                <EmptyState
+                  compacta
+                  icon={CalendarClock}
+                  titulo={`Todavía no generaste el calendario SEPRELAD de ${anio}`}
+                  texto={perfilQ.data ? "Con los sectores marcados armamos los reportes y plazos del año. Lo que ya venció no se agrega." : "Guardá el perfil de arriba y después generá el calendario del año."}
+                  accion={perfilQ.data ? { label: generando ? "Generando..." : "Generar calendario", icon: CalendarPlus, onClick: generar } : undefined}
+                />
+              }
             />
           </section>
         </>

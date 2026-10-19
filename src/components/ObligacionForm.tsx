@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { todayIso } from "@/lib/dates";
 import { CATEGORIA_LABELS, type CategoriaObligacion, type Empresa, type Obligacion } from "@/lib/types";
+import { mensajeError } from "@/lib/nodos/errores";
 
 /** Alta manual de un vencimiento (algo propio de la empresa que no está en el calendario automático). */
 export default function ObligacionForm({
@@ -46,7 +47,7 @@ export default function ObligacionForm({
       .single();
     setSaving(false);
     if (err) {
-      setError(`No se pudo guardar: ${err.message}`);
+      setError(`No se pudo guardar: ${mensajeError(err)}`);
       return;
     }
     onCreated(data as Obligacion);

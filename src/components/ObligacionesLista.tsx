@@ -9,6 +9,7 @@ import { daysUntil, formatFecha, relativo } from "@/lib/dates";
 import { getPlantilla } from "@/lib/plantillas";
 import { useToast } from "@/components/ToastProvider";
 import { CATEGORIA_COLOR, CATEGORIA_LABELS, type Empresa, type Obligacion } from "@/lib/types";
+import { mensajeError } from "@/lib/nodos/errores";
 
 export function EstadoFecha({ o }: { o: Obligacion }) {
   if (o.estado === "hecho") return <span className="text-xs text-good">Hecho</span>;
@@ -31,7 +32,7 @@ export function useToggleObligacion(onChange: OnChange) {
     onChange(o.id, { estado: hecho ? "hecho" : "pendiente", completado_en: hecho ? new Date().toISOString() : null });
     const { error } = await marcarObligacion(o.id, hecho);
     if (error) {
-      showToast(`No se pudo actualizar: ${error.message}`, "error");
+      showToast(`No se pudo actualizar: ${mensajeError(error)}`, "error");
       onChange(o.id, { estado: o.estado, completado_en: o.completado_en });
     } else if (hecho) showToast("Marcada como hecha.");
   };
@@ -54,7 +55,7 @@ export default function ObligacionesLista({
   onChange: OnChange;
   mostrarEmpresa?: boolean;
   compacta?: boolean;
-  vacio?: string;
+  vacio?: React.ReactNode;
 }) {
   const { showToast } = useToast();
   const toggle = useToggleObligacion(onChange);
@@ -65,7 +66,7 @@ export default function ObligacionesLista({
     if (!confirm(`¿Eliminar "${o.titulo}"?`)) return;
     const { error } = await supabase.from("obligaciones").delete().eq("id", o.id);
     if (error) {
-      showToast(`No se pudo eliminar: ${error.message}`, "error");
+      showToast(`No se pudo eliminar: ${mensajeError(error)}`, "error");
       return;
     }
     onChange(o.id, null);
@@ -73,6 +74,7 @@ export default function ObligacionesLista({
   }
 
   if (obligaciones.length === 0) {
+    if (typeof vacio !== "string") return <>{vacio}</>;
     return (
       <p className="rounded border border-dashed p-6 text-center text-sm text-carbon/60" style={{ borderColor: "var(--line)" }}>
         {vacio}

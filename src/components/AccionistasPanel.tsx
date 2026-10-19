@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRightLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowRightLeft, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAccionistas, useMovimientos } from "@/lib/data";
 import { calcularParticipaciones, formatNumero, formatPct, UMBRAL_CAPITAL_PCT, UMBRAL_VOTOS_PCT } from "@/lib/accionistas";
@@ -9,8 +9,10 @@ import { obligacionesPorMovimiento } from "@/lib/calendario";
 import { formatFecha, todayIso } from "@/lib/dates";
 import { formatPyg } from "@/lib/format";
 import { useToast } from "@/components/ToastProvider";
+import { mensajeError } from "@/lib/nodos/errores";
 import Accordion from "@/components/Accordion";
 import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
 import { MOVIMIENTO_LABELS, type Accionista, type Empresa, type NuevoAccionista, type TipoMovimiento, type TipoPersona } from "@/lib/types";
 
 function vacio(empresaId: string): NuevoAccionista {
@@ -74,7 +76,7 @@ function AccionistaForm({
       : await supabase.from("accionistas").insert(payload);
     setSaving(false);
     if (err) {
-      setError(`No se pudo guardar: ${err.message}`);
+      setError(`No se pudo guardar: ${mensajeError(err)}`);
       return;
     }
     onSaved();
@@ -206,7 +208,7 @@ function MovimientoForm({
         .single();
       if (err) {
         setSaving(false);
-        return setError(`No se pudo crear el accionista: ${err.message}`);
+        return setError(`No se pudo crear el accionista: ${mensajeError(err)}`);
       }
       destinoId = data.id;
     }
@@ -222,17 +224,25 @@ function MovimientoForm({
       p_notas: notas.trim() || null,
     });
     if (err) {
+      // Si el accionista se creó solo para este movimiento, no lo dejamos con 0 acciones.
+      if (a === "nuevo") await supabase.from("accionistas").delete().eq("id", destinoId);
       setSaving(false);
-      return setError(err.message);
+      return setError(`No se pudo registrar el movimiento: ${mensajeError(err)}`);
     }
 
+    let errorTareas: string | null = null;
     if (crearTareas && !sinOrigen) {
       const destino = a === "nuevo" ? nuevoNombre.trim() : accionistas.find((x) => x.id === destinoId)?.nombre;
       const detalle = `${formatNumero(cant)} acciones de ${origen?.nombre ?? "—"} a ${destino ?? "—"} (${MOVIMIENTO_LABELS[tipo].toLowerCase()}, ${formatFecha(fecha)})`;
-      await supabase.from("obligaciones").insert(obligacionesPorMovimiento(empresa.id, fecha, detalle));
+      const { error: errTareas } = await supabase.from("obligaciones").insert(obligacionesPorMovimiento(empresa.id, fecha, detalle));
+      if (errTareas) errorTareas = mensajeError(errTareas);
     }
     setSaving(false);
-    showToast(crearTareas && !sinOrigen ? "Movimiento registrado y vencimientos creados." : "Movimiento registrado.");
+    if (errorTareas) {
+      showToast(`Movimiento registrado, pero no se pudieron crear sus vencimientos: ${errorTareas} Cargalos a mano en Vencimientos.`, "error");
+    } else {
+      showToast(crearTareas && !sinOrigen ? "Movimiento registrado y vencimientos creados." : "Movimiento registrado.");
+    }
     onDone();
   }
 
@@ -349,7 +359,7 @@ export default function AccionistasPanel({ empresa, onChanged }: { empresa: Empr
   async function borrar(a: Accionista) {
     if (!confirm(`¿Eliminar a ${a.nombre} del libro? Si tiene acciones, primero registrá su transferencia.`)) return;
     const { error: err } = await supabase.from("accionistas").delete().eq("id", a.id);
-    if (err) return showToast(`No se pudo eliminar: ${err.message}`, "error");
+    if (err) return showToast(`No se pudo eliminar: ${mensajeError(err)}`, "error");
     showToast("Accionista eliminado.");
     refrescar();
   }
@@ -393,14 +403,24 @@ export default function AccionistasPanel({ empresa, onChanged }: { empresa: Empr
       )}
       {modo === "movimiento" && <MovimientoForm empresa={empresa} accionistas={accionistas} onDone={refrescar} onCancel={() => setModo("nada")} />}
 
-      {error && <p className="text-sm text-bad">Error: {error}</p>}
+      {error && <p className="text-sm text-bad">No se pudieron cargar los datos: {mensajeError(error)}</p>}
 
       {loading ? (
         <SkeletonTable rows={3} cols={6} />
       ) : filas.length === 0 ? (
-        <p className="rounded border border-dashed p-8 text-center text-sm text-carbon/60" style={{ borderColor: "var(--line)" }}>
-          Todavía no cargaste accionistas. Empezá por quienes figuran hoy en el libro de registro de acciones.
-        </p>
+        <EmptyState
+          icon={Users}
+          titulo="Todavía no cargaste accionistas"
+          texto="Empezá por quienes figuran hoy en el libro de registro de acciones. Con eso se calculan participaciones y votos, y se precargan actas y el SIARA."
+          accion={{
+            label: "Cargar accionista",
+            icon: Plus,
+            onClick: () => {
+              setEditando(null);
+              setModo("nuevo");
+            },
+          }}
+        />
       ) : (
         <div className="table-shell">
           <table>

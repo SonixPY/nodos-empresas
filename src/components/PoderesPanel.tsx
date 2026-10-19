@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Ban, FilePlus2, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Ban, FilePlus2, Pencil, Plus, Search, Stamp, Trash2 } from "lucide-react";
 import { useEmpresas } from "@/lib/data";
 import { formatFecha, todayIso } from "@/lib/dates";
 import {
@@ -23,7 +23,9 @@ import {
 } from "@/lib/poderes";
 import { useToast } from "@/components/ToastProvider";
 import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
 import type { Empresa } from "@/lib/types";
+import { mensajeError } from "@/lib/nodos/errores";
 
 // ─── piezas chicas ───────────────────────────────────────────────────────
 
@@ -88,7 +90,7 @@ export function PoderForm({
     setSaving(true);
     const { data, error: dbErr } = await guardarPoder(f, editandoId);
     setSaving(false);
-    if (dbErr) return setError(`No se pudo guardar: ${dbErr.message}`);
+    if (dbErr) return setError(`No se pudo guardar: ${mensajeError(dbErr)}`);
     onSaved(data as Poder);
   }
 
@@ -277,7 +279,7 @@ function PoderCard({ poder, empresa, onEditar, onCambio }: { poder: Poder; empre
     setBusy(true);
     const { error } = await revocarPoder(poder.id, fechaRev);
     setBusy(false);
-    if (error) return showToast(`No se pudo revocar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo revocar: ${mensajeError(error)}`, "error");
     showToast("Poder marcado como revocado.");
     setRevocando(false);
     onCambio();
@@ -288,7 +290,7 @@ function PoderCard({ poder, empresa, onEditar, onCambio }: { poder: Poder; empre
     setBusy(true);
     const { error } = await eliminarPoder(poder.id);
     setBusy(false);
-    if (error) return showToast(`No se pudo eliminar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo eliminar: ${mensajeError(error)}`, "error");
     showToast("Poder eliminado.");
     onCambio();
   }
@@ -524,13 +526,26 @@ export default function PoderesPanel({
       {poderes.loading ? (
         <SkeletonTable rows={3} cols={4} />
       ) : poderes.error ? (
-        <p className="text-sm text-bad">No se pudieron cargar los poderes: {poderes.error}</p>
+        <p className="text-sm text-bad">No se pudieron cargar los poderes: {mensajeError(poderes.error)}</p>
+      ) : poderes.data.length === 0 ? (
+        form ? null : empresas.length === 0 && !empresasQ.loading ? (
+          <EmptyState
+            icon={Stamp}
+            titulo="Primero cargá una empresa"
+            texto="Los poderes se registran por empresa: quién la representa, con qué facultades y hasta cuándo."
+            accion={{ label: "Cargar empresa", icon: Plus, href: "/empresas?nueva=1" }}
+          />
+        ) : (
+          <EmptyState
+            icon={Stamp}
+            titulo="Todavía no registraste poderes"
+            texto="Registrá los que ya existen (escrituras, cartas poder) y NODOS te avisa antes de que venzan. También podés generar una carta poder nueva."
+            accion={{ label: "Registrar poder", icon: Plus, onClick: nuevo }}
+            secundaria={{ label: "Generar carta poder", icon: FilePlus2, href: linkCarta }}
+          />
+        )
       ) : visibles.length === 0 ? (
-        <div className="card text-sm text-carbon/65">
-          {poderes.data.length === 0
-            ? "Todavía no registraste poderes. Registrá los que ya existen (escrituras, cartas poder) para controlar su vigencia."
-            : "No hay poderes con esos filtros."}
-        </div>
+        <div className="card text-sm text-carbon/65">No hay poderes con esos filtros.</div>
       ) : (
         <ul className="space-y-3">
           {visibles.map(({ p }) => (

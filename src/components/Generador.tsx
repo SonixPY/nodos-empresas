@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { Printer, Save, ShieldAlert } from "lucide-react";
+import { Building2, Plus, Printer, Save, ShieldAlert } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { supabase } from "@/lib/supabaseClient";
 import { useAccionistas } from "@/lib/data";
 import { calcularParticipaciones } from "@/lib/accionistas";
@@ -14,6 +14,7 @@ import DocPreview from "@/components/DocPreview";
 import { RegistrarPoderDialog, RevocarPoderDialog } from "@/components/RegistrarPoderDialog";
 import type { PoderPrefill } from "@/lib/poderes";
 import { TIPO_CORTO, type Documento, type Empresa } from "@/lib/types";
+import { mensajeError } from "@/lib/nodos/errores";
 
 function CampoInput({
   campo,
@@ -141,13 +142,12 @@ export default function Generador({
 
   if (empresas.length === 0) {
     return (
-      <div className="card text-sm text-carbon/70">
-        Para generar documentos primero cargá una empresa en{" "}
-        <Link href="/empresas" className="text-cobre hover:underline">
-          Empresas
-        </Link>
-        .
-      </div>
+      <EmptyState
+        icon={Building2}
+        titulo="Primero cargá una empresa"
+        texto="Los documentos se arman con los datos de la empresa y sus accionistas: denominación, RUC, autoridades y participación, sin tipear dos veces."
+        accion={{ label: "Cargar empresa", icon: Plus, href: "/empresas?nueva=1" }}
+      />
     );
   }
 
@@ -172,7 +172,7 @@ export default function Generador({
       .select()
       .single();
     setSaving(false);
-    if (error) return showToast(`No se pudo guardar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo guardar: ${mensajeError(error)}`, "error");
     showToast("Documento guardado.");
     const doc = data as Documento;
     if (plantilla.registroPoder && ctx) return setOferta({ tipo: "registrar", doc, prefill: plantilla.registroPoder(datos, ctx) });

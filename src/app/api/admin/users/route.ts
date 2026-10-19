@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { requireAdmin, type CuentaAdmin } from "@/lib/nodos/adminApi";
+import { mensajeErrorAuth } from "@/lib/nodos/errores";
 
 type Perfil = {
   id: string;
@@ -18,7 +19,7 @@ export async function GET() {
 
   const admin = createSupabaseAdminClient();
   const { data: usersData, error: usersError } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  if (usersError) return NextResponse.json({ message: usersError.message }, { status: 500 });
+  if (usersError) return NextResponse.json({ message: mensajeErrorAuth(usersError, "No se pudieron cargar las cuentas.") }, { status: 500 });
 
   // Si la migración de cuentas NODOS todavía no corrió, caemos a las columnas básicas.
   let migracionPendiente = false;

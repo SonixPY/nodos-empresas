@@ -9,6 +9,9 @@ import { supabaseAnonKey as supabaseAnonKey_, supabaseUrl as supabaseUrlLimpia }
 const PUBLICAS = ["/login", "/signup", "/recuperar", "/nueva-clave", "/auth/callback", "/soporte", "/sin-acceso"];
 // Rutas de ingreso: con sesión abierta no tienen sentido.
 const INGRESO = ["/login", "/signup", "/recuperar"];
+// Con sesión pero sin plan vigente, solo se puede llegar a estas (si no, el
+// cobro no tendría salida: elegir plan, ver la cuenta, pedir ayuda).
+const SIN_PLAN = ["/plan", "/cuenta", "/soporte", "/sin-acceso"];
 
 const empiezaCon = (pathname: string, rutas: string[]) =>
   rutas.some((r) => pathname === r || pathname.startsWith(`${r}/`));
@@ -29,6 +32,11 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const domain = cookieDomainFor(request.headers.get("host"));
+
+  // Las APIs nunca se redirigen: cada endpoint valida la sesión por su cuenta
+  // y responde con sus propios encabezados CORS (una redirección sin CORS
+  // impedía que nodoscompliance.com detectara la sesión).
+  if (pathname.startsWith("/api/")) return response;
 
   // Paso único al inicio de sesión compartido: borra las cookies de sesión
   // viejas de este subdominio (sin Domain) y marca el navegador. Quien tenía
@@ -74,8 +82,6 @@ export async function proxy(request: NextRequest) {
     return marcarSso(res);
   };
 
-  if (pathname.startsWith("/api/")) return response; // cada endpoint valida por su cuenta
-
   if (!user) {
     // En producción hay una sola pantalla de ingreso, la del sitio principal.
     // URL pública de esta app (detrás del proxy de Vercel request.url puede no traer el host real).
@@ -104,6 +110,29 @@ export async function proxy(request: NextRequest) {
   // Si la migración de cuentas todavía no corrió, no bloqueamos a nadie.
   if (!error && perfil && (perfil.suspendido === true || perfil[`acceso_${APP_ID}`] === false)) {
     return redirigir("/sin-acceso");
+  }
+
+  // Cobro de suscripciones: SOLO con SUSCRIPCIONES_ACTIVAS=true (las dos apps).
+  // tiene_acceso_app decide en la base (admin, cortesía, prueba, plan vigente
+  // o en gracia). Sin acceso, se crea la prueba de 14 días si la cuenta nunca
+  // tuvo una (asegurar_prueba solo inserta si no hay ninguna fila) y, si no
+  // corresponde, se manda a /plan.
+  //
+  // Si la base falla (p. ej. la migración 011 todavía no corrió, o Supabase
+  // está caído) NO se bloquea a nadie: se deja pasar y se registra el error.
+  // Es una decisión consciente: un problema de infraestructura no puede dejar
+  // afuera a las cuentas que pagan; en el peor caso alguien sin plan usa la
+  // app durante la caída. Los datos siguen protegidos por RLS igual. Esto NO
+  // aplica a pagos: el webhook rechaza siempre una firma inválida.
+  if (process.env.SUSCRIPCIONES_ACTIVAS === "true" && !empiezaCon(pathname, SIN_PLAN)) {
+    const { data: acceso, error: errorAcceso } = await supabase.rpc("tiene_acceso_app", { p_app: APP_ID });
+    if (errorAcceso) {
+      console.error("proxy: no se pudo verificar la suscripción; se deja pasar", errorAcceso.code);
+    } else if (acceso !== true) {
+      const { data: creada, error: errorPrueba } = await supabase.rpc("asegurar_prueba");
+      if (errorPrueba) console.error("proxy: no se pudo iniciar la prueba", errorPrueba.code);
+      if (creada !== true) return redirigir("/plan");
+    }
   }
 
   return marcarSso(response);

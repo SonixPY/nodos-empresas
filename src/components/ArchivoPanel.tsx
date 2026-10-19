@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Download, FileImage, FileSpreadsheet, FileText, Search, Trash2, UploadCloud, X } from "lucide-react";
+import { Building2, Download, FileImage, FileSpreadsheet, FileText, FolderOpen, Plus, Search, Trash2, UploadCloud, X } from "lucide-react";
 import { useEmpresas } from "@/lib/data";
 import { formatFecha } from "@/lib/dates";
 import {
@@ -23,7 +23,9 @@ import {
 } from "@/lib/archivo";
 import { useToast } from "@/components/ToastProvider";
 import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
 import type { Empresa } from "@/lib/types";
+import { mensajeError } from "@/lib/nodos/errores";
 
 function IconoArchivo({ mime }: { mime: string | null }) {
   const cls = "shrink-0 text-cobre";
@@ -92,7 +94,7 @@ function Subida({
     const { data, error: err } = await subirArchivo({ empresa, tipo, detalle, fecha, file, existentes });
     setSubiendo(false);
     if (err || !data) {
-      setError(`No se pudo subir: ${err ?? "error desconocido"}`);
+      setError(`No se pudo subir: ${mensajeError(err)}`);
       return;
     }
     showToast(`Guardado como “${data.nombre_archivo}”.`);
@@ -173,6 +175,7 @@ function Subida({
       </div>
 
       <button
+        id="archivo-elegir"
         type="button"
         onClick={() => inputRef.current?.click()}
         className="flex w-full flex-col items-center justify-center gap-1.5 rounded-md border-2 border-dashed px-4 py-6 text-center transition"
@@ -252,7 +255,7 @@ function FilaArchivo({ a, empresa, onBorrado }: { a: Archivo; empresa?: string; 
     setBusy("bajando");
     const { url, error } = await urlDescarga(a);
     setBusy(null);
-    if (!url) return showToast(`No se pudo descargar: ${error ?? "sin enlace"}`, "error");
+    if (!url) return showToast(`No se pudo descargar: ${mensajeError(error, "no se generó el enlace.")}`, "error");
     const link = document.createElement("a");
     link.href = url;
     link.rel = "noopener";
@@ -266,7 +269,7 @@ function FilaArchivo({ a, empresa, onBorrado }: { a: Archivo; empresa?: string; 
     setBusy("borrando");
     const { error } = await eliminarArchivo(a);
     setBusy(null);
-    if (error) return showToast(`No se pudo eliminar: ${error}`, "error");
+    if (error) return showToast(`No se pudo eliminar: ${mensajeError(error)}`, "error");
     showToast("Archivo eliminado.");
     onBorrado();
   }
@@ -363,7 +366,12 @@ export default function ArchivoPanel({
       </div>
 
       {empresas.length === 0 && !empresasQ.loading ? (
-        <div className="card text-sm text-carbon/70">Para subir documentos primero cargá una empresa.</div>
+        <EmptyState
+          icon={Building2}
+          titulo="Primero cargá una empresa"
+          texto="El archivo guarda estatutos, actas y constancias de cada empresa, con nombres uniformes y en un lugar privado."
+          accion={{ label: "Cargar empresa", icon: Plus, href: "/empresas?nueva=1" }}
+        />
       ) : (
         <Subida
           key={empresaId ?? "global"}
@@ -427,11 +435,19 @@ export default function ArchivoPanel({
       {archivos.loading ? (
         <SkeletonTable rows={4} cols={3} />
       ) : archivos.error ? (
-        <p className="text-sm text-bad">No se pudo cargar el archivo: {archivos.error}</p>
+        <p className="text-sm text-bad">No se pudo cargar el archivo: {mensajeError(archivos.error)}</p>
+      ) : archivos.data.length === 0 ? (
+        empresas.length > 0 && (
+          <EmptyState
+            compacta
+            icon={FolderOpen}
+            titulo="Todavía no subiste documentos"
+            texto="Subí el estatuto, las actas y las constancias que ya tenés: se guardan como «EMPRESA - DOCUMENTO (fecha)» para encontrarlos rápido."
+            accion={{ label: "Elegir archivo", icon: UploadCloud, onClick: () => document.getElementById("archivo-elegir")?.click() }}
+          />
+        )
       ) : filtrados.length === 0 ? (
-        <div className="card text-sm text-carbon/65">
-          {archivos.data.length === 0 ? "Todavía no subiste documentos." : "No hay documentos con esos filtros."}
-        </div>
+        <div className="card text-sm text-carbon/65">No hay documentos con esos filtros.</div>
       ) : orden === "tipo" ? (
         <div className="space-y-3">
           {grupos.map((g) => (

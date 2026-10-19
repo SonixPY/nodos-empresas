@@ -7,6 +7,7 @@ import { estadoPoder, poderVacio, revocarPoder, usePoderes, type NuevoPoder, typ
 import { useToast } from "@/components/ToastProvider";
 import { EstadoPoderBadge, PoderForm } from "@/components/PoderesPanel";
 import type { Empresa } from "@/lib/types";
+import { mensajeError } from "@/lib/nodos/errores";
 
 function Modal({
   titulo,
@@ -120,7 +121,7 @@ export function RevocarPoderDialog({
     setBusy(id);
     const { error } = await revocarPoder(id, desde);
     setBusy(null);
-    if (error) return showToast(`No se pudo actualizar: ${error.message}`, "error");
+    if (error) return showToast(`No se pudo actualizar: ${mensajeError(error)}`, "error");
     showToast("Poder marcado como revocado.");
     onClose();
   }

@@ -1,14 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Building2, CalendarClock, Plus } from "lucide-react";
 import { useEmpresas, useObligaciones } from "@/lib/data";
 import { MESES, parseIso, todayIso } from "@/lib/dates";
 import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista";
 import ObligacionForm from "@/components/ObligacionForm";
 import VencimientosCalendar from "@/components/VencimientosCalendar";
 import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
+import { marcarPasoVisto } from "@/components/resumen/PrimerosPasos";
 import { CATEGORIA_LABELS, type CategoriaObligacion, type Obligacion } from "@/lib/types";
+import { mensajeError } from "@/lib/nodos/errores";
 
 type Estado = "pendientes" | "atrasados" | "hechas" | "todas";
 type Vista = "calendario" | "lista";
@@ -21,6 +24,9 @@ export default function VencimientosPage() {
   const [estado, setEstado] = useState<Estado>("pendientes");
   const [nueva, setNueva] = useState(false);
   const [vista, setVista] = useState<Vista>("calendario");
+
+  // Primeros pasos del Resumen: "Revisá tus vencimientos" queda hecho al abrir esta página.
+  useEffect(() => marcarPasoVisto("vencimientos"), []);
 
   const filtradas = useMemo(() => {
     const hoy = todayIso();
@@ -110,11 +116,11 @@ export default function VencimientosPage() {
         </div>
       </div>
 
-      {obligaciones.error && <p className="mb-4 text-sm text-bad">Error: {obligaciones.error}</p>}
+      {obligaciones.error && <p className="mb-4 text-sm text-bad">No se pudieron cargar los vencimientos: {mensajeError(obligaciones.error)}</p>}
 
       {loading ? (
         <SkeletonTable rows={5} cols={3} />
-      ) : vista === "calendario" && empresas.data.length > 0 ? (
+      ) : vista === "calendario" && empresas.data.length > 0 && obligaciones.data.length > 0 ? (
         <VencimientosCalendar
           obligaciones={filtradas}
           empresas={empresas.data}
@@ -125,7 +131,26 @@ export default function VencimientosPage() {
         <ObligacionesLista
           obligaciones={[]}
           onChange={() => {}}
-          vacio={empresas.data.length === 0 ? "Cargá una empresa para generar su calendario." : "No hay vencimientos con estos filtros."}
+          vacio={
+            empresas.data.length === 0 ? (
+              <EmptyState
+                icon={Building2}
+                titulo="Tu calendario empieza con una empresa"
+                texto="Acá vas a ver mes por mes asambleas, balances, SIARA, mandatos y demás vencimientos. Se arma solo con el tipo de sociedad y el mes de cierre."
+                accion={{ label: "Cargar empresa", icon: Plus, href: "/empresas?nueva=1" }}
+              />
+            ) : obligaciones.data.length === 0 ? (
+              <EmptyState
+                icon={CalendarClock}
+                titulo="Todavía no hay vencimientos"
+                texto="Generá el calendario desde la ficha de cada empresa (pestaña Vencimientos) o agregá uno a mano: un pago, una renovación, una presentación."
+                accion={{ label: "Agregar vencimiento", icon: Plus, onClick: () => setNueva(true) }}
+                secundaria={{ label: "Ir a Empresas", href: "/empresas" }}
+              />
+            ) : (
+              "No hay vencimientos con estos filtros."
+            )
+          }
         />
       ) : (
         <div className="space-y-6">

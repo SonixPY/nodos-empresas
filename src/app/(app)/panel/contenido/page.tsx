@@ -5,6 +5,7 @@ import { AlertTriangle, Check, ChevronLeft, ChevronRight, Plus, Trash2, X } from
 import { supabase } from "@/lib/supabaseClient";
 import { addDays, MESES, todayIso } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
+import { mensajeError } from "@/lib/nodos/errores";
 import { SkeletonBlock } from "@/components/Skeleton";
 import {
   ESTADOS_CONTENIDO,
@@ -225,7 +226,7 @@ export default function ContenidoPage() {
     };
     const q = c.id ? supabase.from("contenido").update(fila).eq("id", c.id) : supabase.from("contenido").insert(fila);
     const { data, error: err } = await q.select().single();
-    if (err) return showToast(`No se pudo guardar: ${err.message}`, "error");
+    if (err) return showToast(`No se pudo guardar: ${mensajeError(err)}`, "error");
     let nuevos: Contenido[] = [];
     if (!c.id && conCortes) {
       const base = fila.fecha ?? hoy;
@@ -243,6 +244,7 @@ export default function ContenidoPage() {
         episodio_id: data.id,
       }));
       const r = await supabase.from("contenido").insert(cortes).select();
+      if (r.error) showToast(`El episodio se guardó, pero no sus cortes: ${mensajeError(r.error)}`, "error");
       nuevos = (r.data as Contenido[]) ?? [];
     }
     setItems((prev) => {
@@ -256,7 +258,7 @@ export default function ContenidoPage() {
   async function eliminar(c: Partial<Contenido>) {
     if (!c.id || !confirm(`¿Eliminar "${c.titulo}"?`)) return;
     const { error: err } = await supabase.from("contenido").delete().eq("id", c.id);
-    if (err) return showToast(`No se pudo eliminar: ${err.message}`, "error");
+    if (err) return showToast(`No se pudo eliminar: ${mensajeError(err)}`, "error");
     setItems((prev) => (prev ?? []).filter((x) => x.id !== c.id));
     setEditando(null);
   }
@@ -264,8 +266,14 @@ export default function ContenidoPage() {
   async function avanzar(c: Contenido) {
     const i = ESTADOS_CONTENIDO.findIndex((s) => s.id === c.estado);
     const sig = ESTADOS_CONTENIDO[Math.min(i + 1, ESTADOS_CONTENIDO.length - 1)].id;
+    if (sig === c.estado) return;
     setItems((prev) => (prev ?? []).map((x) => (x.id === c.id ? { ...x, estado: sig } : x)));
-    await supabase.from("contenido").update({ estado: sig }).eq("id", c.id);
+    const { error: err } = await supabase.from("contenido").update({ estado: sig }).eq("id", c.id);
+    if (err) {
+      // Vuelve al estado anterior: el cambio no quedó guardado.
+      setItems((prev) => (prev ?? []).map((x) => (x.id === c.id ? { ...x, estado: c.estado } : x)));
+      showToast(`No se pudo cambiar el estado: ${mensajeError(err)}`, "error");
+    }
   }
 
   if (migracionPendiente(error)) {
