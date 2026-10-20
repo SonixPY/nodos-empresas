@@ -182,6 +182,16 @@ function TarjetaPlan({
   );
 }
 
+function Contenedor({ embebido, children }: { embebido: boolean; children: React.ReactNode }) {
+  return embebido ? (
+    <section id="plan" className="scroll-mt-24" aria-label="Mi plan">
+      {children}
+    </section>
+  ) : (
+    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+  );
+}
+
 export default function PlanVista({
   estado,
   error,
@@ -189,7 +199,10 @@ export default function PlanVista({
   ocupado,
   onTarjeta,
   onPortal,
+  embebido = false,
 }: {
+  /** Dentro de Mi cuenta: sección con título h2 en vez de página propia. */
+  embebido?: boolean;
   estado: EstadoPlan | null;
   error: string | null;
   confirmacion: Confirmacion;
@@ -208,9 +221,9 @@ export default function PlanVista({
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <Contenedor embebido={embebido}>
       <header className="mb-6">
-        <h1>Mi plan</h1>
+        {embebido ? <h2>Mi plan</h2> : <h1>Mi plan</h1>}
         <p className="mt-1 text-sm text-carbon/60">Un plan sirve para tu cuenta NODOS en Finanzas y Empresas, según lo que incluya.</p>
       </header>
 
@@ -352,6 +365,6 @@ export default function PlanVista({
           .
         </p>
       </div>
-    </main>
+    </Contenedor>
   );
 }

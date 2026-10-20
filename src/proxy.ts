@@ -108,21 +108,24 @@ export async function proxy(request: NextRequest) {
   // Permisos por app (los define el panel de administración).
   const { data: perfil, error } = await supabase
     .from("profiles")
-    .select(`acceso_${APP_ID}, suspendido`)
+    .select(`acceso_${APP_ID}, suspendido, is_admin`)
     .eq("id", user.id)
     .maybeSingle<Record<string, boolean | null>>();
   const libre = empiezaCon(pathname, LIBRES);
+  // Los administradores entran a todo, sin suscripción ni permiso por app
+  // (salvo que la cuenta esté suspendida).
+  const esAdmin = !error && perfil?.is_admin === true;
   // Si la migración de cuentas todavía no corrió, no bloqueamos a nadie.
-  if (!error && perfil && (perfil.suspendido === true || (!libre && perfil[`acceso_${APP_ID}`] === false))) {
+  if (!error && perfil && (perfil.suspendido === true || (!libre && !esAdmin && perfil[`acceso_${APP_ID}`] === false))) {
     return redirigir("/sin-acceso");
   }
-  if (libre) return marcarSso(response);
+  if (libre || esAdmin) return marcarSso(response);
 
   // Cobro de suscripciones: SOLO con SUSCRIPCIONES_ACTIVAS=true (las dos apps).
   // tiene_acceso_app decide en la base (admin, cortesía, prueba, plan vigente
   // o en gracia). Sin acceso, se crea la prueba de 14 días si la cuenta nunca
   // tuvo una (asegurar_prueba solo inserta si no hay ninguna fila) y, si no
-  // corresponde, se manda a /plan.
+  // corresponde, se manda al plan dentro de Mi cuenta.
   //
   // Si la base falla (p. ej. la migración 011 todavía no corrió, o Supabase
   // está caído) NO se bloquea a nadie: se deja pasar y se registra el error.
@@ -137,7 +140,7 @@ export async function proxy(request: NextRequest) {
     } else if (acceso !== true) {
       const { data: creada, error: errorPrueba } = await supabase.rpc("asegurar_prueba");
       if (errorPrueba) console.error("proxy: no se pudo iniciar la prueba", errorPrueba.code);
-      if (creada !== true) return redirigir("/plan");
+      if (creada !== true) return redirigir("/cuenta#plan");
     }
   }
 

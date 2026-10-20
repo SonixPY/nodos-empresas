@@ -1,22 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import DocumentosNav from "@/components/DocumentosNav";
-import ArchivoPanel from "@/components/ArchivoPanel";
-
-function ArchivoContenido() {
-  const params = useSearchParams();
-  return <ArchivoPanel empresaInicial={params.get("empresa")} />;
-}
-
-export default function ArchivoPage() {
-  return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <DocumentosNav />
-      <Suspense fallback={null}>
-        <ArchivoContenido />
-      </Suspense>
-    </main>
-  );
+// Archivo y Guardados se unificaron en /documentos/guardados (sección Archivo).
+export default async function ArchivoPage({ searchParams }: PageProps<"/documentos/archivo">) {
+  const { empresa } = await searchParams;
+  redirect(typeof empresa === "string" && /^[0-9a-f-]{36}$/i.test(empresa) ? `/documentos/guardados?empresa=${empresa}` : "/documentos/guardados");
 }

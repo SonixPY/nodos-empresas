@@ -127,7 +127,7 @@ const MISION_NUEVA: Mision = {
   titulo: "",
   descripcion: "",
   tarjetas: [],
-  gratis: false,
+  gratis: true,
   tipo: "unipersonal",
   personaje: "emprendedor",
   sujetoObligado: false,
@@ -326,7 +326,7 @@ export default function PracticaAdmin() {
                   {m?.orden}. {m?.titulo ?? id}
                 </p>
                 <p className="truncate text-xs text-carbon/50">
-                  {RUTAS[m?.ruta as Ruta]?.titulo ?? "Sin ruta"} · {m?.tarjetas?.length ?? 0} tarjetas · {m?.gratis ? "gratis" : "Combo"}
+                  {RUTAS[m?.ruta as Ruta]?.titulo ?? "Sin ruta"} · {m?.tarjetas?.length ?? 0} tarjetas
                 </p>
               </div>
               <EstadoChip f={f} incluida={BUILTIN_M.has(id)} />
@@ -727,9 +727,6 @@ function EditorMision({
         </Campo>
         <label className="inline-flex items-center gap-2 self-end pb-2 text-sm text-carbon/80">
           <input type="checkbox" checked={m.sujetoObligado} onChange={(e) => setM({ ...m, sujetoObligado: e.target.checked })} /> Sujeto obligado
-        </label>
-        <label className="inline-flex items-center gap-2 self-end pb-2 text-sm text-carbon/80">
-          <input type="checkbox" checked={m.gratis} onChange={(e) => setM({ ...m, gratis: e.target.checked })} /> Gratis (si no, incluida en el Combo)
         </label>
       </div>
 

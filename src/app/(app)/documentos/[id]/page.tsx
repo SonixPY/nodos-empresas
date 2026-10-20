@@ -56,7 +56,7 @@ export default function DocumentoPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       <Link href="/documentos/guardados" className="inline-flex items-center gap-1 text-xs text-carbon/55 hover:text-cobre-hover">
-        <ArrowLeft size={13} aria-hidden /> Documentos guardados
+        <ArrowLeft size={13} aria-hidden /> Archivo de documentos
       </Link>
       {loading ? (
         <SkeletonBlock className="mt-4 h-96" />

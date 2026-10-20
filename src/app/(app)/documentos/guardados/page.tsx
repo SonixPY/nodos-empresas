@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FilePlus2, FileText, Search } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
@@ -13,13 +14,17 @@ import DocumentosNav from "@/components/DocumentosNav";
 import BulkDeleteBar from "@/components/BulkDeleteBar";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import ArchivoPanel from "@/components/ArchivoPanel";
 import { mensajeError } from "@/lib/nodos/errores";
 
-export default function GuardadosPage() {
+/** Archivo de Documentos: lo generado en NODOS y lo subido, en un solo lugar. */
+function GuardadosContenido() {
+  const params = useSearchParams();
+  const empresaParam = params.get("empresa");
   const { showToast } = useToast();
   const empresas = useEmpresas();
   const documentos = useDocumentos(null);
-  const [empresaFiltro, setEmpresaFiltro] = useState("");
+  const [empresaFiltro, setEmpresaFiltro] = useState(empresaParam ?? "");
   const [grupoFiltro, setGrupoFiltro] = useState<"" | GrupoPlantilla>("");
   const [busqueda, setBusqueda] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -61,7 +66,9 @@ export default function GuardadosPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <DocumentosNav descripcion="Todo lo que generaste y guardaste, por empresa. Se ven e imprimen desde la app." />
+      <DocumentosNav descripcion="Todo en un solo lugar: lo que generaste en NODOS y lo que subiste (estatutos, actas firmadas, constancias)." />
+
+      <h2 className="mb-3 text-xl">Generados en NODOS</h2>
 
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <select
@@ -159,6 +166,17 @@ export default function GuardadosPage() {
           </table>
         </div>
       )}
+      <div className="mt-10">
+        <ArchivoPanel empresaInicial={empresaParam} />
+      </div>
     </main>
+  );
+}
+
+export default function GuardadosPage() {
+  return (
+    <Suspense fallback={null}>
+      <GuardadosContenido />
+    </Suspense>
   );
 }

@@ -73,6 +73,22 @@ export interface EstadoPlan {
   tarjeta_disponible?: boolean;
 }
 
+/**
+ * ¿La cuenta tiene lo que incluye el Combo (Finanzas + Empresas), por ejemplo
+ * conectar socios? Sí cuando el cobro está apagado, para administradores, con
+ * cortesía, en la prueba gratis o con un plan vigente que incluye las dos apps.
+ */
+export function incluyeCombo(e: EstadoPlan | null): boolean {
+  if (!e) return true; // si no se pudo leer el estado, no se bloquea (falla abierto)
+  if (!e.cobro_activo || e.admin) return true;
+  const hoy = new Date().toISOString().slice(0, 10);
+  if (e.cortesia_hasta && e.cortesia_hasta >= hoy) return true;
+  if (e.estado === "prueba") return true;
+  const vigente = e.estado === "activa" || e.estado === "gracia" || e.estado === "cancelada";
+  const apps = e.apps ?? [];
+  return vigente && apps.includes("finanzas") && apps.includes("empresas");
+}
+
 /** Fila de la lista del Panel → Suscripciones. */
 export interface CuentaSuscripcion {
   user_id: string;
@@ -103,6 +119,8 @@ export interface PlanAdmin {
   polar_producto_anual: string | null;
   activo: boolean;
   orden: number;
+  /** Lista que muestra nodoscompliance.com en Planes (migración 013/027). */
+  beneficios?: string[];
 }
 
 export interface ResumenAdmin {
@@ -234,6 +252,7 @@ export interface CambiosPlan {
   polar_producto_mensual?: string | null;
   polar_producto_anual?: string | null;
   activo?: boolean;
+  beneficios?: string[];
 }
 
 export function validarCambiosPlan(b: Record<string, unknown> | null): CambiosPlan | string {
@@ -268,6 +287,13 @@ export function validarCambiosPlan(b: Record<string, unknown> | null): CambiosPl
   if ("activo" in b) {
     if (typeof b.activo !== "boolean") return "El campo activo tiene que ser verdadero o falso.";
     out.activo = b.activo;
+  }
+  if ("beneficios" in b) {
+    if (!Array.isArray(b.beneficios)) return "Los beneficios van como una lista.";
+    const lista = b.beneficios.map((x) => (typeof x === "string" ? x.trim() : "")).filter(Boolean);
+    if (lista.length > 10) return "Hasta 10 beneficios por plan.";
+    if (lista.some((x) => x.length > 90)) return "Cada beneficio lleva hasta 90 caracteres.";
+    out.beneficios = lista;
   }
   if (out.polar_producto_mensual && out.polar_producto_mensual === out.polar_producto_anual) {
     return "El producto mensual y el anual tienen que ser distintos.";

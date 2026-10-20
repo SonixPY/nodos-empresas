@@ -3,8 +3,8 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CalendarClock, CalendarPlus, FilePlus2, FileText, Pencil, Plus, Trash2 } from "lucide-react";
-import { generarCalendario, useDocumentos, useEmpresa, useObligaciones } from "@/lib/data";
+import { ArrowLeft, CalendarClock, FilePlus2, FileText, Pencil, Trash2 } from "lucide-react";
+import { useDocumentos, useEmpresa } from "@/lib/data";
 import { formatFecha, MESES } from "@/lib/dates";
 import { formatPyg } from "@/lib/format";
 import { useToast } from "@/components/ToastProvider";
@@ -14,9 +14,6 @@ import AccionistasPanel from "@/components/AccionistasPanel";
 import SiaraPanel from "@/components/SiaraPanel";
 import PoderesPanel from "@/components/PoderesPanel";
 import ArchivoPanel from "@/components/ArchivoPanel";
-import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista";
-import ObligacionForm from "@/components/ObligacionForm";
-import NovedadesEmpresas from "@/components/NovedadesEmpresas";
 import { SkeletonBlock } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { esSociedad, REGIMEN_LABELS, TIPO_LABELS, type Empresa } from "@/lib/types";
@@ -28,9 +25,7 @@ const TABS = [
   { key: "accionistas", label: "Accionistas" },
   { key: "siara", label: "SIARA" },
   { key: "poderes", label: "Poderes" },
-  { key: "archivo", label: "Archivo" },
   { key: "documentos", label: "Documentos" },
-  { key: "vencimientos", label: "Vencimientos" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
@@ -129,129 +124,43 @@ function Datos({
   );
 }
 
-function Vencimientos({ empresa }: { empresa: Empresa }) {
-  const { showToast } = useToast();
-  const { data, setData, reload, loading } = useObligaciones(empresa.id);
-  const [filtro, setFiltro] = useState<"pendientes" | "hechas" | "todas">("pendientes");
-  const [nueva, setNueva] = useState(false);
-  const [generando, setGenerando] = useState(false);
-  const anio = new Date().getFullYear();
-  const sociedad = esSociedad(empresa.tipo);
-
-  const visibles = data.filter((o) => (filtro === "todas" ? true : filtro === "hechas" ? o.estado === "hecho" : o.estado === "pendiente"));
-
-  async function generar(y: number) {
-    setGenerando(true);
-    const r = await generarCalendario(empresa, y);
-    setGenerando(false);
-    if (r.error) return showToast(`No se pudo generar: ${r.error}`, "error");
-    await reload();
-    showToast(r.nuevas > 0 ? `${r.nuevas} vencimientos agregados para ${y}.` : `El calendario ${y} ya estaba generado.`);
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="segmented">
-          {(["pendientes", "hechas", "todas"] as const).map((f) => (
-            <button key={f} type="button" className={filtro === f ? "active" : ""} onClick={() => setFiltro(f)}>
-              {f[0].toUpperCase() + f.slice(1)}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {sociedad && [anio, anio + 1].map((y) => (
-            <button key={y} type="button" className="btn btn-ghost" onClick={() => generar(y)} disabled={generando}>
-              <CalendarPlus size={15} /> Calendario {y}
-            </button>
-          ))}
-          <button type="button" className="btn btn-primary" onClick={() => setNueva(true)}>
-            <Plus size={15} /> Vencimiento
-          </button>
-        </div>
-      </div>
-      {nueva && (
-        <ObligacionForm
-          empresas={[empresa]}
-          empresaId={empresa.id}
-          onCreated={(o) => {
-            setNueva(false);
-            setData((prev) => [...prev, o].sort((a, b) => a.fecha.localeCompare(b.fecha)));
-          }}
-          onCancel={() => setNueva(false)}
-        />
-      )}
-      {loading ? (
-        <SkeletonBlock className="h-32" />
-      ) : (
-        <ObligacionesLista
-          obligaciones={visibles}
-          onChange={(id, patch) => setData((prev) => aplicarCambio(prev, id, patch))}
-          vacio={
-            data.length === 0 ? (
-              sociedad ? (
-                <EmptyState
-                  compacta
-                  icon={CalendarClock}
-                  titulo="Esta empresa todavía no tiene vencimientos"
-                  texto={`Generá el calendario ${anio}: asambleas, balance, SIARA y mandatos según el tipo de sociedad y el mes de cierre.`}
-                  accion={{ label: `Generar calendario ${anio}`, icon: CalendarPlus, onClick: () => generar(anio) }}
-                  secundaria={{ label: "Agregar a mano", icon: Plus, onClick: () => setNueva(true) }}
-                />
-              ) : (
-                <EmptyState
-                  compacta
-                  icon={CalendarClock}
-                  titulo="Todavía no cargaste vencimientos"
-                  texto="Sin asambleas ni actas, lo tuyo son los vencimientos de la DNIT, el IPS y lo que pida tu actividad. Cargalos como tareas: la fecha de la DNIT depende de la terminación de tu RUC."
-                  accion={{ label: "Agregar vencimiento", icon: Plus, onClick: () => setNueva(true) }}
-                />
-              )
-            ) : filtro === "pendientes" ? (
-              "No hay vencimientos pendientes."
-            ) : (
-              "Nada para mostrar."
-            )
-          }
-        />
-      )}
-      <p className="text-xs text-carbon/55">
-        {sociedad ? "El calendario automático sale del tipo societario y el mes de cierre." : "Para unipersonales y RUC personal no hay calendario societario: cargá tus vencimientos a mano."} Los plazos en días hábiles descuentan fines de semana y feriados fijos, pero no los trasladables: tomalos como
-        referencia y confirmalos. Tocá una tarea para ver el detalle y la base legal.
-      </p>
-    </div>
-  );
-}
-
+/** Documentos de la empresa en un solo lugar: lo generado en NODOS y lo
+ * que se subió al archivo (estatutos, actas firmadas, constancias). */
 function Documentos({ empresa }: { empresa: Empresa }) {
   const { data, loading } = useDocumentos(empresa.id);
   return (
-    <div className="space-y-3">
-      <Link href={`/documentos?empresa=${empresa.id}`} className="btn btn-primary">
-        <FileText size={15} /> Generar documento
-      </Link>
-      {loading ? (
-        <SkeletonBlock className="h-24" />
-      ) : data.length === 0 ? (
-        <EmptyState
-          compacta
-          icon={FileText}
-          titulo="Todavía no generaste documentos para esta empresa"
-          texto="Actas, poderes y notas con los datos de la empresa y sus accionistas ya precargados. Lo que guardes aparece acá."
-          accion={{ label: "Generar documento", icon: FilePlus2, href: `/documentos?empresa=${empresa.id}` }}
-        />
-      ) : (
-        <ul className="divide-y divide-[var(--line)] rounded-sm border bg-white" style={{ borderColor: "var(--line)" }}>
-          {data.map((d) => (
-            <li key={d.id}>
-              <Link href={`/documentos/${d.id}`} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm hover:bg-marfil/60">
-                <span>{d.titulo}</span>
-                <span className="shrink-0 text-xs text-carbon/55">{formatFecha(d.created_at)}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="space-y-8">
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-xl">Generados en NODOS</h2>
+          <Link href={`/documentos?empresa=${empresa.id}`} className="btn btn-primary">
+            <FileText size={15} /> Generar documento
+          </Link>
+        </div>
+        {loading ? (
+          <SkeletonBlock className="h-24" />
+        ) : data.length === 0 ? (
+          <EmptyState
+            compacta
+            icon={FileText}
+            titulo="Todavía no generaste documentos para esta empresa"
+            texto="Actas, poderes y notas con los datos de la empresa y sus accionistas ya precargados. Lo que guardes aparece acá."
+            accion={{ label: "Generar documento", icon: FilePlus2, href: `/documentos?empresa=${empresa.id}` }}
+          />
+        ) : (
+          <ul className="divide-y divide-[var(--line)] rounded-sm border bg-white" style={{ borderColor: "var(--line)" }}>
+            {data.map((d) => (
+              <li key={d.id}>
+                <Link href={`/documentos/${d.id}`} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm hover:bg-marfil/60">
+                  <span className="min-w-0 [overflow-wrap:anywhere]">{d.titulo}</span>
+                  <span className="shrink-0 text-xs text-carbon/55">{formatFecha(d.created_at)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <ArchivoPanel empresaId={empresa.id} empresas={[empresa]} />
     </div>
   );
 }
@@ -261,7 +170,8 @@ function FichaEmpresa() {
   const params = useSearchParams();
   const router = useRouter();
   const { data: empresa, setData, loading, error } = useEmpresa(id);
-  const tabParam = params.get("tab") as Tab | null;
+  // Enlaces viejos: ?tab=archivo ahora es Documentos.
+  const tabParam = (params.get("tab") === "archivo" ? "documentos" : params.get("tab")) as Tab | null;
   const [tabElegida, setTab] = useState<Tab>(TABS.some((t) => t.key === tabParam) ? (tabParam as Tab) : "datos");
   // Si la entidad no tiene esa pestaña (p. ej. Accionistas en un unipersonal), se muestra Datos.
   const tab: Tab = empresa && !tabsPara(empresa).some((t) => t.key === tabElegida) ? "datos" : tabElegida;
@@ -289,6 +199,12 @@ function FichaEmpresa() {
               {TIPO_LABELS[empresa.tipo]}
               {empresa.ruc ? ` · RUC ${empresa.ruc}` : ""}
             </p>
+            <Link
+              href={`/vencimientos?empresa=${empresa.id}`}
+              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-cobre-hover hover:underline"
+            >
+              <CalendarClock size={14} aria-hidden /> Ver sus vencimientos
+            </Link>
           </header>
           {/* Una sola fila de pestañas; en celulares scrollea en horizontal en
               vez de partirse en dos renglones. */}
@@ -324,7 +240,6 @@ function FichaEmpresa() {
                 onDeleted={() => router.push("/empresas")}
               />
             )}
-            {tab === "datos" && <NovedadesEmpresas empresas={[empresa]} variant="compacta" />}
             {tab === "accionistas" && <AccionistasPanel empresa={empresa} />}
             {tab === "siara" && (
               <SiaraPanel
@@ -338,9 +253,7 @@ function FichaEmpresa() {
               />
             )}
             {tab === "poderes" && <PoderesPanel empresaId={id} empresas={[empresa]} />}
-            {tab === "archivo" && <ArchivoPanel empresaId={id} empresas={[empresa]} />}
             {tab === "documentos" && <Documentos empresa={empresa} />}
-            {tab === "vencimientos" && <Vencimientos empresa={empresa} />}
           </div>
         </>
       )}

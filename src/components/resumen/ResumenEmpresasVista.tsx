@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Building2 } from "lucide-react";
 import { daysUntil, todayIso } from "@/lib/dates";
-import { ResumenAccionesRapidas, ResumenBanner, ResumenStatTiles } from "@/components/resumen/ResumenBanner";
+import { ResumenBanner, ResumenStatTiles } from "@/components/resumen/ResumenBanner";
 import ProximosVencimientos from "@/components/resumen/ProximosVencimientos";
 import type { Empresa, Obligacion } from "@/lib/types";
 import { mensajeError } from "@/lib/nodos/errores";
@@ -23,8 +23,8 @@ function estadoVencimientos(proximos30: number, atrasados: number): string {
 
 /**
  * Resumen de Empresas (sin carga de datos): banda con saludo, estado de
- * vencimientos y novedades; debajo cifras clave, lo próximo que vence y
- * accesos rápidos. Mismo formato que el Resumen de NODOS Finanzas.
+ * vencimientos y novedades; debajo cifras clave y lo próximo que vence (los
+ * accesos a cada sección están en el header). Mismo formato que el Resumen de NODOS Finanzas.
  */
 export default function ResumenEmpresasVista({
   nombre,
@@ -110,7 +110,6 @@ export default function ResumenEmpresasVista({
               <ProximosVencimientos obligaciones={lista} empresas={empresas} onChange={onChange} pie={pie} />
             </div>
           )}
-          <ResumenAccionesRapidas />
         </div>
       )}
     </main>

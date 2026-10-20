@@ -8,6 +8,8 @@ export interface PerfilVisible {
   nombre: string | null;
   usuario: string | null;
   isAdmin: boolean;
+  /** "icono:color" (ver lib/nodos/avatares). */
+  avatar?: string | null;
 }
 
 /** Perfil de la cuenta logueada para el header (sin el email). */
@@ -21,16 +23,23 @@ export function usePerfil() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const completo = await supabase.from("profiles").select("nombre, usuario, is_admin").eq("id", user.id).maybeSingle();
-      // Sin la migración del usuario todavía corrida, no se pierde el rol de admin.
-      const data: { nombre?: string | null; usuario?: string | null; is_admin?: boolean | null } | null = completo.error
-        ? (await supabase.from("profiles").select("nombre, is_admin").eq("id", user.id).maybeSingle()).data
-        : completo.data;
+      type Fila = { nombre?: string | null; usuario?: string | null; is_admin?: boolean | null; avatar?: string | null };
+      // Si una migración todavía no corrió (avatar, usuario), se pide lo que
+      // exista sin perder el rol de admin.
+      let data: Fila | null = null;
+      for (const columnas of ["nombre, usuario, is_admin, avatar", "nombre, usuario, is_admin", "nombre, is_admin"]) {
+        const r = await supabase.from("profiles").select(columnas).eq("id", user.id).maybeSingle<Fila>();
+        if (!r.error) {
+          data = r.data;
+          break;
+        }
+      }
       if (!activo) return;
       setPerfil({
         nombre: data?.nombre ?? (user.user_metadata?.nombre as string | undefined) ?? null,
         usuario: data?.usuario ?? null,
         isAdmin: !!data?.is_admin,
+        avatar: data?.avatar ?? null,
       });
     })();
     const onCambio = (e: Event) => {

@@ -36,7 +36,8 @@ export async function GET() {
     supabase.from("suscripciones").select("user_id, plan_id, periodo, estado, proveedor, prueba_hasta, activa_hasta").limit(5000),
     supabase
       .from("planes")
-      .select("id, nombre, descripcion, apps, precio_mensual_gs, precio_anual_gs, polar_producto_mensual, polar_producto_anual, activo, orden")
+      // Con "*" los beneficios (migración 013/027) aparecen solos cuando existen.
+      .select("*")
       .order("orden"),
     supabase.from("pagos").select("monto, moneda, reembolsado").eq("estado", "pagado").gte("fecha_pago", inicioMes).limit(10000),
   ]);

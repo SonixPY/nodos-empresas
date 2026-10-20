@@ -4,12 +4,13 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AtSign, ChevronDown, ChevronRight, CreditCard, Gauge, LifeBuoy, LogOut, UserRound } from "lucide-react";
+import { AtSign, ChevronDown, ChevronRight, Gauge, LifeBuoy, LogOut, UserRound } from "lucide-react";
 import { SITIOS, nombreVisible } from "@/lib/nodos/sitios";
 import { PANEL_SECCIONES, panelEsLocal, panelHref, panelSeccionActiva } from "@/lib/nodos/panel";
 import { cerrarSesion } from "@/lib/nodos/usePerfil";
 import type { PerfilVisible } from "@/lib/nodos/usePerfil";
 import { useDesplegable } from "@/lib/nodos/useDesplegable";
+import AvatarNodos from "@/components/nodos/AvatarNodos";
 
 /** Clase de un ítem del menú de cuenta (la usan también las herramientas propias de cada app). */
 export const MENU_ITEM =
@@ -82,7 +83,7 @@ export default function CuentaMenu({
           open ? "bg-marfil/20" : "bg-marfil/10 hover:bg-marfil/15"
         }`}
       >
-        <UserRound size={16} aria-hidden className="shrink-0" />
+        <AvatarNodos valor={perfil?.avatar} size={perfil?.avatar ? 24 : 28} className={perfil?.avatar ? "-my-1 sm:-ml-1.5" : ""} />
         <span className="hidden truncate sm:inline">{nombre}</span>
         <ChevronDown size={14} aria-hidden className={`hidden shrink-0 text-marfil/60 transition-transform duration-150 sm:block ${open ? "rotate-180" : ""}`} />
       </button>
@@ -101,7 +102,7 @@ export default function CuentaMenu({
             role="menuitem"
             className="flex items-center gap-3 border-b border-[var(--line)] bg-marfil/60 px-4 py-3 transition hover:bg-marfil focus-visible:bg-marfil focus-visible:outline-none"
           >
-            <UserRound size={18} aria-hidden className="shrink-0 text-cobre" />
+            {perfil?.avatar ? <AvatarNodos valor={perfil.avatar} size={32} /> : <UserRound size={18} aria-hidden className="shrink-0 text-cobre" />}
             <span className="min-w-0 flex-1">
               <span className="t-caption block text-carbon/55">Cuenta NODOS</span>
               <span className="block truncate text-sm font-medium text-musgo">{nombre}</span>
@@ -119,9 +120,6 @@ export default function CuentaMenu({
           {herramientas && <div className="border-b border-[var(--line)] p-1.5">{herramientas(cerrar)}</div>}
 
           <div className="p-1.5">
-            <Link href="/plan" role="menuitem" className={MENU_ITEM}>
-              <CreditCard size={16} aria-hidden className="shrink-0 text-musgo" /> Mi plan
-            </Link>
             <Link href="/soporte" role="menuitem" className={MENU_ITEM}>
               <LifeBuoy size={16} aria-hidden className="shrink-0 text-musgo" /> Soporte
             </Link>

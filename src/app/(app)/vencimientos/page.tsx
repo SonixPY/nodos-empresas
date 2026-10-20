@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Building2, CalendarClock, Plus } from "lucide-react";
-import { useEmpresas, useObligaciones } from "@/lib/data";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Building2, CalendarClock, CalendarPlus, Plus } from "lucide-react";
+import { generarCalendario, useEmpresas, useObligaciones } from "@/lib/data";
+import { useToast } from "@/components/ToastProvider";
+import { esSociedad } from "@/lib/types";
 import { MESES, parseIso, todayIso } from "@/lib/dates";
 import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista";
 import ObligacionForm from "@/components/ObligacionForm";
@@ -16,10 +19,15 @@ import { mensajeError } from "@/lib/nodos/errores";
 type Estado = "pendientes" | "atrasados" | "hechas" | "todas";
 type Vista = "calendario" | "lista";
 
-export default function VencimientosPage() {
+/** Vencimientos: el único calendario de Empresas (todas o una sola empresa). */
+function VencimientosContenido() {
+  const params = useSearchParams();
+  const { showToast } = useToast();
   const empresas = useEmpresas();
   const obligaciones = useObligaciones(null);
-  const [empresa, setEmpresa] = useState("todas");
+  const [empresa, setEmpresa] = useState(params.get("empresa") ?? "todas");
+  const [generando, setGenerando] = useState(false);
+  const anio = new Date().getFullYear();
   const [categoria, setCategoria] = useState<CategoriaObligacion | "todas">("todas");
   const [estado, setEstado] = useState<Estado>("pendientes");
   const [nueva, setNueva] = useState(false);
@@ -53,6 +61,26 @@ export default function VencimientosPage() {
   }, [filtradas, estado]);
 
   const loading = empresas.loading || obligaciones.loading;
+  // El calendario automático solo existe para sociedades (S.A., EAS, S.R.L.).
+  const sociedades = empresas.data.filter((e) => esSociedad(e.tipo) && (empresa === "todas" || e.id === empresa));
+
+  async function generarCalendarios() {
+    setGenerando(true);
+    let nuevas = 0;
+    for (const e of sociedades) {
+      for (const y of [anio, anio + 1]) {
+        const r = await generarCalendario(e, y);
+        if (r.error) {
+          setGenerando(false);
+          return showToast(`No se pudo generar: ${r.error}`, "error");
+        }
+        nuevas += r.nuevas;
+      }
+    }
+    await obligaciones.reload();
+    setGenerando(false);
+    showToast(nuevas > 0 ? `${nuevas} vencimientos agregados.` : "Los calendarios ya estaban al día.");
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -62,9 +90,16 @@ export default function VencimientosPage() {
           <p className="mt-1 text-sm text-carbon/60">Calendario de cumplimiento de todas tus empresas, mes por mes.</p>
         </div>
         {empresas.data.length > 0 && !nueva && (
-          <button type="button" className="btn btn-primary" onClick={() => setNueva(true)}>
-            <Plus size={15} /> Vencimiento
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {sociedades.length > 0 && (
+              <button type="button" className="btn btn-ghost" onClick={generarCalendarios} disabled={generando || loading}>
+                <CalendarPlus size={15} /> {generando ? "Generando..." : `Calendario ${anio}–${anio + 1}`}
+              </button>
+            )}
+            <button type="button" className="btn btn-primary" onClick={() => setNueva(true)}>
+              <Plus size={15} /> Vencimiento
+            </button>
+          </div>
         )}
       </header>
 
@@ -72,6 +107,7 @@ export default function VencimientosPage() {
         <div className="mb-6">
           <ObligacionForm
             empresas={empresas.data}
+            empresaId={empresa !== "todas" ? empresa : undefined}
             onCreated={(o) => {
               setNueva(false);
               obligaciones.setData((prev) => [...prev, o].sort((a, b) => a.fecha.localeCompare(b.fecha)));
@@ -143,9 +179,17 @@ export default function VencimientosPage() {
               <EmptyState
                 icon={CalendarClock}
                 titulo="Todavía no hay vencimientos"
-                texto="Generá el calendario desde la ficha de cada empresa (pestaña Vencimientos) o agregá uno a mano: un pago, una renovación, una presentación."
-                accion={{ label: "Agregar vencimiento", icon: Plus, onClick: () => setNueva(true) }}
-                secundaria={{ label: "Ir a Empresas", href: "/empresas" }}
+                texto={
+                  sociedades.length > 0
+                    ? `Generá el calendario ${anio}–${anio + 1} (asambleas, balance, SIARA y mandatos según el tipo de sociedad y el mes de cierre) o agregá uno a mano.`
+                    : "Unipersonales y RUC personal no tienen calendario societario: cargá a mano tus vencimientos de la DNIT, el IPS y lo que pida tu actividad."
+                }
+                accion={
+                  sociedades.length > 0
+                    ? { label: `Generar calendario ${anio}–${anio + 1}`, icon: CalendarPlus, onClick: generarCalendarios }
+                    : { label: "Agregar vencimiento", icon: Plus, onClick: () => setNueva(true) }
+                }
+                secundaria={sociedades.length > 0 ? { label: "Agregar a mano", icon: Plus, onClick: () => setNueva(true) } : { label: "Ir a Empresas", href: "/empresas" }}
               />
             ) : (
               "No hay vencimientos con estos filtros."
@@ -173,5 +217,13 @@ export default function VencimientosPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function VencimientosPage() {
+  return (
+    <Suspense fallback={null}>
+      <VencimientosContenido />
+    </Suspense>
   );
 }

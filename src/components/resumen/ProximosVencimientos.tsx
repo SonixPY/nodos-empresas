@@ -71,7 +71,7 @@ export default function ProximosVencimientos({
                   </div>
                   <div className="min-w-0 flex-1">
                     <Link
-                      href={`/empresas/${o.empresa_id}?tab=vencimientos`}
+                      href={`/vencimientos?empresa=${o.empresa_id}`}
                       className={`line-clamp-2 text-sm font-medium leading-snug hover:underline ${hecha ? "text-carbon/45 line-through" : "text-carbon"}`}
                     >
                       {o.titulo}

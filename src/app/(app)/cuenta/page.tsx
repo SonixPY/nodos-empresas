@@ -7,6 +7,8 @@ import { useToast } from "@/components/ToastProvider";
 import { USUARIO_REGEX } from "@/lib/nodos/sitios";
 import { mensajeErrorAuth } from "@/lib/nodos/errores";
 import DatosYBaja from "@/components/nodos/DatosYBaja";
+import AvatarSelector from "@/components/nodos/AvatarSelector";
+import MiPlan from "@/components/nodos/MiPlan";
 
 type Disponible = "libre" | "tomado" | "invalido" | "propio" | "verificando" | null;
 
@@ -18,6 +20,7 @@ export default function CuentaPage() {
   const [nombre, setNombre] = useState("");
   const [usuario, setUsuario] = useState("");
   const [original, setOriginal] = useState({ nombre: "", usuario: "" });
+  const [avatar, setAvatar] = useState<string | null>(null);
   const [disp, setDisp] = useState<Disponible>(null);
   const [guardando, setGuardando] = useState(false);
   const [clave, setClave] = useState("");
@@ -30,7 +33,12 @@ export default function CuentaPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from("profiles").select("nombre, usuario").eq("id", user.id).maybeSingle();
+      // Sin la migración del avatar todavía corrida, se lee lo demás igual.
+      const conAvatar = await supabase.from("profiles").select("nombre, usuario, avatar").eq("id", user.id).maybeSingle();
+      const data: { nombre?: string | null; usuario?: string | null; avatar?: string | null } | null = conAvatar.error
+        ? (await supabase.from("profiles").select("nombre, usuario").eq("id", user.id).maybeSingle()).data
+        : conAvatar.data;
+      setAvatar(data?.avatar ?? null);
       const n = data?.nombre ?? (user.user_metadata?.nombre as string | undefined) ?? "";
       const u = data?.usuario ?? "";
       setEmail(user.email ?? "");
@@ -89,6 +97,23 @@ export default function CuentaPage() {
     showToast("Tu cuenta quedó actualizada.");
   }
 
+  async function guardarAvatar(v: string | null): Promise<boolean> {
+    const res = await fetch("/api/cuenta/perfil", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ avatar: v }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      showToast(data?.message ?? "No se pudo guardar el avatar.", "error");
+      return false;
+    }
+    setAvatar(v);
+    window.dispatchEvent(new CustomEvent("nodos:perfil", { detail: { avatar: v } }));
+    showToast(v ? "Avatar guardado." : "Avatar quitado.");
+    return true;
+  }
+
   async function cambiarClave(e: React.FormEvent) {
     e.preventDefault();
     if (clave.length < 8) return showToast("La contraseña necesita al menos 8 caracteres.", "error");
@@ -103,18 +128,19 @@ export default function CuentaPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
-      <header className="mb-6">
+    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <header className="mx-auto mb-6 max-w-2xl">
         <h1>Mi cuenta</h1>
-        <p className="mt-1 text-sm text-carbon/60">La misma cuenta para nodoscompliance.com, NODOS Finanzas y NODOS Empresas.</p>
+        <p className="mt-1 text-sm text-carbon/60">La misma cuenta para nodoscompliance.com, NODOS Finanzas, NODOS Empresas y NODOS Práctica: tus datos, tu avatar y tu plan.</p>
       </header>
 
       {cargando ? (
-        <div className="card flex items-center gap-2 text-sm text-carbon/60">
+        <div className="card mx-auto flex max-w-2xl items-center gap-2 text-sm text-carbon/60">
           <Loader2 size={16} className="animate-spin" /> Cargando…
         </div>
       ) : (
         <div className="space-y-6">
+          <div className="mx-auto max-w-2xl space-y-6">
           <form onSubmit={guardar} className="card space-y-4">
             <div>
               <label className="field-label" htmlFor="nombre">
@@ -206,7 +232,14 @@ export default function CuentaPage() {
             </button>
           </form>
 
-          <DatosYBaja email={email} usuario={original.usuario} />
+          <AvatarSelector key={avatar ?? "sin"} valor={avatar} onGuardar={guardarAvatar} />
+          </div>
+
+          <MiPlan />
+
+          <div className="mx-auto max-w-2xl">
+            <DatosYBaja email={email} usuario={original.usuario} />
+          </div>
         </div>
       )}
     </main>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Banknote, Check, Copy, Link2, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Banknote, Check, Copy, Eye, Link2, Lock, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/ToastProvider";
@@ -21,6 +22,7 @@ import {
   useEventosEmpresa,
 } from "@/lib/vinculo";
 import type { Accionista, Empresa } from "@/lib/types";
+import { incluyeCombo, urlPagos, type EstadoPlan } from "@/lib/nodos/suscripciones";
 
 const pct = (x: number) => `${Math.round(x * 100)} %`;
 
@@ -30,6 +32,19 @@ export function InvitarSocioDialog({ accionista, onClose }: { accionista: Accion
   const [creando, setCreando] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Conectar socios es un extra del Combo (Finanzas + Empresas).
+  const [combo, setCombo] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    fetch(urlPagos("/api/pagos/estado"), { credentials: "include", cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<EstadoPlan>) : null))
+      .catch(() => null)
+      .then((e) => vivo && setCombo(incluyeCombo(e)));
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   async function crear() {
     setCreando(true);
@@ -54,6 +69,10 @@ export function InvitarSocioDialog({ accionista, onClose }: { accionista: Accion
     <Modal titulo={`Conectar a ${accionista.nombre} con NODOS`} subtitulo="Su participación y los dividendos le llegan a NODOS Finanzas." onClose={onClose} ancho="max-w-xl">
       <ul className="mb-4 space-y-1.5 text-sm text-carbon/75">
         <li>Ve solo lo suyo: su porcentaje, sus aportes y sus dividendos. No ve a los demás socios ni el resto de la empresa.</li>
+        <li className="flex items-start gap-1.5">
+          <Eye size={15} className="mt-0.5 shrink-0 text-cobre" aria-hidden />
+          <span>Es solo lectura: no puede modificar nada de la empresa. Lo único que decide es si registra el dividendo en sus propias finanzas.</span>
+        </li>
         <li>Ingresa con su propia cuenta NODOS, o la crea gratis desde el enlace.</li>
         <li>El enlace sirve una sola vez y vence en 14 días. Si creás otro, el anterior deja de valer.</li>
       </ul>
@@ -70,8 +89,17 @@ export function InvitarSocioDialog({ accionista, onClose }: { accionista: Accion
           </div>
           <p className="text-xs text-carbon/55">Mandáselo por el medio que uses con esa persona. Es personal: no lo publiques.</p>
         </div>
+      ) : combo === false ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed p-4" style={{ borderColor: "rgba(184,115,74,0.5)" }}>
+          <p className="flex items-start gap-2 text-sm text-carbon/70">
+            <Lock size={15} className="mt-0.5 shrink-0 text-cobre" aria-hidden /> Conectar socios con NODOS Finanzas está incluido en el Combo (Finanzas + Empresas).
+          </p>
+          <Link href="/cuenta#plan" className="btn btn-ghost shrink-0">
+            Ver el Combo
+          </Link>
+        </div>
       ) : (
-        <button type="button" className="btn btn-primary" onClick={crear} disabled={creando}>
+        <button type="button" className="btn btn-primary" onClick={crear} disabled={creando || combo === null}>
           <Link2 size={15} /> {creando ? "Creando..." : "Crear enlace de invitación"}
         </button>
       )}

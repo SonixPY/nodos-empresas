@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowRight, Building2, CalendarClock, FileText, ShieldCheck, type LucideIcon } from "lucide-react";
 import { SkeletonStatTiles } from "@/components/Skeleton";
 
 function fechaLarga(): string {
@@ -76,31 +74,6 @@ export function ResumenStatTiles({ data, loading }: { data: ResumenStatsData; lo
             {t.hint}
           </div>
         </div>
-      ))}
-    </div>
-  );
-}
-
-/** Accesos rápidos de Empresas. */
-export function ResumenAccionesRapidas() {
-  const acciones: { href: string; icon: LucideIcon; titulo: string; texto: string }[] = [
-    { href: "/empresas?nueva=1", icon: Building2, titulo: "Nueva empresa", texto: "S.A., EAS o S.R.L." },
-    { href: "/documentos", icon: FileText, titulo: "Generar documento", texto: "Actas, edictos, poderes" },
-    { href: "/vencimientos", icon: CalendarClock, titulo: "Vencimientos", texto: "Todo el año, mes a mes" },
-    { href: "/cumplimiento", icon: ShieldCheck, titulo: "SEPRELAD", texto: "Si sos sujeto obligado" },
-  ];
-  return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-      {acciones.map((a) => (
-        <Link key={a.titulo} href={a.href} className="card card-hover group flex items-start gap-3 !p-4">
-          <a.icon size={18} className="mt-0.5 shrink-0 text-cobre" />
-          <span className="min-w-0">
-            <span className="flex items-center gap-1 font-medium text-musgo">
-              {a.titulo} <ArrowRight size={13} className="opacity-0 transition group-hover:opacity-100" />
-            </span>
-            <span className="block text-xs text-carbon/55">{a.texto}</span>
-          </span>
-        </Link>
       ))}
     </div>
   );

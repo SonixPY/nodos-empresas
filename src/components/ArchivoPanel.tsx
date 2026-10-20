@@ -358,7 +358,7 @@ export default function ArchivoPanel({
   return (
     <section className="space-y-4">
       <div>
-        <h2>Archivo</h2>
+        <h2 className="text-xl">Subidos al archivo</h2>
         <p className="mt-0.5 text-sm text-carbon/60">
           Estatutos, actas, constancias y demás documentos reales {global ? "de tus empresas" : "de la empresa"}, con nombres uniformes y en
           un lugar privado.

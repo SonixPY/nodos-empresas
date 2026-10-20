@@ -344,6 +344,7 @@ function PlanEditor({ plan, acciones, onHecho }: { plan: PlanAdmin; acciones: Ac
       polar_producto_mensual: p.polar_producto_mensual,
       polar_producto_anual: p.polar_producto_anual,
       activo: p.activo,
+      ...(p.beneficios !== undefined ? { beneficios: p.beneficios } : {}),
     });
     setGuardando(false);
     if (err) setError(err);
@@ -360,6 +361,15 @@ function PlanEditor({ plan, acciones, onHecho }: { plan: PlanAdmin; acciones: Ac
       </div>
       <input className="input" aria-label="Nombre" value={p.nombre} maxLength={60} onChange={(e) => campo("nombre", e.target.value)} />
       <input className="input" aria-label="Descripción" placeholder="Descripción" value={p.descripcion ?? ""} maxLength={200} onChange={(e) => campo("descripcion", e.target.value)} />
+      <label className="block text-xs text-carbon/60">
+        Beneficios (uno por línea, se ven en nodoscompliance.com)
+        <textarea
+          className="input mt-1 min-h-[7rem] text-sm"
+          value={(p.beneficios ?? []).join("\n")}
+          onChange={(e) => setP((x) => ({ ...x, beneficios: e.target.value.split("\n").slice(0, 10) }))}
+          placeholder={"Todo lo de NODOS Finanzas\nSocios conectados en solo lectura"}
+        />
+      </label>
       <div className="grid grid-cols-2 gap-2">
         <label className="text-xs text-carbon/60">
           Mensual (Gs.)

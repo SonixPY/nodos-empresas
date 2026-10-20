@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Archive, FilePen, FolderClock, Stamp } from "lucide-react";
+import { Archive, FilePen, Stamp } from "lucide-react";
 
 const LINKS = [
   { href: "/documentos", label: "Generar", icon: FilePen },
-  { href: "/documentos/guardados", label: "Guardados", icon: FolderClock },
+  { href: "/documentos/guardados", label: "Archivo", icon: Archive },
   { href: "/documentos/poderes", label: "Poderes", icon: Stamp },
-  { href: "/documentos/archivo", label: "Archivo", icon: Archive },
 ];
 
 /** Encabezado + pestañas de la sección Documentos. */
