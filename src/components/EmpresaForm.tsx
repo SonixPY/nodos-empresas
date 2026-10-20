@@ -7,6 +7,7 @@ import { esSociedad, REGIMEN_LABELS, TIPO_LABELS, type Empresa, type NuevaEmpres
 import type { CamposSiaraEmpresa } from "@/lib/siara";
 import { RUBRO_LABEL, RUBROS } from "@/lib/novedades";
 import { mensajeError } from "@/lib/nodos/errores";
+import InputNumero from "@/components/nodos/InputNumero";
 
 /** Datos de la empresa + los que pide SIARA (columnas de la migración 007). */
 type FormEmpresa = NuevaEmpresa & Partial<Omit<CamposSiaraEmpresa, "siara_ultima_declaracion" | "siara_numero_solicitud">>;
@@ -218,13 +219,7 @@ export default function EmpresaForm({
             </div>
             <div>
               <label className="field-label">Capital integrado (Gs.)</label>
-              <input
-                type="number"
-                min="0"
-                className="input"
-                value={f.capital_integrado ?? ""}
-                onChange={(e) => set("capital_integrado", e.target.value === "" ? null : Number(e.target.value))}
-              />
+              <InputNumero value={f.capital_integrado ?? ""} onValor={(v) => set("capital_integrado", v === "" ? null : Number(v))} />
             </div>
           </>
         )}
@@ -276,13 +271,7 @@ export default function EmpresaForm({
             </div>
             <div>
               <label className="field-label">Valor nominal por {f.tipo === "srl" ? "cuota" : "acción"} (Gs.)</label>
-              <input
-                type="number"
-                min="0"
-                className="input"
-                value={f.valor_nominal_accion ?? ""}
-                onChange={(e) => set("valor_nominal_accion", e.target.value === "" ? null : Number(e.target.value))}
-              />
+              <InputNumero value={f.valor_nominal_accion ?? ""} onValor={(v) => set("valor_nominal_accion", v === "" ? null : Number(v))} />
             </div>
           </>
         )}

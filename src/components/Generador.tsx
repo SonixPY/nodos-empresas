@@ -15,6 +15,7 @@ import { RegistrarPoderDialog, RevocarPoderDialog } from "@/components/Registrar
 import type { PoderPrefill } from "@/lib/poderes";
 import { TIPO_CORTO, type Documento, type Empresa } from "@/lib/types";
 import { mensajeError } from "@/lib/nodos/errores";
+import InputNumero from "@/components/nodos/InputNumero";
 
 function CampoInput({
   campo,
@@ -75,13 +76,11 @@ function CampoInput({
       return (
         <div>
           {label}
-          <input
-            type={campo.type}
-            className="input"
-            value={sv}
-            min={campo.type === "number" ? 0 : undefined}
-            onChange={(e) => onChange(e.target.value)}
-          />
+          {campo.type === "number" ? (
+            <InputNumero value={sv} onValor={onChange} />
+          ) : (
+            <input type={campo.type} className="input" value={sv} onChange={(e) => onChange(e.target.value)} />
+          )}
           {help}
         </div>
       );

@@ -15,6 +15,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { desconectarSocio, DistribuirUtilidadesDialog, InvitarSocioDialog, PublicadoParaSocios } from "@/components/SociosNodos";
 import { MOVIMIENTO_LABELS, type Accionista, type Empresa, type NuevoAccionista, type TipoMovimiento, type TipoPersona } from "@/lib/types";
+import InputNumero from "@/components/nodos/InputNumero";
 
 function vacio(empresaId: string): NuevoAccionista {
   return {
@@ -109,13 +110,7 @@ function AccionistaForm({
           <label className="field-label">
             Acciones{editandoId ? "" : " iniciales"}
           </label>
-          <input
-            type="number"
-            min="0"
-            className="input"
-            value={f.acciones}
-            onChange={(e) => set("acciones", Number(e.target.value || 0))}
-          />
+          <InputNumero value={f.acciones} onValor={(v) => set("acciones", Number(v || 0))} />
           {editandoId && <p className="mt-1 text-[11px] text-carbon/50">Para cambios de tenencia, mejor usá “Registrar movimiento”.</p>}
         </div>
         <div>
@@ -317,13 +312,13 @@ function MovimientoForm({
         )}
         <div>
           <label className="field-label">Cantidad de acciones</label>
-          <input type="number" min="1" className="input" value={cantidad} onChange={(e) => setCantidad(e.target.value)} />
+          <InputNumero value={cantidad} onValor={setCantidad} />
           {origen && !sinOrigen && <p className="mt-1 text-[11px] text-carbon/50">Disponible: {formatNumero(origen.acciones)}</p>}
         </div>
         {tipo === "transferencia" && (
           <div>
             <label className="field-label">Precio total (Gs.)</label>
-            <input type="number" min="0" className="input" value={precio} onChange={(e) => setPrecio(e.target.value)} />
+            <InputNumero value={precio} onValor={setPrecio} />
           </div>
         )}
         <div className="sm:col-span-2">
