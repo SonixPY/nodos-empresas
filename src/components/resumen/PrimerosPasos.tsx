@@ -147,7 +147,7 @@ export default function PrimerosPasos({ app, pasos, id = "" }: { app: string; pa
               className="flex flex-col rounded-md border p-4 transition"
               style={{
                 borderColor: activo ? "rgba(184,115,74,0.55)" : "var(--line)",
-                background: p.hecho ? "rgba(63,107,82,0.05)" : activo ? "rgba(184,115,74,0.05)" : "#fff",
+                background: p.hecho ? "rgba(63,107,82,0.05)" : activo ? "rgba(184,115,74,0.05)" : "var(--superficie)",
               }}
             >
               <div className="flex items-center gap-2.5">

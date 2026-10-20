@@ -144,7 +144,7 @@ export const CATEGORIA_LABELS: Record<CategoriaObligacion, string> = {
 };
 
 export const CATEGORIA_COLOR: Record<CategoriaObligacion, string> = {
-  societario: "#1e2f25",
+  societario: "#4f7a5f",
   registros: "#b8734a",
   tributario: "#5b6f8a",
   laboral: "#7a8a65",

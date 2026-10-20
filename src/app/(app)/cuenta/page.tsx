@@ -9,6 +9,7 @@ import { mensajeErrorAuth } from "@/lib/nodos/errores";
 import DatosYBaja from "@/components/nodos/DatosYBaja";
 import AvatarSelector from "@/components/nodos/AvatarSelector";
 import MiPlan from "@/components/nodos/MiPlan";
+import TemaSelector from "@/components/nodos/TemaSelector";
 
 type Disponible = "libre" | "tomado" | "invalido" | "propio" | "verificando" | null;
 
@@ -233,6 +234,7 @@ export default function CuentaPage() {
           </form>
 
           <AvatarSelector key={avatar ?? "sin"} valor={avatar} onGuardar={guardarAvatar} />
+          <TemaSelector />
           </div>
 
           <MiPlan />

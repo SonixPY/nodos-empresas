@@ -15,7 +15,7 @@ type TonoDia = "atrasado" | "proximo" | "pendiente" | "hecho";
 const TONO: Record<TonoDia, { bg: string; color: string; label: string }> = {
   atrasado: { bg: "rgba(178, 59, 59, 0.16)", color: "var(--color-bad)", label: "Atrasado" },
   proximo: { bg: "rgba(184, 115, 74, 0.22)", color: "var(--color-cobre-hover)", label: "Vence en ≤ 7 días" },
-  pendiente: { bg: "#fff", color: "var(--color-carbon)", label: "Pendiente" },
+  pendiente: { bg: "var(--superficie)", color: "var(--color-carbon)", label: "Pendiente" },
   hecho: { bg: "rgba(63, 107, 82, 0.13)", color: "rgba(36, 37, 34, 0.55)", label: "Hecho" },
 };
 

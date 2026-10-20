@@ -11,6 +11,7 @@ import { cerrarSesion } from "@/lib/nodos/usePerfil";
 import type { PerfilVisible } from "@/lib/nodos/usePerfil";
 import { useDesplegable } from "@/lib/nodos/useDesplegable";
 import AvatarNodos from "@/components/nodos/AvatarNodos";
+import TemaSelector from "@/components/nodos/TemaSelector";
 
 /** Clase de un ítem del menú de cuenta (la usan también las herramientas propias de cada app). */
 export const MENU_ITEM =
@@ -118,6 +119,11 @@ export default function CuentaMenu({
           </Link>
 
           {herramientas && <div className="border-b border-[var(--line)] p-1.5">{herramientas(cerrar)}</div>}
+
+          <div className="border-b border-[var(--line)] px-3 py-2.5">
+            <p className="t-caption mb-1.5 text-carbon/55">Tema</p>
+            <TemaSelector compacto />
+          </div>
 
           <div className="p-1.5">
             <Link href="/soporte" role="menuitem" className={MENU_ITEM}>

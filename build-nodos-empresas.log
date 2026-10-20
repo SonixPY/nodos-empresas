@@ -1,0 +1,84 @@
+▲ Next.js 16.3.8 (Turbopack)
+✓ Running next.config.ts took 23ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 2.4s
+  Running TypeScript ...
+  Finished TypeScript in 5.2s ...
+  Collecting page data using 1 worker ...
+  Generating static pages using 1 worker (0/53) ...
+  Generating static pages using 1 worker (13/53) 
+  Generating static pages using 1 worker (26/53) 
+  Generating static pages using 1 worker (39/53) 
+✓ Generating static pages using 1 worker (53/53) in 905ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /api/admin/planes/[id]
+├ ƒ /api/admin/suscripciones
+├ ƒ /api/admin/suscripciones/cancelar
+├ ƒ /api/admin/suscripciones/cortesia
+├ ƒ /api/admin/suscripciones/manual
+├ ƒ /api/admin/users
+├ ƒ /api/admin/users/[id]
+├ ƒ /api/admin/users/[id]/clave
+├ ƒ /api/admin/users/[id]/recuperar
+├ ƒ /api/cron/mantener-activa
+├ ƒ /api/cuenta/eliminar
+├ ƒ /api/cuenta/exportar
+├ ƒ /api/cuenta/ingresar
+├ ƒ /api/cuenta/perfil
+├ ƒ /api/cuenta/recuperar
+├ ƒ /api/cuenta/registro
+├ ƒ /api/cuenta/salir
+├ ƒ /api/cuenta/sesion
+├ ƒ /api/empresas/[id]
+├ ƒ /api/novedades
+├ ƒ /api/novedades/consulta
+├ ƒ /api/pagos/checkout
+├ ƒ /api/pagos/estado
+├ ƒ /api/pagos/portal
+├ ƒ /api/pagos/webhook/polar
+├ ƒ /api/public/consulta
+├ ƒ /api/public/planes
+├ ○ /apple-icon.png
+├ ƒ /auth/callback
+├ ○ /configuracion
+├ ○ /cuenta
+├ ○ /cumplimiento
+├ ○ /cumplimiento/ro
+├ ○ /documentos
+├ ƒ /documentos/[id]
+├ ƒ /documentos/archivo
+├ ○ /documentos/guardados
+├ ○ /documentos/poderes
+├ ○ /empresas
+├ ƒ /empresas/[id]
+├ ○ /icon.svg
+├ ○ /laboral
+├ ○ /login
+├ ○ /nueva-clave
+├ ƒ /panel
+├ ƒ /panel/contenido
+├ ƒ /panel/leads
+├ ƒ /panel/leads/[id]
+├ ƒ /panel/notas
+├ ƒ /panel/practica
+├ ƒ /panel/suscripciones
+├ ƒ /plan
+├ ○ /recuperar
+├ ○ /signup
+├ ○ /sin-acceso
+├ ○ /soporte
+├ ○ /vencimientos
+└ ○ /vincular
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

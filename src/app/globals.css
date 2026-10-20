@@ -5,7 +5,7 @@
  * tipografía, escala, espaciado y radios en las tres páginas
  * (nodoscompliance.com, Finanzas y Empresas).
  */
-@theme inline {
+@theme {
   --color-musgo: #1e2f25; /* verde oscuro — header, títulos sobre fondo claro */
   --color-bosque: #34483a; /* verde medio — hover, acentos secundarios */
   --color-cobre: #b8734a; /* accent — íconos, líneas, numeración, texto ≥24px */
@@ -28,10 +28,16 @@
 
 :root {
   --line: #34483a33; /* border-subtle */
+  /* Superficies (cambian en el tema oscuro, abajo de todo). */
+  --superficie: #fff; /* tarjetas, tablas, menús */
+  --sutil: var(--color-marfil); /* hover y fondos suaves sobre tarjetas */
+  --fondo: var(--color-marfil); /* fondo de página */
+  --titulo: var(--color-musgo); /* títulos */
+  --campo: #fff; /* inputs */
 }
 
 body {
-  background: var(--color-marfil);
+  background: var(--fondo);
   color: var(--color-carbon);
   font-family: var(--font-sans);
   font-size: 15px; /* body */
@@ -45,7 +51,7 @@ body {
   h2,
   h3 {
     font-family: var(--font-display);
-    color: var(--color-musgo);
+    color: var(--titulo);
     letter-spacing: -0.01em;
   }
   h1 {
@@ -102,7 +108,7 @@ body {
 @layer components {
   /* Tarjeta de contenido: fondo blanco sobre el marfil de la página */
   .card {
-    background: #fff;
+    background: var(--superficie);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     padding: 1.25rem;
@@ -135,7 +141,7 @@ body {
     border-radius: var(--radius-sm);
     padding: 0.5rem 0.75rem;
     font-size: 15px;
-    background: #fff;
+    background: var(--campo);
     color: var(--color-carbon);
     transition:
       border-color 0.15s ease-out,
@@ -165,7 +171,7 @@ body {
     height: 16px;
     border-radius: 9999px;
     background: var(--color-cobre);
-    border: 2px solid #fff;
+    border: 2px solid var(--superficie);
     box-shadow: 0 0 0 1px var(--color-cobre);
     cursor: pointer;
   }
@@ -174,7 +180,7 @@ body {
     height: 16px;
     border-radius: 9999px;
     background: var(--color-cobre);
-    border: 2px solid #fff;
+    border: 2px solid var(--superficie);
     box-shadow: 0 0 0 1px var(--color-cobre);
     cursor: pointer;
   }
@@ -227,14 +233,14 @@ body {
     overflow-x: auto;
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    background: #fff;
+    background: var(--superficie);
   }
   .table-shell table {
     min-width: 100%;
     font-size: 0.875rem;
   }
   .table-shell thead {
-    background: var(--color-marfil);
+    background: var(--sutil);
   }
   .table-shell th {
     text-align: left;
@@ -261,7 +267,7 @@ body {
   }
 
   .stat-tile {
-    background: #fff;
+    background: var(--superficie);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     padding: 1rem;
@@ -305,7 +311,7 @@ body {
     font-weight: 500;
     color: var(--color-carbon);
     opacity: 0.7;
-    background: #fff;
+    background: var(--superficie);
     transition:
       background 0.15s,
       opacity 0.15s,
@@ -330,7 +336,7 @@ body {
   .segmented > a:hover:not(.active),
   .segmented button:hover:not(.active) {
     opacity: 1;
-    background: var(--color-marfil);
+    background: var(--sutil);
   }
 
   /* Tarjeta/tile clickeable: leve elevación al pasar el mouse, para dar
@@ -642,4 +648,76 @@ body {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* ---------- Tema oscuro (Mi cuenta → Tema) ----------
+   El tema lo pone un script en <head> (data-theme en <html>) antes de pintar,
+   con la preferencia guardada en una cookie de .nodoscompliance.com: así es
+   el mismo en las tres páginas. Musgo y marfil no cambian (son fondos de la
+   barra, la banda y los botones); cambian el texto, las superficies y las
+   líneas, y los colores de texto que no llegan a leerse sobre fondo oscuro. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-carbon: #e7e2d8;
+  --line: rgba(231, 226, 216, 0.14);
+  --superficie: #1b211d;
+  --sutil: #252d28;
+  --fondo: #121614;
+  --titulo: #dfe7dc;
+  --campo: #151a17;
+  --color-good: #5f9a78;
+  --color-bad: #d26565;
+}
+:root[data-theme="dark"] .text-musgo,
+:root[data-theme="dark"] .hover\:text-musgo:hover {
+  color: var(--titulo);
+}
+:root[data-theme="dark"] .text-cobre-hover,
+:root[data-theme="dark"] .hover\:text-cobre-hover:hover {
+  color: #d99a6c;
+}
+:root[data-theme="dark"] .text-good {
+  color: #86bb9b;
+}
+:root[data-theme="dark"] .text-bad {
+  color: #e88d8d;
+}
+:root[data-theme="dark"] .bg-white,
+:root[data-theme="dark"] [class~="bg-white/60"],
+:root[data-theme="dark"] [class~="hover:bg-white"]:hover {
+  background-color: var(--superficie);
+}
+:root[data-theme="dark"] .bg-marfil,
+:root[data-theme="dark"] [class~="bg-marfil/50"],
+:root[data-theme="dark"] [class~="bg-marfil/60"],
+:root[data-theme="dark"] [class~="bg-marfil/70"],
+:root[data-theme="dark"] [class~="hover:bg-marfil"]:hover,
+:root[data-theme="dark"] [class~="hover:bg-marfil/60"]:hover,
+:root[data-theme="dark"] [class~="focus:bg-marfil"]:focus,
+:root[data-theme="dark"] [class~="focus-visible:bg-marfil"]:focus-visible {
+  background-color: var(--sutil);
+}
+:root[data-theme="dark"] .border-musgo {
+  border-color: rgba(223, 231, 220, 0.35);
+}
+:root[data-theme="dark"] .card-hover:hover {
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+:root[data-theme="dark"] img.invertir-oscuro {
+  filter: invert(1) hue-rotate(180deg);
+}
+:root[data-theme="dark"] [class~="bg-carbon/40"] {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+/* Variante compacta del segmented control (menú de cuenta, filtros chicos). */
+.segmented.segmented-sm button {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+}
+/* La vista previa de un documento es una hoja: siempre blanca, también en oscuro. */
+:root[data-theme="dark"] .doc-preview {
+  background: #fff;
+  color: #242522;
+  color-scheme: light;
 }
