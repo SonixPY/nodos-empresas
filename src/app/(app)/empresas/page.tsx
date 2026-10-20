@@ -12,6 +12,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { TIPO_CORTO, type Empresa } from "@/lib/types";
 import { mensajeError } from "@/lib/nodos/errores";
+import GuiaPagina from "@/components/nodos/GuiaPagina";
 
 function EmpresasContenido() {
   const router = useRouter();
@@ -42,6 +43,7 @@ function EmpresasContenido() {
           </button>
         )}
       </header>
+      <GuiaPagina id="empresas" titulo="Cómo funciona Empresas" pasos={["Cargá cada empresa con su tipo, rubro y mes de cierre: con eso se arma su calendario.", "Abrí la ficha para ver datos, accionistas, SIARA, poderes y documentos.", "En Accionistas llevás el libro y podés conectar a cada socio con NODOS Finanzas (Combo).", "Los vencimientos de todas tus empresas están en Vencimientos."]} />
 
       {creando && (
         <div className="mb-6">

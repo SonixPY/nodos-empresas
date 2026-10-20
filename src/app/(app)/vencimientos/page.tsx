@@ -17,6 +17,7 @@ import EmptyState from "@/components/EmptyState";
 import { marcarPasoVisto } from "@/components/resumen/PrimerosPasos";
 import { CATEGORIA_LABELS, type CategoriaObligacion, type Obligacion } from "@/lib/types";
 import { mensajeError } from "@/lib/nodos/errores";
+import GuiaPagina from "@/components/nodos/GuiaPagina";
 
 type Estado = "pendientes" | "atrasados" | "hechas" | "todas";
 type Vista = "calendario" | "lista";
@@ -114,6 +115,7 @@ function VencimientosContenido() {
           </div>
         )}
       </header>
+      <GuiaPagina id="vencimientos-emp" titulo="Cómo funciona Vencimientos" pasos={["Generá el calendario del año con el botón Calendario: asambleas, balance, SIARA y mandatos.", "Tocá un día del calendario para ver qué hay que hacer o agregar un vencimiento propio.", "Marcá Hecha cuando lo resuelvas; los atrasados aparecen arriba.", "Mirá las sugerencias para empresas familiares y sumá las que te sirvan."]} />
 
       {nueva && (
         <div className="mb-6">

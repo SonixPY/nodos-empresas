@@ -9,6 +9,7 @@ import { PLANTILLAS, grupoDe } from "@/lib/plantillas";
 import { leerPreferencias } from "@/lib/preferencias";
 import { SkeletonBlock } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import GuiaPagina from "@/components/nodos/GuiaPagina";
 
 /** Puntos básicos de un empleador. Solo se cita lo verificado en la Ley N.º 213/1993. */
 const BASICOS: { titulo: string; texto: string }[] = [
@@ -104,6 +105,7 @@ export default function LaboralPage() {
         <h1>Laboral</h1>
         <p className="mt-1 text-sm text-carbon/60">Contrato, recibos, vacaciones, preaviso y constancias para tu personal, listos para imprimir en PDF.</p>
       </header>
+      <GuiaPagina id="laboral" titulo="Cómo funciona Laboral" pasos={["Elegí la empresa empleadora.", "Abrí el documento que necesitás: contrato, recibo, vacaciones, preaviso o constancias.", "Completá los datos del trabajador e imprimilo en PDF para firmar.", "Guardá la copia firmada en Archivo."]} />
       <Suspense fallback={null}>
         <LaboralContenido />
       </Suspense>

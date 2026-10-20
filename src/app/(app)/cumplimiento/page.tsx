@@ -24,6 +24,7 @@ import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista
 import { SkeletonBlock } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import type { Empresa, Obligacion } from "@/lib/types";
+import GuiaPagina from "@/components/nodos/GuiaPagina";
 
 function PerfilForm({ empresa, inicial, onSaved }: { empresa: Empresa; inicial: PerfilSeprelad; onSaved: (p: PerfilSeprelad) => void }) {
   const { showToast } = useToast();
@@ -386,6 +387,7 @@ export default function CumplimientoPage() {
           remesadoras y transportadoras de caudales. Vencimientos, hechos con plazo y documentos base, con la resolución que corresponde a cada uno.
         </p>
       </header>
+      <GuiaPagina id="seprelad" titulo="Cómo funciona SEPRELAD" pasos={["Marcá si la empresa es sujeto obligado y de qué sector.", "Generá su calendario anual de obligaciones PLA/FT.", "Usá los documentos del sistema de prevención y el generador del Reporte de Operaciones.", "Registrá los hechos con plazo para que su vencimiento se agende solo."]} />
       <Suspense fallback={null}>
         <CumplimientoContenido />
       </Suspense>

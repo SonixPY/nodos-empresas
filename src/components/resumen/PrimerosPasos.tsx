@@ -42,11 +42,12 @@ function suscribir(cb: () => void) {
   };
 }
 
-let ocultoEnMemoria = false;
+const ocultosEnMemoria = new Set<string>();
+const claveOculto = (id: string) => (id ? `${CLAVE_OCULTO}.${id}` : CLAVE_OCULTO);
 
-function ocultoAhora(): boolean {
-  if (ocultoEnMemoria) return true;
-  const v = leer(CLAVE_OCULTO);
+function ocultoAhora(id: string): boolean {
+  if (ocultosEnMemoria.has(id)) return true;
+  const v = leer(claveOculto(id));
   if (!v) return false;
   const t = Date.parse(v);
   return Number.isFinite(t) && Date.now() - t < REAPARECE_MS;
@@ -66,8 +67,8 @@ export function usePasoVisto(paso: string): boolean {
   );
 }
 
-function useOculto(): boolean {
-  return useSyncExternalStore(suscribir, ocultoAhora, () => true);
+function useOculto(id: string): boolean {
+  return useSyncExternalStore(suscribir, () => ocultoAhora(id), () => true);
 }
 
 export interface PasoInicial {
@@ -76,7 +77,8 @@ export interface PasoInicial {
   titulo: string;
   texto: string;
   hecho: boolean;
-  accion: { label: string; href: string };
+  /** Con `href` lleva a otra pantalla; con `onClick` hace algo en la misma. */
+  accion: { label: string; href?: string; onClick?: () => void };
   /** Camino alternativo (p. ej. "Importar de Binance"). */
   secundaria?: { label: string; href: string };
   /** Acción opcional para dar el paso por hecho a mano (p. ej. "Las dejo como están"). */
@@ -84,19 +86,20 @@ export interface PasoInicial {
 }
 
 /** Si la tarjeta corresponde: datos cargados, falta algo y no la ocultaron en los últimos 7 días. */
-export function usePrimerosPasosVisible(pasos: PasoInicial[], cargando: boolean): boolean {
-  const oculto = useOculto();
+export function usePrimerosPasosVisible(pasos: PasoInicial[], cargando: boolean, id = ""): boolean {
+  const oculto = useOculto(id);
   return !cargando && !oculto && pasos.some((p) => !p.hecho);
 }
 
-export default function PrimerosPasos({ app, pasos }: { app: string; pasos: PasoInicial[] }) {
+/** `id` separa tarjetas que comparten navegador (p. ej. Práctica y Finanzas). */
+export default function PrimerosPasos({ app, pasos, id = "" }: { app: string; pasos: PasoInicial[]; id?: string }) {
   const hechos = pasos.filter((p) => p.hecho).length;
   const pct = Math.round((hechos / pasos.length) * 100);
   const siguiente = pasos.find((p) => !p.hecho)?.key;
 
   function ocultar() {
-    ocultoEnMemoria = true;
-    escribir(CLAVE_OCULTO, new Date().toISOString());
+    ocultosEnMemoria.add(id);
+    escribir(claveOculto(id), new Date().toISOString());
   }
 
   return (
@@ -166,9 +169,15 @@ export default function PrimerosPasos({ app, pasos }: { app: string; pasos: Paso
                 <p className="t-caption mt-3 text-good">Listo</p>
               ) : (
                 <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <Link href={p.accion.href} className={`btn ${activo ? "btn-primary" : "btn-ghost"} !px-3 !py-1.5 text-[13px]`}>
-                    {p.accion.label} <ArrowRight size={14} />
-                  </Link>
+                  {p.accion.href ? (
+                    <Link href={p.accion.href} className={`btn ${activo ? "btn-primary" : "btn-ghost"} !px-3 !py-1.5 text-[13px]`}>
+                      {p.accion.label} <ArrowRight size={14} />
+                    </Link>
+                  ) : (
+                    <button type="button" onClick={p.accion.onClick} className={`btn ${activo ? "btn-primary" : "btn-ghost"} !px-3 !py-1.5 text-[13px]`}>
+                      {p.accion.label} <ArrowRight size={14} />
+                    </button>
+                  )}
                   {p.secundaria && (
                     <Link href={p.secundaria.href} className="text-[13px] font-medium text-cobre-hover underline-offset-2 hover:underline">
                       {p.secundaria.label}
