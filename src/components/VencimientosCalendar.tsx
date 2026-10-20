@@ -249,7 +249,7 @@ export default function VencimientosCalendar({
                 </span>
               )}
             </div>
-            {shownList.length === 0 && <p className="text-sm text-carbon/55">Nada para este día. Con "Vencimiento" (arriba) lo agregás en esta fecha.</p>}
+            {shownList.length === 0 && <p className="text-sm text-carbon/55">Nada para este día. Con el botón Vencimiento (arriba) lo agregás en esta fecha.</p>}
             <ul className="space-y-2">
               {shownList.map((o) => {
                 const plantilla = getPlantilla(o.plantilla);
