@@ -1744,6 +1744,190 @@ ${firmas([
 <p class="nota">Las vacaciones anuales remuneradas las regula el Código del Trabajo (Ley N.º 213/1993); los días dependen de la antigüedad. Avisá con anticipación y guardá la copia firmada.</p>`,
 };
 
+// ─── Pre-inscripción como sujeto obligado (SEP-08) ───────────────────────
+// Estructura del "Formulario de pre-inscripción SEPRELAD" (modelo de trabajo
+// de Mauricio, 2026). Solo la estructura: ningún dato del ejemplo recibido.
+
+const TIPOS_SO = [
+  "Cajas de seguridad",
+  "Automotores",
+  "Inmobiliaria",
+  "Remesadora",
+  "Transporte o atesoramiento de valores o caudales",
+  "Casa de empeño",
+  "Comercio de joyas",
+  "Objetos de arte y antigüedades e inversión filatélica o numismática",
+  "Activos virtuales",
+  "Organizaciones sin fines de lucro (OSFL)",
+];
+
+const ACTIVIDADES_POR_TIPO: Record<string, string> = {
+  Automotores: "Importadores de vehículos · Concesionaria · Comisionistas · Compra-venta",
+  Inmobiliaria: "Compra-venta · Arrendamiento de inmuebles · Administración y mandato de inmuebles · Fraccionamiento y loteamiento · Agentes inmobiliarios · Corredores, comisionistas · Desarrolladores inmobiliarios",
+  "Activos virtuales": "Minería · Almacenamiento · Servicios financieros con relación a activos virtuales · Transferencias entre AV · Intercambio entre AV · Cambio de activo virtual a moneda de curso legal",
+  "Organizaciones sin fines de lucro (OSFL)": "Humanitario · Caridad/asistencia · Educación/formación · Servicio social · Desarrollo económico-social · Religioso · Cultural/arte · Filantrópico-filosófico · Protección de derechos/democrático · Político · Recreativo · Agremiación · Deportivo · Comités",
+  "Casa de empeño": "Operación con joyas y relojes · Electrodomésticos · Otros bienes muebles no registrables · Vehículos · Antigüedades",
+  "Comercio de joyas": "Importación · Compra · Venta · Consignación",
+  "Objetos de arte y antigüedades e inversión filatélica o numismática": "Compra/venta · Intermediación · Mediación · Administración",
+  Remesadora: "Transferencias · Otros",
+  "Transporte o atesoramiento de valores o caudales": "Transporte de caudales · Caja de seguridad",
+  "Cajas de seguridad": "Caja de seguridad",
+};
+
+const DOCS_OC = [
+  "Acta o documento de designación del oficial de cumplimiento, aprobada por la máxima autoridad.",
+  "(*) Cédula de identidad del oficial de cumplimiento (ambos lados).",
+  "Currículum vitae firmado por el oficial de cumplimiento.",
+  "Croquis del domicilio real del oficial de cumplimiento.",
+  "Factura de un servicio público del domicilio del oficial de cumplimiento.",
+];
+
+const DOCS_INSCRIPCION: Record<string, string[]> = {
+  Inmobiliaria: [
+    "Nota de solicitud de inscripción y designación del oficial de cumplimiento, dirigida a la máxima autoridad institucional, firmada por el sujeto obligado.",
+    "(*) Razón social, estatutos sociales y sus modificaciones, si las tuviera.",
+    "Copia de cédula de identidad o pasaporte del representante legal y socios (el pasaporte, autenticado).",
+    "Constancia de RUC actualizada.",
+    "Constancia de estructura jurídica otorgada por el Ministerio de Economía y Finanzas.",
+    "Constancia de beneficiarios finales otorgada por el Ministerio de Economía y Finanzas.",
+    "Acreditación de los representantes legales y uso de la firma social (última acta de asamblea que designa a las autoridades actuales).",
+    "(*) Patente municipal o comercial (no excluyente).",
+  ],
+  "Organizaciones sin fines de lucro (OSFL)": [
+    "(*) Nota de solicitud de inscripción y designación del oficial de cumplimiento, dirigida a la máxima autoridad institucional, firmada por el sujeto obligado.",
+    "Razón social, estatutos sociales y sus modificaciones, si las tuviera.",
+    "Copia de cédula de identidad o pasaporte del representante legal y socios (el pasaporte, autenticado).",
+    "Constancia de RUC.",
+    "Constancia de beneficiarios finales y su estructura jurídica.",
+    "(*) Acreditación de los representantes legales y uso de la firma social (última acta de asamblea que designa a las autoridades actuales).",
+  ],
+  Automotores: [
+    "Nota de solicitud de inscripción y designación del oficial de cumplimiento, dirigida a la máxima autoridad institucional, firmada por el sujeto obligado.",
+    "(*) Razón social, estatutos sociales y sus modificaciones, si las tuviera.",
+    "(*) Copia de cédula de identidad o pasaporte del representante legal y socios.",
+    "Constancia de RUC.",
+    "Constancia de beneficiarios finales y su estructura jurídica.",
+    "(*) Acreditación de los representantes legales y uso de la firma social (última acta de asamblea que designa a las autoridades actuales).",
+    "(*) Patente comercial.",
+    "Declaración jurada con las entidades del sistema financiero y cooperativo con las que opera comercialmente.",
+  ],
+};
+
+const ANTIGUEDADES = ["Menos de 1 año", "1 año", "2 años", "3 años", "4 años", "5 años", "6 años", "7 años", "8 años", "9 años", "10 años", "Más de 10 años"];
+
+const preInscripcion: Plantilla = {
+  key: "sep-pre-inscripcion",
+  numero: "SEP-08",
+  grupo: "seprelad",
+  titulo: "Formulario de pre-inscripción como sujeto obligado",
+  descripcion: "Todos los datos para inscribirse ante la SEPRELAD: tipo de sujeto obligado, datos generales, socios, autoridades, oficial de cumplimiento y la lista de documentos a presentar.",
+  tipos: TODAS_Y_PERSONAS,
+  campos: [
+    { key: "fecha", label: "Fecha", type: "date", required: true },
+    { key: "tipo_so", label: "Tipo de sujeto obligado", type: "select", required: true, options: TIPOS_SO.map((t) => ({ value: t, label: t })), default: () => "Inmobiliaria" },
+    { key: "actividades", label: "Actividades específicas (una por línea)", type: "textarea", required: true, help: "Ej. para inmobiliarias: compra-venta, arrendamiento, administración y mandato de inmuebles." },
+    { key: "sector_financiero", label: "Opera en el sector financiero", type: "checkbox" },
+    { key: "bancos", label: "En qué bancos o cooperativas", type: "text", showIf: "sector_financiero" },
+    { key: "sucursal", label: "Posee sucursal", type: "checkbox" },
+    { key: "sucursal_nro", label: "N° de establecimiento de la sucursal declarada", type: "text", showIf: "sucursal" },
+    { key: "envio_json", label: "Ya envió el JSON", type: "checkbox" },
+    { key: "departamento", label: "Departamento", type: "text" },
+    { key: "email", label: "Correo electrónico de la entidad", type: "text", required: true },
+    { key: "telefono", label: "Teléfono", type: "text" },
+    { key: "celular", label: "Celular", type: "text" },
+    { key: "web", label: "Página web", type: "text" },
+    { key: "antiguedad", label: "Antigüedad en el sector", type: "select", options: ANTIGUEDADES.map((a) => ({ value: a, label: a })), default: () => "Menos de 1 año" },
+    { key: "inicio_actividades", label: "Fecha de inicio de actividades en el sector", type: "date" },
+    { key: "empleados", label: "Cantidad de empleados", type: "number" },
+    { key: "ingresos", label: "Total ingreso anual según balance (Gs.)", type: "number" },
+    { key: "activo", label: "Total activo según balance (Gs.)", type: "number" },
+    { key: "pasivo", label: "Total pasivo según balance (Gs.)", type: "number" },
+    { key: "patrimonio", label: "Total patrimonio neto según balance (Gs.)", type: "number" },
+    { key: "socios_extra", label: "Socios que no están en el libro (Nombre | Documento | Acciones | Capital Gs., uno por línea)", type: "textarea", help: "Los del libro de accionistas ya se cargan solos." },
+    { key: "directivos", label: "Plana directiva o socio gerente (Nombre | Documento | Cargo | Nacionalidad, uno por línea)", type: "textarea", required: true },
+    { key: "oc_nombres", label: "Oficial de cumplimiento: nombres", type: "text", required: true },
+    { key: "oc_apellidos", label: "Oficial de cumplimiento: apellidos", type: "text", required: true },
+    { key: "oc_documento", label: "Tipo y N° de documento", type: "text", required: true },
+    { key: "oc_nacionalidad", label: "Nacionalidad", type: "text", default: () => "Paraguaya" },
+    { key: "oc_email", label: "Email", type: "text" },
+    { key: "oc_oficina", label: "Dirección de la oficina donde prestará servicios", type: "text" },
+    { key: "oc_domicilio", label: "Domicilio del oficial de cumplimiento", type: "text" },
+    { key: "oc_telefono", label: "Teléfono", type: "text" },
+    { key: "oc_celular", label: "Celular", type: "text" },
+    { key: "oc_tipo", label: "Tipo de oficial", type: "select", options: [{ value: "Titular", label: "Titular" }, { value: "Alterno", label: "Alterno" }], default: () => "Titular" },
+  ],
+  tituloDoc: (d, ctx) => `Pre-inscripción SEPRELAD — ${ctx.empresa.denominacion}${str(d, "tipo_so") ? ` (${str(d, "tipo_so")})` : ""}`,
+  render: (d, ctx) => {
+    const e = ctx.empresa;
+    const sino = (k: string) => (on(d, k) ? "Sí" : "No");
+    const gs = (k: string) => (str(d, k) ? `Gs. ${Number(str(d, k).replace(/\D/g, "")).toLocaleString("es-PY")}` : '<span class="ph">[MONTO]</span>');
+    const fila = (a: string, b: string) => `<tr><th style="width:38%">${esc(a)}</th><td>${b}</td></tr>`;
+    const socios = [
+      ...ctx.accionistas.filter((a) => a.activo !== false).map((a) => [a.nombre, a.documento ?? "", String(a.acciones), ""]),
+      ...lines(d, "socios_extra").map((l) => l.split("|").map((x) => x.trim())),
+    ];
+    const directivos = lines(d, "directivos").map((l) => l.split("|").map((x) => x.trim()));
+    const tipo = str(d, "tipo_so");
+    const docs = DOCS_INSCRIPCION[tipo];
+    const tabla = (enc: string[], filas: string[][]) =>
+      `<table class="tabla"><thead><tr>${enc.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${(filas.length ? filas : [enc.map(() => "")]).map((f) => `<tr>${enc.map((_, i) => `<td>${esc(f[i] ?? "") || "&nbsp;"}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    return `
+${encabezado("Formulario de pre-inscripción SEPRELAD")}
+<p><strong>Tipo de sujeto obligado:</strong> ${v(d, "tipo_so", "TIPO")}</p>
+<p><strong>Actividades específicas:</strong></p>
+<ul>${lines(d, "actividades").length ? lines(d, "actividades").map((a) => `<li>${esc(a)}</li>`).join("") : `<li><span class="ph">[${esc(ACTIVIDADES_POR_TIPO[tipo] ?? "ACTIVIDADES")}]</span></li>`}</ul>
+<table class="tabla"><tbody>
+${fila("Opera en el sector financiero", `${sino("sector_financiero")}${on(d, "sector_financiero") && str(d, "bancos") ? ` · ${esc(str(d, "bancos"))}` : ""}`)}
+${fila("Posee sucursal", `${sino("sucursal")}${on(d, "sucursal") && str(d, "sucursal_nro") ? ` · Establecimiento N° ${esc(str(d, "sucursal_nro"))}` : ""}`)}
+${fila("Envió JSON", sino("envio_json"))}
+</tbody></table>
+<h2 style="font-size:12pt;margin-top:14pt">Datos generales</h2>
+<table class="tabla"><tbody>
+${fila("RUC", e.ruc ? esc(e.ruc) : '<span class="ph">[RUC]</span>')}
+${fila("Tipo de persona", e.tipo === "unipersonal" || e.tipo === "ruc_personal" ? "Física" : "Jurídica")}
+${fila("Razón social", esc(e.denominacion))}
+${fila("Fecha de constitución", e.fecha_constitucion ? formatFecha(e.fecha_constitucion) : '<span class="ph">[FECHA]</span>')}
+${fila("Dirección", e.domicilio ? esc(e.domicilio) : '<span class="ph">[DIRECCIÓN]</span>')}
+${fila("Departamento", v(d, "departamento", "DEPARTAMENTO"))}
+${fila("Ciudad", e.ciudad ? esc(e.ciudad) : '<span class="ph">[CIUDAD]</span>')}
+${fila("Correo electrónico de la entidad", v(d, "email", "EMAIL"))}
+${fila("Teléfono", v(d, "telefono", "—"))}
+${fila("Celular", v(d, "celular", "—"))}
+${fila("Página web", v(d, "web", "—"))}
+${fila("Antigüedad en el sector", v(d, "antiguedad", "ANTIGÜEDAD"))}
+${fila("Fecha de inicio de actividades en el sector", str(d, "inicio_actividades") ? formatFecha(str(d, "inicio_actividades")) : '<span class="ph">[FECHA]</span>')}
+${fila("Cantidad de empleados", v(d, "empleados", "__"))}
+${fila("Total ingreso anual según balance", gs("ingresos"))}
+${fila("Total activo según balance", gs("activo"))}
+${fila("Total pasivo según balance", gs("pasivo"))}
+${fila("Total patrimonio neto según balance", gs("patrimonio"))}
+</tbody></table>
+<h2 style="font-size:12pt;margin-top:14pt">Socios y/o accionistas</h2>
+${tabla(["Nombre", "Documento", "Acciones o cuotas", "Capital integrado (Gs.)"], socios)}
+<h2 style="font-size:12pt;margin-top:14pt">Plana directiva o socio gerente</h2>
+${tabla(["Nombre o razón social", "Documento", "Cargo", "Nacionalidad"], directivos)}
+<h2 style="font-size:12pt;margin-top:14pt">Oficial de cumplimiento</h2>
+<table class="tabla"><tbody>
+${fila("Nombres", v(d, "oc_nombres", "NOMBRES"))}
+${fila("Apellidos", v(d, "oc_apellidos", "APELLIDOS"))}
+${fila("Tipo y N° de documento", v(d, "oc_documento", "DOCUMENTO"))}
+${fila("Nacionalidad", v(d, "oc_nacionalidad", "NACIONALIDAD"))}
+${fila("Email", v(d, "oc_email", "—"))}
+${fila("Oficina donde prestará servicios", v(d, "oc_oficina", "DIRECCIÓN"))}
+${fila("Domicilio del oficial", v(d, "oc_domicilio", "DIRECCIÓN"))}
+${fila("Teléfono / celular", `${v(d, "oc_telefono", "—")} / ${v(d, "oc_celular", "—")}`)}
+${fila("Tipo de oficial", v(d, "oc_tipo", "TITULAR / ALTERNO"))}
+</tbody></table>
+<h2 style="font-size:12pt;margin-top:14pt">Documentos para el nombramiento del oficial de cumplimiento</h2>
+<ul>${DOCS_OC.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+<h2 style="font-size:12pt;margin-top:14pt">Documentos para la inscripción${docs ? ` (${esc(tipo)})` : ""}</h2>
+${docs ? `<ul>${docs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p><span class="ph">[Confirmá con la SEPRELAD la lista de documentos para ${esc(tipo || "este tipo de sujeto obligado")}]</span></p>`}
+<p style="font-size:9.5pt">(*) Autenticados por escribanía o escaneado del original.</p>
+<p>Fecha: ${str(d, "fecha") ? formatFecha(str(d, "fecha")) : "____"}</p>
+<p class="nota">Formulario de trabajo para preparar la inscripción en el SIRO. Revisá en la plataforma de la SEPRELAD los requisitos vigentes para tu sector antes de presentar.</p>`;
+  },
+};
+
 export const PLANTILLAS: Plantilla[] = [
   actaDirectorioConvocatoria,
   edicto,
@@ -1769,6 +1953,7 @@ export const PLANTILLAS: Plantilla[] = [
   constanciaManual,
   planCapacitacion,
   informeControlInterno,
+  preInscripcion,
   labContrato,
   labConstancia,
   labConstanciaFin,

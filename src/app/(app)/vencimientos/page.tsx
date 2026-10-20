@@ -35,6 +35,8 @@ function VencimientosContenido() {
   const [estado, setEstado] = useState<Estado>("pendientes");
   // Alta abierta: false, o la fecha elegida en el calendario (true = hoy).
   const [nueva, setNueva] = useState<boolean | string>(false);
+  // Día tocado en el calendario: el botón "Vencimiento" lo usa como fecha.
+  const [diaElegido, setDiaElegido] = useState<string | null>(null);
   const [vista, setVista] = useState<Vista>("calendario");
   // Preferencias de Configuración (este navegador): empresa y vista iniciales.
   useEffect(() => {
@@ -109,8 +111,8 @@ function VencimientosContenido() {
                 <CalendarPlus size={15} /> {generando ? "Generando..." : `Calendario ${anio}–${anio + 1}`}
               </button>
             )}
-            <button type="button" className="btn btn-primary" onClick={() => setNueva(true)}>
-              <Plus size={15} /> Vencimiento
+            <button type="button" className="btn btn-primary" onClick={() => setNueva(diaElegido ?? true)}>
+              <Plus size={15} /> Vencimiento{diaElegido ? ` el ${diaElegido.slice(8)}/${diaElegido.slice(5, 7)}` : ""}
             </button>
           </div>
         )}
@@ -182,10 +184,7 @@ function VencimientosContenido() {
         <SkeletonTable rows={5} cols={3} />
       ) : vista === "calendario" && empresas.data.length > 0 ? (
         <VencimientosCalendar
-          onAgregar={(fecha) => {
-            setNueva(fecha);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
+          onDia={setDiaElegido}
           obligaciones={filtradas}
           empresas={empresas.data}
           mostrarEmpresa={empresas.data.length > 1}

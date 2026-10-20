@@ -53,6 +53,28 @@ function ocultoAhora(id: string): boolean {
   return Number.isFinite(t) && Date.now() - t < REAPARECE_MS;
 }
 
+const CLAVE_FORZAR = "nodos.primerosPasos.mostrar";
+
+function forzado(): boolean {
+  try {
+    return window.sessionStorage.getItem(CLAVE_FORZAR) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Vuelve a mostrar la tarjeta (desde el menú de la cuenta), aunque esté todo hecho. */
+export function mostrarPrimerosPasos() {
+  ocultosEnMemoria.clear();
+  try {
+    window.sessionStorage.setItem(CLAVE_FORZAR, "1");
+    for (const k of Object.keys(window.localStorage)) if (k.startsWith(CLAVE_OCULTO)) window.localStorage.removeItem(k);
+  } catch {
+    /* sin almacenamiento */
+  }
+  window.dispatchEvent(new Event(EVENTO));
+}
+
 /** Marca un paso que se completa con solo visitar una pantalla (p. ej. Vencimientos). */
 export function marcarPasoVisto(paso: string) {
   if (leer(CLAVE_VISTO + paso) === "1") return;
@@ -88,7 +110,8 @@ export interface PasoInicial {
 /** Si la tarjeta corresponde: datos cargados, falta algo y no la ocultaron en los últimos 7 días. */
 export function usePrimerosPasosVisible(pasos: PasoInicial[], cargando: boolean, id = ""): boolean {
   const oculto = useOculto(id);
-  return !cargando && !oculto && pasos.some((p) => !p.hecho);
+  const pedido = useSyncExternalStore(suscribir, forzado, () => false);
+  return !cargando && !oculto && (pedido || pasos.some((p) => !p.hecho));
 }
 
 /** `id` separa tarjetas que comparten navegador (p. ej. Práctica y Finanzas). */
@@ -98,6 +121,11 @@ export default function PrimerosPasos({ app, pasos, id = "" }: { app: string; pa
   const siguiente = pasos.find((p) => !p.hecho)?.key;
 
   function ocultar() {
+    try {
+      window.sessionStorage.removeItem(CLAVE_FORZAR);
+    } catch {
+      /* sin almacenamiento */
+    }
     ocultosEnMemoria.add(id);
     escribir(claveOculto(id), new Date().toISOString());
   }
@@ -108,7 +136,7 @@ export default function PrimerosPasos({ app, pasos, id = "" }: { app: string; pa
         <div className="min-w-0">
           <p className="t-caption uppercase tracking-[0.14em] text-cobre">Primeros pasos</p>
           <h2 id="primeros-pasos-titulo" className="mt-0.5 !text-[20px] !leading-7 sm:!text-[22px]">
-            Dejá {app} listo en 3 pasos
+            {hechos === pasos.length ? `${app} está listo` : `Dejá ${app} listo en ${pasos.length} pasos`}
           </h2>
         </div>
         <button

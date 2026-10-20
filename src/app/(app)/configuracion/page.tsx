@@ -15,14 +15,14 @@ export default function ConfiguracionPage() {
   const { showToast } = useToast();
   const empresas = useEmpresas();
   const [pref, setPref] = useState<PreferenciasEmpresas | null>(null);
-  const [bandaMin, setBandaMin] = useState(false);
+  const [bandaMin, setBandaMin] = useState(true);
   const [ocupado, setOcupado] = useState<string | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPref(leerPreferencias());
     try {
-      setBandaMin(localStorage.getItem(CLAVE_BANDA) === "1");
+      setBandaMin(localStorage.getItem(CLAVE_BANDA) !== "0");
     } catch {
       /* sin almacenamiento */
     }

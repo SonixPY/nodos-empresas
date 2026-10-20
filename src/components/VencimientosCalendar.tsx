@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight, FileText, Plus, RotateCcw } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, FileText, RotateCcw } from "lucide-react";
 import { buildMonthWeeks, DOW_LABELS } from "@/lib/calendario";
 import { daysUntil, formatFechaLarga, MESES, todayIso } from "@/lib/dates";
 import { getPlantilla } from "@/lib/plantillas";
@@ -38,11 +38,11 @@ export default function VencimientosCalendar({
   empresas,
   mostrarEmpresa = false,
   onChange,
-  onAgregar,
+  onDia,
   title = "Calendario de vencimientos",
 }: {
-  /** Si viene, cualquier día se puede tocar para agregar un vencimiento en esa fecha. */
-  onAgregar?: (fecha: string) => void;
+  /** Si viene, cualquier día se puede tocar: avisa el día elegido (el alta usa esa fecha). */
+  onDia?: (fecha: string | null) => void;
   obligaciones: Obligacion[];
   empresas?: Empresa[];
   mostrarEmpresa?: boolean;
@@ -164,7 +164,7 @@ export default function VencimientosCalendar({
         {weeks.flat().map((d) => {
           const lista = byDate.get(d.date);
           const has = !!lista && lista.length > 0;
-          const tocable = has || (!!onAgregar && d.inMonth);
+          const tocable = has || (!!onDia && d.inMonth);
           const tono = has ? TONO[tonoDe(lista, hoy)] : null;
           const isToday = d.date === hoy;
           const ring =
@@ -181,7 +181,12 @@ export default function VencimientosCalendar({
               type="button"
               onMouseEnter={() => has && setActive(d.date)}
               onMouseLeave={() => setActive(null)}
-              onClick={() => tocable && setPinned((p) => (p === d.date ? null : d.date))}
+              onClick={() => {
+                if (!tocable) return;
+                const nuevo = pinned === d.date ? null : d.date;
+                setPinned(nuevo);
+                onDia?.(nuevo);
+              }}
               aria-label={
                 has ? `${formatFechaLarga(d.date)}: ${lista.length} vencimiento${lista.length === 1 ? "" : "s"}` : tocable ? `${formatFechaLarga(d.date)}: agregar` : undefined
               }
@@ -231,25 +236,20 @@ export default function VencimientosCalendar({
       </div>
 
       <div className="mt-3 min-h-16 border-t pt-3 text-xs text-carbon/70" style={{ borderColor: "var(--line)" }}>
-        {shown && (shownList.length > 0 || (onAgregar && pinned === shown)) ? (
+        {shown && (shownList.length > 0 || (onDia && pinned === shown)) ? (
           <div className="animate-fade-in">
             <div className="mb-2 flex items-baseline justify-between gap-2">
               <span className="text-sm font-medium text-carbon">{formatFechaLarga(shown)}</span>
               {!pinned && <span className="hidden text-[11px] text-carbon/45 sm:inline">Hacé click para fijar el día</span>}
               {pinned && (
                 <span className="flex items-center gap-3">
-                  {onAgregar && (
-                    <button type="button" onClick={() => onAgregar(pinned)} className="inline-flex items-center gap-1 text-xs font-medium text-cobre-hover hover:underline">
-                      <Plus size={13} aria-hidden /> Agregar acá
-                    </button>
-                  )}
-                  <button type="button" onClick={() => setPinned(null)} className="text-[11px] text-carbon/50 hover:underline">
+                  <button type="button" onClick={() => { setPinned(null); onDia?.(null); }} className="text-[11px] text-carbon/50 hover:underline">
                     Cerrar
                   </button>
                 </span>
               )}
             </div>
-            {shownList.length === 0 && <p className="text-sm text-carbon/55">Nada para este día. Agregá un vencimiento o un recordatorio.</p>}
+            {shownList.length === 0 && <p className="text-sm text-carbon/55">Nada para este día. Con "Vencimiento" (arriba) lo agregás en esta fecha.</p>}
             <ul className="space-y-2">
               {shownList.map((o) => {
                 const plantilla = getPlantilla(o.plantilla);
@@ -300,7 +300,7 @@ export default function VencimientosCalendar({
         ) : obligaciones.length === 0 ? (
           <span>No hay vencimientos con estos filtros.</span>
         ) : (
-          <span>{onAgregar ? "Tocá un día para ver el detalle o agregar un vencimiento." : "Pasá el mouse (o tocá) un día para ver el detalle."}</span>
+          <span>{onDia ? "Tocá un día para ver el detalle; el botón Vencimiento lo agrega en ese día." : "Pasá el mouse (o tocá) un día para ver el detalle."}</span>
         )}
       </div>
     </div>

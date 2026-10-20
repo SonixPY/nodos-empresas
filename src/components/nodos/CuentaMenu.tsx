@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AtSign, ChevronDown, ChevronRight, Gauge, LifeBuoy, LogOut, UserRound } from "lucide-react";
+import { AtSign, ChevronDown, ChevronRight, Gauge, LifeBuoy, ListChecks, LogOut, UserRound } from "lucide-react";
 import { SITIOS, nombreVisible } from "@/lib/nodos/sitios";
 import { PANEL_SECCIONES, panelEsLocal, panelHref, panelSeccionActiva } from "@/lib/nodos/panel";
 import { cerrarSesion } from "@/lib/nodos/usePerfil";
@@ -12,6 +12,7 @@ import type { PerfilVisible } from "@/lib/nodos/usePerfil";
 import { useDesplegable } from "@/lib/nodos/useDesplegable";
 import AvatarNodos from "@/components/nodos/AvatarNodos";
 import TemaSelector from "@/components/nodos/TemaSelector";
+import { mostrarPrimerosPasos } from "@/components/resumen/PrimerosPasos";
 
 /** Clase de un ítem del menú de cuenta (la usan también las herramientas propias de cada app). */
 export const MENU_ITEM =
@@ -126,6 +127,9 @@ export default function CuentaMenu({
           </div>
 
           <div className="p-1.5">
+            <Link href="/" role="menuitem" className={MENU_ITEM} onClick={() => mostrarPrimerosPasos()}>
+              <ListChecks size={16} aria-hidden className="shrink-0 text-musgo" /> Primeros pasos
+            </Link>
             <Link href="/soporte" role="menuitem" className={MENU_ITEM}>
               <LifeBuoy size={16} aria-hidden className="shrink-0 text-musgo" /> Soporte
             </Link>
