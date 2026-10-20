@@ -731,3 +731,10 @@ body {
     font-size: 16px; /* evita el zoom de iOS */
   }
 }
+
+/* El body es flex en columna: sin esto, un <main class="mx-auto"> se ensancha
+   con tablas o selects largos y en celular aparece scroll horizontal. */
+main.mx-auto {
+  width: 100%;
+  min-width: 0;
+}

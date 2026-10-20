@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, ClipboardPaste, Download, FileSpreadsheet, FileUp, Lock, RotateCcw, Settings2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowUp, Check, CheckCircle2, ChevronDown, ChevronUp, Download, FileSpreadsheet, Lock, Paperclip, RotateCcw, Settings2, ShieldCheck, Upload, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ToastProvider";
 import { mensajeError } from "@/lib/nodos/errores";
@@ -75,6 +75,41 @@ function prepararParaArchivo(registros: Registro[]): { registros: Registro[]; ob
   return { registros: out, obs };
 }
 
+function tamanoLegible(b: number): string {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toLocaleString("es-PY", { maximumFractionDigits: 0 })} KB`;
+  return `${(b / 1024 / 1024).toLocaleString("es-PY", { maximumFractionDigits: 1 })} MB`;
+}
+
+const PASOS = ["Período", "Planilla", "Revisión", "Archivo"];
+
+/** Dónde estás en el proceso, para que se entienda de un vistazo. */
+function Pasos({ actual }: { actual: number }) {
+  return (
+    <ol className="flex items-center gap-1 overflow-x-auto pb-1 text-xs" aria-label="Pasos del reporte">
+      {PASOS.map((p, i) => {
+        const hecho = i < actual;
+        const activo = i === actual;
+        return (
+          <li key={p} className="flex shrink-0 items-center gap-1">
+            <span
+              className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold transition ${
+                hecho ? "bg-musgo text-marfil" : activo ? "bg-cobre text-white" : "border text-carbon/45"
+              }`}
+              style={hecho || activo ? undefined : { borderColor: "var(--line)" }}
+              aria-current={activo ? "step" : undefined}
+            >
+              {hecho ? <Check size={13} /> : i + 1}
+            </span>
+            <span className={activo ? "font-medium text-carbon" : "text-carbon/55"}>{p}</span>
+            {i < PASOS.length - 1 && <span className={`mx-1 h-px w-5 sm:w-10 ${hecho ? "bg-musgo" : ""}`} style={hecho ? undefined : { background: "var(--line)" }} />}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 interface FuenteHoja {
   nombre: string;
   visible: boolean;
@@ -95,7 +130,8 @@ export default function GeneradorRo({ empresa, regimenInicial }: { empresa: Empr
   const [elegidas, setElegidas] = useState<number[]>([]);
   const [mapeos, setMapeos] = useState<Record<number, (string | null)[]>>({});
   const [pegado, setPegado] = useState("");
-  const [verPegar, setVerPegar] = useState(false);
+  const [arrastrando, setArrastrando] = useState(false);
+  const [tamano, setTamano] = useState<number | null>(null);
   const [leyendo, setLeyendo] = useState(false);
   const [errorLectura, setErrorLectura] = useState<string | null>(null);
 
@@ -107,6 +143,8 @@ export default function GeneradorRo({ empresa, regimenInicial }: { empresa: Empr
   const [generando, setGenerando] = useState(false);
   const [generado, setGenerado] = useState<{ hash: string; cantidad: number; obligacion: { id: string; titulo: string } | null } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const revisionRef = useRef<HTMLElement>(null);
+  const yaBajo = useRef(false);
 
   useEffect(() => {
     let vigente = true;
@@ -125,6 +163,8 @@ export default function GeneradorRo({ empresa, regimenInicial }: { empresa: Empr
 
   function reiniciar() {
     setNombreArchivo(null);
+    setTamano(null);
+    yaBajo.current = false;
     setHojas([]);
     setElegidas([]);
     setMapeos({});
@@ -149,6 +189,7 @@ export default function GeneradorRo({ empresa, regimenInicial }: { empresa: Empr
     try {
       if (file.size > 25 * 1024 * 1024) throw new ExcelNoSoportado("El archivo supera 25 MB.");
       const bytes = new Uint8Array(await file.arrayBuffer());
+      setTamano(file.size);
       if (/\.(xlsx|xlsm)$/i.test(file.name)) {
         cargarHojas(leerXlsx(bytes) as Hoja[], file.name);
       } else if (/\.(csv|txt|tsv)$/i.test(file.name)) {
@@ -169,8 +210,78 @@ export default function GeneradorRo({ empresa, regimenInicial }: { empresa: Empr
   function usarPegado() {
     if (!pegado.trim()) return;
     cargarHojas([{ nombre: "Texto pegado", visible: true, filas: leerCsv(pegado) }], "Texto pegado");
-    setVerPegar(false);
+    setTamano(pegado.length);
+    setPegado("");
   }
+
+
+  const leerArchivoRef = useRef(leerArchivo);
+  const usarTextoRef = useRef((t: string) => {
+    void t;
+  });
+  useEffect(() => {
+    leerArchivoRef.current = leerArchivo;
+    usarTextoRef.current = (t: string) => {
+      cargarHojas([{ nombre: "Tabla pegada", visible: true, filas: leerCsv(t) }], "Tabla pegada");
+      setTamano(t.length);
+      setPegado("");
+    };
+  });
+
+  // Como en un chat: soltá el archivo en cualquier parte de la página o
+  // pegalo con Ctrl+V (archivo copiado o filas copiadas de Excel).
+  useEffect(() => {
+    let profundidad = 0;
+    const hayArchivo = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+    const entra = (e: DragEvent) => {
+      if (!hayArchivo(e)) return;
+      e.preventDefault();
+      profundidad++;
+      setArrastrando(true);
+    };
+    const sobre = (e: DragEvent) => hayArchivo(e) && e.preventDefault();
+    const sale = (e: DragEvent) => {
+      if (!hayArchivo(e)) return;
+      profundidad = Math.max(0, profundidad - 1);
+      if (profundidad === 0) setArrastrando(false);
+    };
+    const suelta = (e: DragEvent) => {
+      if (!hayArchivo(e)) return;
+      e.preventDefault();
+      profundidad = 0;
+      setArrastrando(false);
+      const f = e.dataTransfer?.files?.[0];
+      if (f) void leerArchivoRef.current(f);
+    };
+    const pega = (e: ClipboardEvent) => {
+      const f = e.clipboardData?.files?.[0];
+      if (f) {
+        e.preventDefault();
+        void leerArchivoRef.current(f);
+        return;
+      }
+      const destino = e.target as HTMLElement | null;
+      // En otros campos se pega normal; fuera de ellos, una tabla copiada se lee directo.
+      if (destino && (destino.tagName === "INPUT" || destino.tagName === "SELECT" || (destino.tagName === "TEXTAREA" && destino.id !== "ro-pegar"))) return;
+      const texto = e.clipboardData?.getData("text/plain") ?? "";
+      if (texto.includes("\t") && texto.trim().split(/\r?\n/).length >= 2) {
+        e.preventDefault();
+        usarTextoRef.current(texto);
+      }
+    };
+    window.addEventListener("dragenter", entra);
+    window.addEventListener("dragover", sobre);
+    window.addEventListener("dragleave", sale);
+    window.addEventListener("drop", suelta);
+    window.addEventListener("paste", pega);
+    return () => {
+      window.removeEventListener("dragenter", entra);
+      window.removeEventListener("dragover", sobre);
+      window.removeEventListener("dragleave", sale);
+      window.removeEventListener("drop", suelta);
+      window.removeEventListener("paste", pega);
+    };
+  }, []);
 
   // Extracción por hoja (con el mapeo manual, si se cambió).
   const extracciones = useMemo(() => {
@@ -326,8 +437,11 @@ export default function GeneradorRo({ empresa, regimenInicial }: { empresa: Empr
     return filtro === "todas" ? true : filtro === "sin" ? p === null : (porItem.get(Number(r.item)) ?? []).some((o) => o.tipo === filtro);
   });
 
+  const pasoActual = generado ? 4 : resultado ? (pendientes > 0 && !confirmoPendientes ? 2 : 3) : 1;
+
   return (
     <div className="space-y-6">
+      <Pasos actual={pasoActual} />
       {/* 1. Datos del reporte */}
       <section className="card">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -427,44 +541,134 @@ export default function GeneradorRo({ empresa, regimenInicial }: { empresa: Empr
         )}
       </section>
 
-      {/* 2. Planilla */}
+      {/* 2. Planilla: se suelta, se pega o se adjunta, como en un chat */}
       <section className="card">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2>Planilla de operaciones</h2>
-            <p className="mt-1 text-sm text-carbon/65">Excel (.xlsx, .xlsm), CSV o texto copiado de una tabla. Se reconocen las columnas por su nombre.</p>
+            <p className="mt-1 text-sm text-carbon/65">Soltala, pegala o adjuntala. Las columnas se reconocen solas por su nombre y después podés corregir cualquier cosa.</p>
           </div>
           <button type="button" className="btn btn-ghost" onClick={descargarPlantilla}>
             <FileSpreadsheet size={15} /> Plantilla NODOS
           </button>
         </div>
+
+        <input ref={inputRef} type="file" className="sr-only" id="ro-archivo" accept=".xlsx,.xlsm,.csv,.txt,.tsv" onChange={(e) => e.target.files?.[0] && leerArchivo(e.target.files[0])} />
+
+        {nombreArchivo ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="inline-flex max-w-full items-center gap-2 rounded-lg border py-1.5 pl-2 pr-1 text-sm animate-fade-in" style={{ borderColor: "var(--line)", background: "var(--superficie)" }}>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-musgo text-marfil">
+                <FileSpreadsheet size={16} />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate font-medium text-carbon">{nombreArchivo}</span>
+                <span className="block text-[11px] text-carbon/55">
+                  {tamano !== null ? (nombreArchivo.endsWith("pegada") || nombreArchivo.endsWith("pegado") ? `${tamano.toLocaleString("es-PY")} caracteres` : tamanoLegible(tamano)) : ""}
+                  {hojas.length > 1 ? ` · ${hojas.length} hojas` : ""}
+                </span>
+              </span>
+              <button type="button" onClick={reiniciar} className="ml-1 rounded-full p-1 text-carbon/45 hover:bg-carbon/5 hover:text-bad" title="Quitar y empezar de nuevo" aria-label="Quitar planilla">
+                <X size={15} />
+              </button>
+            </span>
+            <label htmlFor="ro-archivo" className="btn btn-ghost cursor-pointer">
+              <RotateCcw size={15} /> Cambiar
+            </label>
+          </div>
+        ) : (
+          <div
+            className={`mt-4 rounded-2xl border-2 border-dashed p-4 transition sm:p-5 ${arrastrando ? "border-cobre bg-cobre/5" : ""}`}
+            style={arrastrando ? undefined : { borderColor: "var(--line)" }}
+          >
+            <label htmlFor="ro-archivo" className="flex cursor-pointer flex-col items-center gap-2 py-4 text-center">
+              <span className={`flex h-12 w-12 items-center justify-center rounded-full bg-cobre/10 text-cobre-hover transition ${arrastrando || leyendo ? "scale-110" : ""}`}>
+                {leyendo ? <span className="spinner" aria-hidden /> : <Upload size={22} />}
+              </span>
+              <span className="font-medium text-carbon">{leyendo ? "Leyendo la planilla..." : arrastrando ? "Soltala acá" : "Arrastrá tu planilla acá o tocá para elegirla"}</span>
+              <span className="text-xs text-carbon/55">Excel (.xlsx, .xlsm), CSV o texto · hasta 25 MB · también podés pegarla con Ctrl+V</span>
+            </label>
+            <div className="mt-2 flex items-end gap-2 rounded-xl border px-3 py-2" style={{ borderColor: "var(--line)", background: "var(--campo, var(--superficie))" }}>
+              <label htmlFor="ro-archivo" className="mb-0.5 shrink-0 cursor-pointer rounded-full p-1.5 text-carbon/50 hover:bg-carbon/5 hover:text-cobre-hover" title="Adjuntar archivo">
+                <Paperclip size={17} />
+              </label>
+              <textarea
+                id="ro-pegar"
+                rows={1}
+                className="max-h-40 min-h-[2.25rem] flex-1 resize-none bg-transparent py-1.5 font-mono text-xs outline-none placeholder:font-sans placeholder:text-sm placeholder:text-carbon/40"
+                value={pegado}
+                onChange={(e) => {
+                  setPegado(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${Math.min(160, e.target.scrollHeight)}px`;
+                }}
+                onPaste={(e) => {
+                  const t = e.clipboardData.getData("text/plain");
+                  if (t.includes("\t") && t.trim().split(/\r?\n/).length >= 2) {
+                    e.preventDefault();
+                    usarTextoRef.current(t);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    usarPegado();
+                  }
+                }}
+                placeholder="O pegá acá las filas con sus encabezados"
+                aria-label="Pegar filas de la planilla"
+              />
+              <button type="button" onClick={usarPegado} disabled={!pegado.trim()} className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cobre text-white transition hover:bg-cobre-hover disabled:opacity-30" title="Usar este texto (Ctrl+Enter)" aria-label="Usar este texto">
+                <ArrowUp size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
         <p className="mt-3 flex items-start gap-2 rounded-sm bg-marfil/70 px-3 py-2 text-xs text-carbon/70">
           <Lock size={14} className="mt-0.5 shrink-0 text-musgo" />
           La planilla se procesa en tu navegador: no se sube ni se guarda en NODOS. Solo queda constancia de quién generó el archivo, cuándo, el período, la cantidad de registros y una huella del archivo.
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <input ref={inputRef} type="file" className="sr-only" id="ro-archivo" accept=".xlsx,.xlsm,.csv,.txt,.tsv" onChange={(e) => e.target.files?.[0] && leerArchivo(e.target.files[0])} />
-          <label htmlFor="ro-archivo" className="btn btn-primary cursor-pointer">
-            <FileUp size={15} /> {leyendo ? "Leyendo..." : nombreArchivo && nombreArchivo !== "Texto pegado" ? "Elegir otro archivo" : "Elegir archivo"}
-          </label>
-          <button type="button" className="btn btn-ghost" onClick={() => setVerPegar((v) => !v)}>
-            <ClipboardPaste size={15} /> Pegar texto
-          </button>
-          {nombreArchivo && (
-            <button type="button" className="btn btn-ghost" onClick={reiniciar}>
-              <RotateCcw size={15} /> Empezar de nuevo
-            </button>
-          )}
-        </div>
-        {verPegar && (
-          <div className="mt-3 space-y-2">
-            <textarea className="input min-h-[120px] font-mono text-xs" value={pegado} onChange={(e) => setPegado(e.target.value)} placeholder="Pegá las filas con sus encabezados (copiadas de Excel o de un informe)" />
-            <button type="button" className="btn btn-primary" onClick={usarPegado} disabled={!pegado.trim()}>
-              Usar este texto
-            </button>
+        {errorLectura && (
+          <p className="mt-3 flex items-start gap-2 rounded-sm border border-bad/30 bg-bad/5 px-3 py-2 text-sm text-bad animate-fade-in">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0" /> {errorLectura}
+          </p>
+        )}
+
+        {resultado && (
+          <div className="mt-4 rounded-lg border p-3 animate-fade-in" style={{ borderColor: "var(--line)" }}>
+            <p className="text-sm text-carbon">
+              Encontré <strong>{resultado.registros.length}</strong> operación{resultado.registros.length === 1 ? "" : "es"}
+              {elegidas.length > 1 ? ` en ${elegidas.length} hojas` : ""}.{" "}
+              {pendientes === 0 && cuenta("VERIFICAR") === 0 ? "Todo está en orden para generar el archivo." : "Esto es lo que conviene mirar:"}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {GRAVEDAD.map((g) =>
+                cuenta(g) > 0 ? (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => {
+                      setFiltro(g);
+                      revisionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition hover:brightness-95 ${COLOR[g].texto}`}
+                    style={{ background: COLOR[g].fondo, borderColor: COLOR[g].borde }}
+                  >
+                    {cuenta(g)} {g === "COMPLETAR" ? "para completar" : g === "VERIFICAR" ? "para verificar" : "ajustes automáticos"}
+                  </button>
+                ) : null
+              )}
+              <button
+                type="button"
+                onClick={() => revisionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-cobre-hover hover:underline"
+              >
+                Ir a la revisión <ChevronDown size={13} />
+              </button>
+            </div>
           </div>
         )}
-        {errorLectura && <p className="mt-3 text-sm text-bad">{errorLectura}</p>}
 
         {hojas.length > 0 && (
           <div className="mt-4 space-y-3">
@@ -538,7 +742,7 @@ export default function GeneradorRo({ empresa, regimenInicial }: { empresa: Empr
 
       {/* 3. Revisión */}
       {resultado && resumen && (
-        <section className="space-y-3">
+        <section ref={revisionRef} className="scroll-mt-20 space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2>Revisión</h2>
