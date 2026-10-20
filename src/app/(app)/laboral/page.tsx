@@ -10,6 +10,7 @@ import { leerPreferencias } from "@/lib/preferencias";
 import { SkeletonBlock } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import GuiaPagina from "@/components/nodos/GuiaPagina";
+import LiquidacionCalc from "@/components/laboral/LiquidacionCalc";
 
 /** Puntos básicos de un empleador. Solo se cita lo verificado en la Ley N.º 213/1993. */
 const BASICOS: { titulo: string; texto: string }[] = [
@@ -92,6 +93,8 @@ function LaboralContenido() {
           </Link>
         </section>
       </div>
+
+      <LiquidacionCalc empresaId={empresa.id} />
     </div>
   );
 }
@@ -103,9 +106,9 @@ export default function LaboralPage() {
       <header className="mb-6">
         <p className="t-caption uppercase tracking-[0.14em] text-cobre-hover">Código del Trabajo (Ley N.º 213/1993)</p>
         <h1>Laboral</h1>
-        <p className="mt-1 text-sm text-carbon/60">Contrato, recibos, vacaciones, preaviso y constancias para tu personal, listos para imprimir en PDF.</p>
+        <p className="mt-1 text-sm text-carbon/60">Contrato, recibos, vacaciones, preaviso, constancias y la liquidación final de tu personal.</p>
       </header>
-      <GuiaPagina id="laboral" titulo="Cómo funciona Laboral" pasos={["Elegí la empresa empleadora.", "Abrí el documento que necesitás: contrato, recibo, vacaciones, preaviso o constancias.", "Completá los datos del trabajador e imprimilo en PDF para firmar.", "Guardá la copia firmada en Archivo."]} />
+      <GuiaPagina id="laboral" titulo="Cómo funciona Laboral" pasos={["Elegí la empresa empleadora.", "Abrí el documento que necesitás: contrato, recibo, vacaciones, preaviso o constancias.", "Completá los datos del trabajador e imprimilo en PDF para firmar.", "Guardá la copia firmada en Archivo.", "Para una salida, usá la Liquidación final: muestra cada concepto con su artículo."]} />
       <Suspense fallback={null}>
         <LaboralContenido />
       </Suspense>
