@@ -6,6 +6,7 @@ import { Building2, CalendarClock, CalendarPlus, Plus } from "lucide-react";
 import { generarCalendario, useEmpresas, useObligaciones } from "@/lib/data";
 import { useToast } from "@/components/ToastProvider";
 import { esSociedad } from "@/lib/types";
+import { leerPreferencias } from "@/lib/preferencias";
 import { MESES, parseIso, todayIso } from "@/lib/dates";
 import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista";
 import ObligacionForm from "@/components/ObligacionForm";
@@ -34,21 +35,30 @@ function VencimientosContenido() {
   // Alta abierta: false, o la fecha elegida en el calendario (true = hoy).
   const [nueva, setNueva] = useState<boolean | string>(false);
   const [vista, setVista] = useState<Vista>("calendario");
+  // Preferencias de Configuración (este navegador): empresa y vista iniciales.
+  useEffect(() => {
+    const p = leerPreferencias();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVista(p.vistaVencimientos);
+    if (!params.get("empresa") && p.empresaPorDefecto) setEmpresa(p.empresaPorDefecto);
+  }, [params]);
 
   // Primeros pasos del Resumen: "Revisá tus vencimientos" queda hecho al abrir esta página.
   useEffect(() => marcarPasoVisto("vencimientos"), []);
 
+  // Una empresa guardada por defecto que ya no existe no deja la vista vacía.
+  const empresaFiltro = empresa === "todas" || empresas.loading || empresas.data.some((e) => e.id === empresa) ? empresa : "todas";
   const filtradas = useMemo(() => {
     const hoy = todayIso();
     return obligaciones.data.filter((o) => {
-      if (empresa !== "todas" && o.empresa_id !== empresa) return false;
+      if (empresaFiltro !== "todas" && o.empresa_id !== empresaFiltro) return false;
       if (categoria !== "todas" && o.categoria !== categoria) return false;
       if (estado === "pendientes") return o.estado === "pendiente";
       if (estado === "atrasados") return o.estado === "pendiente" && o.fecha < hoy;
       if (estado === "hechas") return o.estado === "hecho";
       return true;
     });
-  }, [obligaciones.data, empresa, categoria, estado]);
+  }, [obligaciones.data, empresaFiltro, categoria, estado]);
 
   // Agrupadas por mes, para leer el año como un calendario.
   const grupos = useMemo(() => {

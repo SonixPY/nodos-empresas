@@ -6,6 +6,7 @@ import { useEmpresas } from "@/lib/data";
 import Generador from "@/components/Generador";
 import DocumentosNav from "@/components/DocumentosNav";
 import { SkeletonBlock } from "@/components/Skeleton";
+import { leerPreferencias } from "@/lib/preferencias";
 
 function DocumentosContenido() {
   const params = useSearchParams();
@@ -21,7 +22,7 @@ function DocumentosContenido() {
       ) : (
         <Generador
           empresas={empresas.data}
-          empresaInicial={params.get("empresa")}
+          empresaInicial={params.get("empresa") ?? leerPreferencias().empresaPorDefecto}
           plantillaInicial={params.get("plantilla")}
           onSaved={(d) => router.push(`/documentos/${d.id}`)}
         />

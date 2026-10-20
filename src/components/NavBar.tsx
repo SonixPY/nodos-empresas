@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import SitioSwitcher from "@/components/nodos/SitioSwitcher";
 import CuentaMenu from "@/components/nodos/CuentaMenu";
+import HerramientasCuenta from "@/components/HerramientasCuenta";
 import { usePerfil } from "@/lib/nodos/usePerfil";
 
 const LINKS = [
@@ -11,6 +12,7 @@ const LINKS = [
   { href: "/empresas", label: "Empresas" },
   { href: "/vencimientos", label: "Vencimientos" },
   { href: "/documentos", label: "Documentos" },
+  { href: "/laboral", label: "Laboral" },
   { href: "/cumplimiento", label: "SEPRELAD" },
 ];
 
@@ -43,9 +45,9 @@ export default function NavBar() {
           ))}
         </div>
 
-        {/* Cuenta: Mi cuenta, Soporte, NODOS Panel (administradores) y Salir. */}
+        {/* Cuenta: Mi cuenta, Configuración, Soporte, NODOS Panel (administradores) y Salir. */}
         <div className="order-2 ml-auto flex shrink-0 items-center lg:order-3">
-          <CuentaMenu perfil={perfil} />
+          <CuentaMenu perfil={perfil} herramientas={() => <HerramientasCuenta />} />
         </div>
       </div>
     </nav>

@@ -34,7 +34,7 @@ export interface Campo {
   optionsFromAccionistas?: boolean;
 }
 
-export type GrupoPlantilla = "societario" | "poderes" | "familia" | "seprelad";
+export type GrupoPlantilla = "societario" | "poderes" | "familia" | "seprelad" | "laboral";
 
 export interface Plantilla {
   /** Identificador estable: se guarda en `documentos.plantilla` y en
@@ -1464,6 +1464,286 @@ ${firmas([{ nombre: str(d, "responsable") ? esc(str(d, "responsable")) : "&nbsp;
   },
 };
 
+// ─── Laboral (LAB) ───────────────────────────────────────────────────────
+// Base verificada en la Ley N.º 213/1993 (Código del Trabajo): art. 46
+// (contenido del contrato escrito), art. 62 inc. ll) (constancia de servicios
+// a pedido del trabajador), art. 87 (plazos de preaviso) y art. 93 (constancia
+// al terminar el contrato). Lo demás se describe sin citar artículos.
+
+const TODOS_Y_PERSONAS_LAB: TipoSociedad[] = ["sa", "eas", "srl", "unipersonal", "ruc_personal"];
+
+const CAMPOS_TRABAJADOR: Campo[] = [
+  { key: "trabajador", label: "Nombre completo del trabajador", type: "text", required: true },
+  { key: "trabajador_ci", label: "C.I. del trabajador", type: "text", required: true },
+];
+
+function fechaSimple(d: Datos, key: string, ph: string): string {
+  return str(d, key) ? formatFecha(str(d, key)) : `<span class="ph">[${esc(ph)}]</span>`;
+}
+
+function empleadorCorto(ctx: Contexto): string {
+  return `${denom(ctx)}${ctx.empresa.ruc ? ` (RUC N° ${esc(ctx.empresa.ruc)})` : ""}`;
+}
+
+const labContrato: Plantilla = {
+  key: "lab-contrato-trabajo",
+  numero: "LAB-01",
+  grupo: "laboral",
+  titulo: "Contrato individual de trabajo",
+  descripcion: "Contrato escrito con el contenido que pide el art. 46 del Código del Trabajo: partes, tarea, salario, jornada, lugar y duración.",
+  tipos: TODOS_Y_PERSONAS_LAB,
+  campos: [
+    ...CAMPOS_EMPLEADOR,
+    ...CAMPOS_TRABAJADOR,
+    { key: "edad", label: "Edad", type: "number", help: "Si es menor de 18 años no uses este modelo sin asesoramiento: el trabajo adolescente tiene reglas propias." },
+    { key: "estado_civil", label: "Estado civil", type: "text" },
+    { key: "nacionalidad", label: "Nacionalidad", type: "text", default: () => "paraguaya" },
+    { key: "trabajador_domicilio", label: "Domicilio del trabajador", type: "text" },
+    { key: "cargo", label: "Cargo", type: "text", required: true },
+    { key: "funciones", label: "Funciones principales (una por línea)", type: "textarea", required: true },
+    { key: "lugar", label: "Lugar de prestación", type: "text", default: (c) => [c.empresa.domicilio, c.empresa.ciudad].filter(Boolean).join(", ") },
+    { key: "salario", label: "Salario mensual (Gs.)", type: "number", required: true },
+    { key: "forma_pago", label: "Forma y fecha de pago", type: "text", default: () => "mensualmente, dentro de los primeros cinco días del mes siguiente, por transferencia bancaria" },
+    { key: "jornada", label: "Jornada", type: "text", default: () => "de lunes a viernes de 08:00 a 17:00 horas, con una hora de descanso" },
+    {
+      key: "duracion",
+      label: "Duración",
+      type: "select",
+      options: [
+        { value: "indefinido", label: "Por tiempo indefinido" },
+        { value: "determinado", label: "Por tiempo determinado" },
+      ],
+      default: () => "indefinido",
+    },
+    { key: "fin", label: "Fecha de finalización", type: "date", help: "Solo si es por tiempo determinado." },
+    { key: "inicio", label: "Fecha de inicio", type: "date", required: true },
+    { key: "adicionales", label: "Cláusulas adicionales (opcional)", type: "textarea" },
+  ],
+  tituloDoc: (d) => `Contrato de trabajo — ${str(d, "trabajador") || "trabajador"}`,
+  render: (d, ctx) => {
+    const funciones = lines(d, "funciones");
+    const datos = [
+      str(d, "edad") ? `de ${esc(str(d, "edad"))} años de edad` : "",
+      str(d, "estado_civil") ? `estado civil ${esc(str(d, "estado_civil"))}` : "",
+      str(d, "nacionalidad") ? `de nacionalidad ${esc(str(d, "nacionalidad"))}` : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const duracion = str(d, "duracion") === "determinado" ? `por tiempo determinado, hasta el ${fechaSimple(d, "fin", "FECHA DE FINALIZACIÓN")}` : "por tiempo indefinido";
+    return `
+${encabezado("Contrato individual de trabajo")}
+<p>En la ciudad de ${ciudad(d, ctx)}, República del Paraguay, ${fechaActa(d)}, entre:</p>
+<p>${partesEmpresa(d, ctx, "EL EMPLEADOR")}; y</p>
+<p>${v(d, "trabajador", "NOMBRE DEL TRABAJADOR")}${datos ? `, ${datos}` : ""}, con C.I. N° ${v(d, "trabajador_ci", "C.I.")}, con domicilio en ${v(d, "trabajador_domicilio", "DOMICILIO")}, en adelante "EL TRABAJADOR";</p>
+<p>convienen en celebrar el presente contrato individual de trabajo, que se regirá por el Código del Trabajo y las siguientes cláusulas:</p>
+<p><strong>PRIMERA – Cargo y funciones.</strong> EL TRABAJADOR se desempeñará en el cargo de ${v(d, "cargo", "CARGO")}, con las siguientes funciones principales:</p>
+<ul>${funciones.length ? funciones.map((f) => `<li>${esc(f)}</li>`).join("") : '<li><span class="ph">[FUNCIONES]</span></li>'}<li>Las demás tareas propias del cargo.</li></ul>
+<p>Prestará sus servicios en ${v(d, "lugar", "LUGAR DE PRESTACIÓN")}.</p>
+<p><strong>SEGUNDA – Remuneración.</strong> EL EMPLEADOR abonará a EL TRABAJADOR un salario mensual de ${str(d, "salario") ? montoGs(str(d, "salario")) : '<span class="ph">[MONTO]</span>'}, pagadero ${v(d, "forma_pago", "FORMA Y FECHA DE PAGO")}.</p>
+<p><strong>TERCERA – Jornada.</strong> La jornada de trabajo será ${v(d, "jornada", "JORNADA")}, dentro de los límites establecidos por la ley.</p>
+<p><strong>CUARTA – Duración.</strong> El presente contrato se celebra ${duracion}, con fecha de inicio el ${fechaSimple(d, "inicio", "FECHA DE INICIO")}.</p>
+<p><strong>QUINTA – Seguridad social.</strong> EL EMPLEADOR inscribirá a EL TRABAJADOR en el Instituto de Previsión Social y lo registrará ante el Ministerio de Trabajo, Empleo y Seguridad Social, realizando los aportes que correspondan.</p>
+<p><strong>SEXTA – Confidencialidad.</strong> EL TRABAJADOR guardará reserva sobre la información de EL EMPLEADOR a la que acceda con motivo de su trabajo.</p>
+${str(d, "adicionales") ? `<p><strong>SÉPTIMA – Estipulaciones adicionales.</strong> ${esc(str(d, "adicionales"))}</p>` : ""}
+<p>En prueba de conformidad, se firman dos ejemplares de un mismo tenor y a un solo efecto, quedando uno en poder de cada parte.</p>
+${firmas([
+  { nombre: str(d, "representante") ? `${esc(str(d, "representante"))}<br/><span class="cargo">por ${esc(ctx.empresa.denominacion)}</span>` : "&nbsp;", cargo: "EL EMPLEADOR" },
+  { nombre: str(d, "trabajador") ? esc(str(d, "trabajador")) : "&nbsp;", cargo: "EL TRABAJADOR" },
+])}
+<p class="nota">Base: Código del Trabajo (Ley N.º 213/1993), art. 46 (contenido del contrato escrito). Revisá el período de prueba, el salario mínimo vigente y el convenio colectivo si lo hay.</p>`;
+  },
+};
+
+const labConstancia: Plantilla = {
+  key: "lab-constancia-trabajo",
+  numero: "LAB-02",
+  grupo: "laboral",
+  titulo: "Constancia de trabajo",
+  descripcion: "Constancia de servicios para un trabajador en actividad que la pide (banco, alquiler, trámite). Art. 62 inc. ll) del Código del Trabajo.",
+  tipos: TODOS_Y_PERSONAS_LAB,
+  campos: [
+    { key: "fecha", label: "Fecha", type: "date", required: true },
+    { key: "ciudad", label: "Ciudad", type: "text", default: (c) => c.empresa.ciudad ?? "" },
+    ...CAMPOS_TRABAJADOR,
+    { key: "cargo", label: "Cargo", type: "text", required: true },
+    { key: "inicio", label: "Trabaja desde", type: "date", required: true },
+    { key: "incluir_salario", label: "Incluir el salario", type: "checkbox", help: "Solo si el trabajador lo pide." },
+    { key: "salario", label: "Salario mensual (Gs.)", type: "number", showIf: "incluir_salario" },
+    { key: "destino", label: "Para presentar ante (opcional)", type: "text" },
+    { key: "representante", label: "Firma por la empresa", type: "text", default: presidenteDefault },
+    { key: "representante_cargo", label: "Cargo de quien firma", type: "text", default: (c) => (c.empresa.tipo === "srl" ? "Gerente" : "Presidente") },
+  ],
+  tituloDoc: (d) => `Constancia de trabajo — ${str(d, "trabajador") || "trabajador"}`,
+  render: (d, ctx) => `
+${encabezado("Constancia de trabajo")}
+<p class="right">${ciudad(d, ctx)}, ${fechaSimple(d, "fecha", "FECHA")}</p>
+<p>${str(d, "destino") ? `Señores ${esc(str(d, "destino"))}` : "A quien corresponda"}:</p>
+<p>${empleadorCorto(ctx)} hace constar que ${v(d, "trabajador", "NOMBRE DEL TRABAJADOR")}, con C.I. N° ${v(d, "trabajador_ci", "C.I.")}, presta servicios en la empresa desde el ${fechaSimple(d, "inicio", "FECHA DE INGRESO")}, en el cargo de ${v(d, "cargo", "CARGO")}${on(d, "incluir_salario") && str(d, "salario") ? `, con un salario mensual de ${montoGs(str(d, "salario"))}` : ""}.</p>
+<p>Se extiende la presente a pedido del interesado, para los fines que estime convenientes.</p>
+${firmas([{ nombre: str(d, "representante") ? esc(str(d, "representante")) : "&nbsp;", cargo: `${str(d, "representante_cargo") || "Por la empresa"} · ${ctx.empresa.denominacion}` }])}
+<p class="nota">Base: Código del Trabajo (Ley N.º 213/1993), art. 62 inc. ll): el empleador expide gratuitamente, a pedido del trabajador, una constancia escrita relativa a sus servicios.</p>`,
+};
+
+const labConstanciaFin: Plantilla = {
+  key: "lab-constancia-terminacion",
+  numero: "LAB-03",
+  grupo: "laboral",
+  titulo: "Constancia de terminación de la relación laboral",
+  descripcion: "La constancia que se entrega al terminar cualquier contrato: fechas de inicio y fin, clase de trabajo y salarios del último período (art. 93).",
+  tipos: TODOS_Y_PERSONAS_LAB,
+  campos: [
+    { key: "fecha", label: "Fecha", type: "date", required: true },
+    { key: "ciudad", label: "Ciudad", type: "text", default: (c) => c.empresa.ciudad ?? "" },
+    ...CAMPOS_TRABAJADOR,
+    { key: "cargo", label: "Clase de trabajo realizado", type: "text", required: true },
+    { key: "inicio", label: "Inicio de labores", type: "date", required: true },
+    { key: "fin", label: "Fin de labores", type: "date", required: true },
+    { key: "salario", label: "Salario del último período de pago (Gs.)", type: "number", required: true },
+    { key: "representante", label: "Firma por la empresa", type: "text", default: presidenteDefault },
+  ],
+  tituloDoc: (d) => `Constancia de terminación — ${str(d, "trabajador") || "trabajador"}`,
+  render: (d, ctx) => `
+${encabezado("Constancia de terminación de la relación laboral")}
+<p class="right">${ciudad(d, ctx)}, ${fechaSimple(d, "fecha", "FECHA")}</p>
+<p>${empleadorCorto(ctx)} deja constancia de que ${v(d, "trabajador", "NOMBRE DEL TRABAJADOR")}, con C.I. N° ${v(d, "trabajador_ci", "C.I.")}, prestó servicios en la empresa:</p>
+<ul>
+<li>Fecha de inicio de labores: ${fechaSimple(d, "inicio", "FECHA DE INICIO")}.</li>
+<li>Fecha de terminación de labores: ${fechaSimple(d, "fin", "FECHA DE FIN")}.</li>
+<li>Clase de trabajo ejecutado: ${v(d, "cargo", "CARGO O TAREA")}.</li>
+<li>Salario devengado durante el último período de pago: ${str(d, "salario") ? montoGs(str(d, "salario")) : '<span class="ph">[MONTO]</span>'}.</li>
+</ul>
+<p>Se entrega gratuitamente al trabajador.</p>
+${firmas([
+  { nombre: str(d, "representante") ? esc(str(d, "representante")) : "&nbsp;", cargo: `Por ${ctx.empresa.denominacion}` },
+  { nombre: str(d, "trabajador") ? esc(str(d, "trabajador")) : "&nbsp;", cargo: "Recibí conforme" },
+])}
+<p class="nota">Base: Código del Trabajo (Ley N.º 213/1993), art. 93: al terminar todo contrato, el empleador entrega gratuitamente una constancia firmada que exprese únicamente estos datos. No agregues juicios sobre el desempeño ni el motivo del retiro.</p>`,
+};
+
+function plazoPreaviso(inicio: string, fecha: string): { dias: number; texto: string } | null {
+  if (!inicio || !fecha) return null;
+  const a = new Date(`${inicio}T12:00:00`);
+  const b = new Date(`${fecha}T12:00:00`);
+  const anios = (b.getTime() - a.getTime()) / (365.25 * 24 * 3600 * 1000);
+  if (!(anios >= 0)) return null;
+  if (anios <= 1) return { dias: 30, texto: "treinta (30) días" };
+  if (anios <= 5) return { dias: 45, texto: "cuarenta y cinco (45) días" };
+  if (anios <= 10) return { dias: 60, texto: "sesenta (60) días" };
+  return { dias: 90, texto: "noventa (90) días" };
+}
+
+const labPreaviso: Plantilla = {
+  key: "lab-preaviso",
+  numero: "LAB-04",
+  grupo: "laboral",
+  titulo: "Preaviso de terminación del contrato",
+  descripcion: "Notificación de preaviso en un contrato por tiempo indefinido, con el plazo que corresponde según la antigüedad (art. 87).",
+  tipos: TODOS_Y_PERSONAS_LAB,
+  aviso: "Terminar un contrato tiene consecuencias (indemnización, estabilidad, causas justificadas). Revisá el caso con un profesional antes de notificar.",
+  campos: [
+    { key: "fecha", label: "Fecha de la notificación", type: "date", required: true },
+    { key: "ciudad", label: "Ciudad", type: "text", default: (c) => c.empresa.ciudad ?? "" },
+    ...CAMPOS_TRABAJADOR,
+    { key: "cargo", label: "Cargo", type: "text" },
+    { key: "inicio", label: "Fecha de ingreso", type: "date", required: true },
+    { key: "representante", label: "Firma por la empresa", type: "text", default: presidenteDefault },
+  ],
+  tituloDoc: (d) => `Preaviso — ${str(d, "trabajador") || "trabajador"}`,
+  render: (d, ctx) => {
+    const pz = plazoPreaviso(str(d, "inicio"), str(d, "fecha"));
+    let finTxt = '<span class="ph">[FECHA EN QUE VENCE EL PREAVISO]</span>';
+    if (pz && str(d, "fecha")) {
+      const f = new Date(`${str(d, "fecha")}T12:00:00`);
+      f.setDate(f.getDate() + pz.dias);
+      finTxt = formatFecha(f.toISOString().slice(0, 10));
+    }
+    return `
+${encabezado("Notificación de preaviso")}
+<p class="right">${ciudad(d, ctx)}, ${fechaSimple(d, "fecha", "FECHA")}</p>
+<p>Señor/a ${v(d, "trabajador", "NOMBRE DEL TRABAJADOR")}<br/>C.I. N° ${v(d, "trabajador_ci", "C.I.")}${str(d, "cargo") ? `<br/>${esc(str(d, "cargo"))}` : ""}</p>
+<p>Por la presente, ${empleadorCorto(ctx)} le comunica su decisión de dar por terminado el contrato de trabajo por tiempo indefinido que lo vincula con la empresa desde el ${fechaSimple(d, "inicio", "FECHA DE INGRESO")}, otorgándole un preaviso de ${pz ? pz.texto : '<span class="ph">[PLAZO]</span>'}, conforme a su antigüedad. La relación laboral concluirá el ${finTxt}.</p>
+<p>Durante el plazo de preaviso usted cuenta con el tiempo que establece la ley para buscar una nueva ocupación, sin pérdida de su salario. Al término se le abonará la liquidación que corresponda y se le entregará la constancia de terminación.</p>
+${firmas([
+  { nombre: str(d, "representante") ? esc(str(d, "representante")) : "&nbsp;", cargo: `Por ${ctx.empresa.denominacion}` },
+  { nombre: str(d, "trabajador") ? esc(str(d, "trabajador")) : "&nbsp;", cargo: "Recibí copia (firma y fecha)" },
+])}
+<p class="nota">Base: Código del Trabajo (Ley N.º 213/1993), art. 87: preaviso de 30 días hasta un año de antigüedad, 45 días de más de uno a cinco años, 60 días de más de cinco a diez años y 90 días de más de diez años. Confirmá si el trabajador tiene estabilidad u otra protección especial.</p>`;
+  },
+};
+
+const labRecibo: Plantilla = {
+  key: "lab-recibo-salario",
+  numero: "LAB-05",
+  grupo: "laboral",
+  titulo: "Recibo de salario",
+  descripcion: "Recibo mensual con salario, otros haberes, descuentos (aporte al IPS y otros) y neto cobrado.",
+  tipos: TODOS_Y_PERSONAS_LAB,
+  campos: [
+    { key: "fecha", label: "Fecha de pago", type: "date", required: true },
+    { key: "periodo", label: "Período (ej.: octubre de 2026)", type: "text", required: true },
+    ...CAMPOS_TRABAJADOR,
+    { key: "cargo", label: "Cargo", type: "text" },
+    { key: "salario", label: "Salario del período (Gs.)", type: "number", required: true },
+    { key: "haberes", label: "Otros haberes (Concepto | Monto, uno por línea)", type: "textarea", help: "Horas extra, bonificación familiar, comisiones." },
+    { key: "descuentos", label: "Descuentos (Concepto | Monto, uno por línea)", type: "textarea", help: "Aporte obrero al IPS, anticipos, etc. Confirmá el porcentaje vigente." },
+  ],
+  tituloDoc: (d) => `Recibo de salario ${str(d, "periodo")} — ${str(d, "trabajador") || "trabajador"}`,
+  render: (d, ctx) => {
+    const num = (x: string) => Number(x.replace(/\./g, "").replace(/,/g, ".").replace(/[^\d.-]/g, "")) || 0;
+    const parse = (k: string) => lines(d, k).map((l) => l.split("|").map((x) => x.trim())).map(([c = "", m = ""]) => ({ c, m: num(m) }));
+    const hab = parse("haberes");
+    const des = parse("descuentos");
+    const base = num(str(d, "salario"));
+    const total = base + hab.reduce((a, x) => a + x.m, 0);
+    const neto = total - des.reduce((a, x) => a + x.m, 0);
+    const gs = (n: number) => `Gs. ${Math.round(n).toLocaleString("es-PY")}`;
+    const fila = (c: string, m: number) => `<tr><td>${esc(c)}</td><td class="num">${m ? gs(m) : ""}</td></tr>`;
+    return `
+${encabezado("Recibo de salario")}
+<p><strong>Empleador:</strong> ${empleadorCorto(ctx)}<br/><strong>Trabajador:</strong> ${v(d, "trabajador", "NOMBRE")} · C.I. N° ${v(d, "trabajador_ci", "C.I.")}${str(d, "cargo") ? ` · ${esc(str(d, "cargo"))}` : ""}<br/><strong>Período:</strong> ${v(d, "periodo", "PERÍODO")}</p>
+<table class="tabla"><thead><tr><th>Haberes</th><th class="num">Monto</th></tr></thead><tbody>
+${fila("Salario", base)}${hab.map((h) => fila(h.c, h.m)).join("")}
+<tr><td><strong>Total haberes</strong></td><td class="num"><strong>${gs(total)}</strong></td></tr></tbody></table>
+<table class="tabla"><thead><tr><th>Descuentos</th><th class="num">Monto</th></tr></thead><tbody>
+${des.length ? des.map((x) => fila(x.c, x.m)).join("") : "<tr><td>Sin descuentos</td><td></td></tr>"}</tbody></table>
+<p><strong>Neto cobrado: ${montoGs(String(neto))}</strong></p>
+<p>Recibí conforme el importe neto detallado, en ${ciudad(d, ctx)}, el ${fechaSimple(d, "fecha", "FECHA")}.</p>
+${firmas([{ nombre: str(d, "trabajador") ? esc(str(d, "trabajador")) : "&nbsp;", cargo: "Firma del trabajador" }])}
+<p class="nota">Conservá una copia firmada de cada recibo. Los porcentajes de aporte al IPS y el salario mínimo cambian: confirmalos antes de liquidar.</p>`;
+  },
+};
+
+const labVacaciones: Plantilla = {
+  key: "lab-vacaciones",
+  numero: "LAB-06",
+  grupo: "laboral",
+  titulo: "Comunicación de vacaciones",
+  descripcion: "Aviso al trabajador de las fechas de sus vacaciones anuales y del día en que se reintegra.",
+  tipos: TODOS_Y_PERSONAS_LAB,
+  campos: [
+    { key: "fecha", label: "Fecha de la comunicación", type: "date", required: true },
+    { key: "ciudad", label: "Ciudad", type: "text", default: (c) => c.empresa.ciudad ?? "" },
+    ...CAMPOS_TRABAJADOR,
+    { key: "periodo", label: "Año de servicio al que corresponden", type: "text", help: "Ej.: 2025–2026" },
+    { key: "desde", label: "Desde", type: "date", required: true },
+    { key: "hasta", label: "Hasta", type: "date", required: true },
+    { key: "dias", label: "Días de vacaciones", type: "number", required: true, help: "Según la antigüedad del trabajador. Confirmá los días que le corresponden." },
+    { key: "reintegro", label: "Fecha de reintegro", type: "date", required: true },
+    { key: "representante", label: "Firma por la empresa", type: "text", default: presidenteDefault },
+  ],
+  tituloDoc: (d) => `Vacaciones — ${str(d, "trabajador") || "trabajador"}`,
+  render: (d, ctx) => `
+${encabezado("Comunicación de vacaciones")}
+<p class="right">${ciudad(d, ctx)}, ${fechaSimple(d, "fecha", "FECHA")}</p>
+<p>Señor/a ${v(d, "trabajador", "NOMBRE DEL TRABAJADOR")} · C.I. N° ${v(d, "trabajador_ci", "C.I.")}</p>
+<p>${empleadorCorto(ctx)} le comunica que usufructuará sus vacaciones anuales remuneradas${str(d, "periodo") ? ` correspondientes al período ${esc(str(d, "periodo"))}` : ""}, por ${v(d, "dias", "__")} días, desde el ${fechaSimple(d, "desde", "INICIO")} hasta el ${fechaSimple(d, "hasta", "FIN")}, debiendo reintegrarse a sus labores el ${fechaSimple(d, "reintegro", "REINTEGRO")}.</p>
+${firmas([
+  { nombre: str(d, "representante") ? esc(str(d, "representante")) : "&nbsp;", cargo: `Por ${ctx.empresa.denominacion}` },
+  { nombre: str(d, "trabajador") ? esc(str(d, "trabajador")) : "&nbsp;", cargo: "Notificado (firma y fecha)" },
+])}
+<p class="nota">Las vacaciones anuales remuneradas las regula el Código del Trabajo (Ley N.º 213/1993); los días dependen de la antigüedad. Avisá con anticipación y guardá la copia firmada.</p>`,
+};
+
 export const PLANTILLAS: Plantilla[] = [
   actaDirectorioConvocatoria,
   edicto,
@@ -1489,6 +1769,12 @@ export const PLANTILLAS: Plantilla[] = [
   constanciaManual,
   planCapacitacion,
   informeControlInterno,
+  labContrato,
+  labConstancia,
+  labConstanciaFin,
+  labPreaviso,
+  labRecibo,
+  labVacaciones,
 ];
 
 /** Orden de las secciones del selector y prefijo de cada código. */
@@ -1497,6 +1783,7 @@ export const GRUPO_LABELS: Record<GrupoPlantilla, string> = {
   poderes: "Poderes",
   familia: "Familiares en la empresa",
   seprelad: "Cumplimiento SEPRELAD (PLA/FT)",
+  laboral: "Laboral",
 };
 
 export const GRUPO_PREFIJO: Record<GrupoPlantilla, string> = {
@@ -1504,6 +1791,7 @@ export const GRUPO_PREFIJO: Record<GrupoPlantilla, string> = {
   poderes: "POD",
   familia: "FAM",
   seprelad: "SEP",
+  laboral: "LAB",
 };
 
 export function grupoDe(p: Plantilla): GrupoPlantilla {
