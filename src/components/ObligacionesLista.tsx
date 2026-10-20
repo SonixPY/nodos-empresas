@@ -104,6 +104,7 @@ export default function ObligacionesLista({
               <div className="min-w-0 flex-1">
                 <button type="button" onClick={() => setAbierta(open ? null : o.id)} className="block w-full text-left">
                   <span className={`text-sm ${o.estado === "hecho" ? "text-carbon/45 line-through" : "text-carbon"}`}>{o.titulo}</span>
+                  {o.descripcion && !open && o.estado !== "hecho" && <span className="mt-0.5 block line-clamp-2 text-xs leading-snug text-carbon/60">{o.descripcion}</span>}
                   <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                     <span className="text-xs text-carbon/55">{formatFecha(o.fecha)}</span>
                     <EstadoFecha o={o} />
