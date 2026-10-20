@@ -10,17 +10,20 @@ import { mensajeError } from "@/lib/nodos/errores";
 export default function ObligacionForm({
   empresas,
   empresaId,
+  fechaInicial,
   onCreated,
   onCancel,
 }: {
   empresas: Empresa[];
   empresaId?: string;
+  /** Fecha elegida desde el calendario. */
+  fechaInicial?: string;
   onCreated: (o: Obligacion) => void;
   onCancel: () => void;
 }) {
   const [empresa, setEmpresa] = useState(empresaId ?? empresas[0]?.id ?? "");
   const [titulo, setTitulo] = useState("");
-  const [fecha, setFecha] = useState(todayIso());
+  const [fecha, setFecha] = useState(fechaInicial ?? todayIso());
   const [categoria, setCategoria] = useState<CategoriaObligacion>("societario");
   const [descripcion, setDescripcion] = useState("");
   const [saving, setSaving] = useState(false);

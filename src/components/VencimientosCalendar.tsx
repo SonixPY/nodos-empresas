@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight, FileText, RotateCcw } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, FileText, Plus, RotateCcw } from "lucide-react";
 import { buildMonthWeeks, DOW_LABELS } from "@/lib/calendario";
 import { daysUntil, formatFechaLarga, MESES, todayIso } from "@/lib/dates";
 import { getPlantilla } from "@/lib/plantillas";
@@ -38,8 +38,11 @@ export default function VencimientosCalendar({
   empresas,
   mostrarEmpresa = false,
   onChange,
+  onAgregar,
   title = "Calendario de vencimientos",
 }: {
+  /** Si viene, cualquier día se puede tocar para agregar un vencimiento en esa fecha. */
+  onAgregar?: (fecha: string) => void;
   obligaciones: Obligacion[];
   empresas?: Empresa[];
   mostrarEmpresa?: boolean;
@@ -161,6 +164,7 @@ export default function VencimientosCalendar({
         {weeks.flat().map((d) => {
           const lista = byDate.get(d.date);
           const has = !!lista && lista.length > 0;
+          const tocable = has || (!!onAgregar && d.inMonth);
           const tono = has ? TONO[tonoDe(lista, hoy)] : null;
           const isToday = d.date === hoy;
           const ring =
@@ -177,17 +181,19 @@ export default function VencimientosCalendar({
               type="button"
               onMouseEnter={() => has && setActive(d.date)}
               onMouseLeave={() => setActive(null)}
-              onClick={() => has && setPinned((p) => (p === d.date ? null : d.date))}
-              aria-label={has ? `${formatFechaLarga(d.date)}: ${lista.length} vencimiento${lista.length === 1 ? "" : "s"}` : undefined}
-              aria-pressed={has ? pinned === d.date : undefined}
-              tabIndex={has ? 0 : -1}
+              onClick={() => tocable && setPinned((p) => (p === d.date ? null : d.date))}
+              aria-label={
+                has ? `${formatFechaLarga(d.date)}: ${lista.length} vencimiento${lista.length === 1 ? "" : "s"}` : tocable ? `${formatFechaLarga(d.date)}: agregar` : undefined
+              }
+              aria-pressed={tocable ? pinned === d.date : undefined}
+              tabIndex={tocable ? 0 : -1}
               className="relative flex aspect-square min-w-0 flex-col items-center justify-center gap-1 overflow-hidden text-xs transition sm:aspect-auto sm:h-16 lg:h-[72px]"
               style={{
                 borderRadius: "var(--radius-md)",
                 background: tono ? tono.bg : d.inMonth ? "rgba(52, 72, 58, 0.05)" : "transparent",
                 color: tono ? tono.color : d.inMonth ? "var(--color-carbon)" : "rgba(36,37,34,0.25)",
                 boxShadow: ring,
-                cursor: has ? "pointer" : "default",
+                cursor: tocable ? "pointer" : "default",
                 opacity: d.inMonth ? 1 : 0.4,
                 fontWeight: has ? 600 : 400,
               }}
@@ -225,17 +231,25 @@ export default function VencimientosCalendar({
       </div>
 
       <div className="mt-3 min-h-16 border-t pt-3 text-xs text-carbon/70" style={{ borderColor: "var(--line)" }}>
-        {shown && shownList.length > 0 ? (
+        {shown && (shownList.length > 0 || (onAgregar && pinned === shown)) ? (
           <div className="animate-fade-in">
             <div className="mb-2 flex items-baseline justify-between gap-2">
               <span className="text-sm font-medium text-carbon">{formatFechaLarga(shown)}</span>
               {!pinned && <span className="hidden text-[11px] text-carbon/45 sm:inline">Hacé click para fijar el día</span>}
               {pinned && (
-                <button type="button" onClick={() => setPinned(null)} className="text-[11px] text-carbon/50 hover:underline">
-                  Cerrar
-                </button>
+                <span className="flex items-center gap-3">
+                  {onAgregar && (
+                    <button type="button" onClick={() => onAgregar(pinned)} className="inline-flex items-center gap-1 text-xs font-medium text-cobre-hover hover:underline">
+                      <Plus size={13} aria-hidden /> Agregar acá
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setPinned(null)} className="text-[11px] text-carbon/50 hover:underline">
+                    Cerrar
+                  </button>
+                </span>
               )}
             </div>
+            {shownList.length === 0 && <p className="text-sm text-carbon/55">Nada para este día. Agregá un vencimiento o un recordatorio.</p>}
             <ul className="space-y-2">
               {shownList.map((o) => {
                 const plantilla = getPlantilla(o.plantilla);
@@ -245,6 +259,7 @@ export default function VencimientosCalendar({
                     <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: CATEGORIA_COLOR[o.categoria] }} />
                     <div className="min-w-0 flex-1">
                       <span className={`block text-sm ${hecho ? "text-carbon/45 line-through" : "text-carbon"}`}>{o.titulo}</span>
+                      {o.descripcion && <span className="mt-0.5 block text-xs leading-snug text-carbon/60">{o.descripcion}</span>}
                       <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                         <EstadoFecha o={o} />
                         {mostrarEmpresa && <span className="text-xs text-carbon/55">{nombres.get(o.empresa_id) ?? ""}</span>}
@@ -285,7 +300,7 @@ export default function VencimientosCalendar({
         ) : obligaciones.length === 0 ? (
           <span>No hay vencimientos con estos filtros.</span>
         ) : (
-          <span>Pasá el mouse (o tocá) un día para ver el detalle.</span>
+          <span>{onAgregar ? "Tocá un día para ver el detalle o agregar un vencimiento." : "Pasá el mouse (o tocá) un día para ver el detalle."}</span>
         )}
       </div>
     </div>

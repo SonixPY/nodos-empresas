@@ -1,35 +1,14 @@
 "use client";
 
+import BandaResumen from "@/components/nodos/BandaResumen";
 import { SkeletonStatTiles } from "@/components/Skeleton";
 
-function fechaLarga(): string {
-  const s = new Date().toLocaleDateString("es-PY", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-/** Banda de saludo del Resumen (mismo formato que el Resumen de NODOS
- * Finanzas): fecha, "Hola, <nombre>", una línea de estado y, debajo, lo que
- * se pase como `children` (la tira de novedades). */
+/** Banda de saludo del Resumen: la compartida, minimizable. */
 export function ResumenBanner({ nombre, subtitulo, children }: { nombre: string | null; subtitulo: string; children?: React.ReactNode }) {
   return (
-    <section className="relative mb-6 overflow-hidden rounded-2xl bg-musgo px-5 py-7 text-marfil sm:px-8">
-      <div className="relative z-10">
-        <p className="t-caption uppercase tracking-[0.14em] text-cobre" suppressHydrationWarning>
-          {fechaLarga()}
-        </p>
-        <h1 className="mt-1 !text-marfil">{nombre ? `Hola, ${nombre}` : "Resumen"}</h1>
-        <p className="t-body-lg mt-1 max-w-xl text-marfil/75">{subtitulo}</p>
-        {children}
-      </div>
-      <svg aria-hidden="true" viewBox="0 0 220 220" className="pointer-events-none absolute -right-10 -top-10 h-56 w-56 opacity-10">
-        <g fill="none" stroke="#b8734a" strokeWidth="6" strokeLinejoin="round">
-          <polyline points="110,118 66,118 54,106 54,64" />
-          <polyline points="110,118 64,118 50,132" />
-          <polyline points="110,118 110,74 122,62 157,62" />
-        </g>
-        <circle cx="110" cy="118" r="24" fill="#b8734a" />
-      </svg>
-    </section>
+    <BandaResumen nombre={nombre} subtitulo={subtitulo} etiqueta="novedades">
+      {children}
+    </BandaResumen>
   );
 }
 

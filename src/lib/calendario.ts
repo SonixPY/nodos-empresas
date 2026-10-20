@@ -25,6 +25,9 @@ interface Regla {
   categoria: CategoriaObligacion;
   tipos: TipoSociedad[];
   plantilla?: string;
+  /** Buena práctica de empresa familiar, no obligación legal: no se genera
+   * sola, se ofrece como sugerencia para agregar. */
+  sugerida?: true;
   fecha: (ctx: Contexto) => string | null;
 }
 
@@ -165,6 +168,7 @@ const REGLAS: Regla[] = [
   },
   {
     regla: "revision_libros",
+    sugerida: true,
     titulo: "Revisión de medio año: libros societarios al día",
     descripcion: "Actas firmadas, registro de acciones actualizado y libros rubricados en orden.",
     categoria: "interno",
@@ -173,6 +177,7 @@ const REGLAS: Regla[] = [
   },
   {
     regla: "revision_poderes",
+    sugerida: true,
     titulo: "Revisión de poderes y firmas autorizadas",
     descripcion:
       "Poderes vigentes, firmas registradas en bancos y accesos a sistemas de organismos (DNIT, IPS, MTESS). Revocá lo que ya no corresponde.",
@@ -183,6 +188,7 @@ const REGLAS: Regla[] = [
   },
   {
     regla: "planificacion_sucesion",
+    sugerida: true,
     titulo: "Reunión familiar: gobierno y sucesión",
     descripcion:
       "¿Hay que incorporar a la siguiente generación, cambiar autoridades o ajustar estatutos el año próximo? Es el momento de planificarlo.",
@@ -220,10 +226,24 @@ const REGLAS: Regla[] = [
  * crea vencimientos que ya nacen atrasados. Con `null`, el año completo.
  */
 export function generarObligacionesAnuales(empresa: Empresa, anio: number, desde: string | null = todayIso()): NuevaObligacion[] {
+  return armar(empresa, anio, desde, false);
+}
+
+/**
+ * Sugerencias de empresa familiar (revisión de libros, de poderes, reunión de
+ * gobierno y sucesión): no son obligaciones legales, así que no se agregan
+ * solas; el usuario elige cuáles sumar a su calendario.
+ */
+export function sugerenciasAnuales(empresa: Empresa, anio: number, desde: string | null = todayIso()): NuevaObligacion[] {
+  return armar(empresa, anio, desde, true);
+}
+
+function armar(empresa: Empresa, anio: number, desde: string | null, sugeridas: boolean): NuevaObligacion[] {
   const ctx = contextoAnual(empresa, anio);
   const out: NuevaObligacion[] = [];
   for (const r of REGLAS) {
     if (!r.tipos.includes(empresa.tipo)) continue;
+    if (!!r.sugerida !== sugeridas) continue;
     const fecha = r.fecha(ctx);
     if (!fecha) continue;
     out.push({

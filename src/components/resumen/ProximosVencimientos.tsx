@@ -76,6 +76,7 @@ export default function ProximosVencimientos({
                     >
                       {o.titulo}
                     </Link>
+                    {o.descripcion && !hecha && <p className="mt-0.5 line-clamp-1 text-xs text-carbon/55" title={o.descripcion}>{o.descripcion}</p>}
                     <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs">
                       <span className={`shrink-0 ${c.clase}`}>{c.texto}</span>
                       {nombres.get(o.empresa_id) && (

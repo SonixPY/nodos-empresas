@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { generarObligacionesAnuales } from "@/lib/calendario";
 import { fechaInicioSeprelad, generarObligacionesSeprelad, type PerfilSeprelad } from "@/lib/seprelad";
 import { mensajeError } from "@/lib/nodos/errores";
-import type { Accionista, Documento, Empresa, MovimientoAcciones, Obligacion } from "@/lib/types";
+import type { Accionista, Documento, Empresa, MovimientoAcciones, NuevaObligacion, Obligacion } from "@/lib/types";
 import type { NotaNodos } from "@/lib/novedades";
 
 interface Estado<T> {
@@ -111,6 +111,15 @@ export async function generarCalendario(empresa: Empresa, anio: number): Promise
     .upsert(filas, { onConflict: "empresa_id,regla,anio", ignoreDuplicates: true })
     .select("id");
   return { nuevas: data?.length ?? 0, error: error ? mensajeError(error) : null };
+}
+
+/** Agrega al calendario una sugerencia de empresa familiar (sin duplicar). */
+export async function agregarSugerencia(o: NuevaObligacion): Promise<{ obligacion: Obligacion | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from("obligaciones")
+    .upsert([o], { onConflict: "empresa_id,regla,anio", ignoreDuplicates: true })
+    .select("*");
+  return { obligacion: ((data ?? [])[0] as Obligacion | undefined) ?? null, error: error ? mensajeError(error) : null };
 }
 
 export async function marcarObligacion(id: string, hecho: boolean) {

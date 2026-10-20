@@ -10,6 +10,7 @@ import { MESES, parseIso, todayIso } from "@/lib/dates";
 import ObligacionesLista, { aplicarCambio } from "@/components/ObligacionesLista";
 import ObligacionForm from "@/components/ObligacionForm";
 import VencimientosCalendar from "@/components/VencimientosCalendar";
+import SugerenciasFamiliares from "@/components/SugerenciasFamiliares";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { marcarPasoVisto } from "@/components/resumen/PrimerosPasos";
@@ -30,7 +31,8 @@ function VencimientosContenido() {
   const anio = new Date().getFullYear();
   const [categoria, setCategoria] = useState<CategoriaObligacion | "todas">("todas");
   const [estado, setEstado] = useState<Estado>("pendientes");
-  const [nueva, setNueva] = useState(false);
+  // Alta abierta: false, o la fecha elegida en el calendario (true = hoy).
+  const [nueva, setNueva] = useState<boolean | string>(false);
   const [vista, setVista] = useState<Vista>("calendario");
 
   // Primeros pasos del Resumen: "Revisá tus vencimientos" queda hecho al abrir esta página.
@@ -108,6 +110,8 @@ function VencimientosContenido() {
           <ObligacionForm
             empresas={empresas.data}
             empresaId={empresa !== "todas" ? empresa : undefined}
+            fechaInicial={typeof nueva === "string" ? nueva : undefined}
+            key={typeof nueva === "string" ? nueva : "hoy"}
             onCreated={(o) => {
               setNueva(false);
               obligaciones.setData((prev) => [...prev, o].sort((a, b) => a.fecha.localeCompare(b.fecha)));
@@ -152,12 +156,24 @@ function VencimientosContenido() {
         </div>
       </div>
 
+      {!loading && (
+        <SugerenciasFamiliares
+          empresas={empresa === "todas" ? empresas.data : empresas.data.filter((e) => e.id === empresa)}
+          obligaciones={obligaciones.data}
+          onAgregada={(o) => obligaciones.setData((prev) => [...prev, o].sort((a, b) => a.fecha.localeCompare(b.fecha)))}
+        />
+      )}
+
       {obligaciones.error && <p className="mb-4 text-sm text-bad">No se pudieron cargar los vencimientos: {mensajeError(obligaciones.error)}</p>}
 
       {loading ? (
         <SkeletonTable rows={5} cols={3} />
-      ) : vista === "calendario" && empresas.data.length > 0 && obligaciones.data.length > 0 ? (
+      ) : vista === "calendario" && empresas.data.length > 0 ? (
         <VencimientosCalendar
+          onAgregar={(fecha) => {
+            setNueva(fecha);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
           obligaciones={filtradas}
           empresas={empresas.data}
           mostrarEmpresa={empresas.data.length > 1}
