@@ -206,10 +206,10 @@ function FichaEmpresa() {
               <CalendarClock size={14} aria-hidden /> Ver sus vencimientos
             </Link>
           </header>
-          {/* Una sola fila de pestañas; en celulares scrollea en horizontal en
-              vez de partirse en dos renglones. */}
+          {/* Pestañas: en celular se acomodan en dos renglones si no entran (todas a
+              la vista); desde tablet, una sola fila. */}
           <div
-            className="no-scrollbar mb-5 flex gap-1 overflow-x-auto border-b"
+            className="no-scrollbar mb-5 flex flex-wrap gap-x-1 border-b sm:flex-nowrap sm:overflow-x-auto"
             style={{ borderColor: "var(--line)" }}
             role="tablist"
           >
@@ -220,7 +220,7 @@ function FichaEmpresa() {
                 role="tab"
                 aria-selected={tab === t.key}
                 onClick={() => irA(t.key)}
-                className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition ${
+                className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-2.5 py-2 text-sm font-medium transition sm:px-3 ${
                   tab === t.key ? "border-cobre text-musgo" : "border-transparent text-carbon/55 hover:text-carbon"
                 }`}
               >
