@@ -102,6 +102,24 @@ export function urlIngreso(volverA?: string | null, vista?: "crear" | "recuperar
   return u.toString();
 }
 
+/**
+ * Ruta interna segura para `?next=`: devuelve la ruta (path + query + hash)
+ * solo si, resuelta contra este sitio, sigue en el mismo origen. Revisar
+ * `startsWith("/") && !startsWith("//")` no alcanza: el navegador trata
+ * "\" como "/" y descarta tabs y saltos de línea, así que "/\evil.com" o
+ * "/\t/evil.com" pasaban ese filtro y terminaban en https://evil.com.
+ */
+export function rutaInterna(next: string | null | undefined): string | null {
+  if (!next || !next.startsWith("/") || /[\\\u0000-\u001f\u007f]/.test(next)) return null;
+  const base = "https://interno.invalid";
+  try {
+    const u = new URL(next, base);
+    return u.origin === base ? `${u.pathname}${u.search}${u.hash}` : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Usuario válido: 3 a 20 caracteres, minúsculas, números, punto o guion bajo. */
 export const USUARIO_REGEX = /^[a-z0-9._]{3,20}$/;
 

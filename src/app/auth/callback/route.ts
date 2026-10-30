@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
-import { cookieDomainFor, esUrlNodos, urlIngreso } from "@/lib/nodos/sitios";
+import { cookieDomainFor, esUrlNodos, rutaInterna, urlIngreso } from "@/lib/nodos/sitios";
 
 /** Destino de los links de Supabase (confirmación de email, recuperar contraseña). */
 export async function GET(request: Request) {
@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const next = url.searchParams.get("next");
   // Destino: una ruta de esta app o cualquier página NODOS (p. ej. el inicio).
-  const destino = next && ((next.startsWith("/") && !next.startsWith("//")) || esUrlNodos(next)) ? next : "/";
+  const destino = rutaInterna(next) ?? (esUrlNodos(next) ? next : "/");
 
   if (code) {
     const supabase = await createSupabaseServerClient();

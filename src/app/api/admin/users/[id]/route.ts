@@ -11,6 +11,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const check = await requireAdmin();
   if (!check.ok) return NextResponse.json({ message: check.message }, { status: check.status });
+  if (!UUID.test(id)) return NextResponse.json({ message: "Cuenta inválida." }, { status: 400 });
 
   const cambios = limpiarCambios(await request.json().catch(() => null));
   if (typeof cambios === "string") return NextResponse.json({ message: cambios }, { status: 400 });

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import AuthShell from "@/components/nodos/AuthShell";
+import { rutaInterna } from "@/lib/nodos/sitios";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -36,7 +37,7 @@ function LoginForm() {
       return;
     }
     const next = params.get("next");
-    router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
+    router.push(rutaInterna(next) ?? "/");
     router.refresh();
   }
 

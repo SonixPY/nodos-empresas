@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { APP_ID } from "@/lib/nodos/app";
-import { SSO_FLAG, cookieDomainFor, urlIngreso } from "@/lib/nodos/sitios";
+import { SSO_FLAG, cookieDomainFor, rutaInterna, urlIngreso } from "@/lib/nodos/sitios";
 import { supabaseAnonKey as supabaseAnonKey_, supabaseUrl as supabaseUrlLimpia } from "@/lib/nodos/sitios";
 
 // Rutas que se ven sin sesión.
@@ -93,7 +93,8 @@ export async function proxy(request: NextRequest) {
     if (domain && empiezaCon(pathname, INGRESO)) {
       const volver = request.nextUrl.searchParams.get("next");
       const vista = pathname.startsWith("/signup") ? "crear" : pathname.startsWith("/recuperar") ? "recuperar" : undefined;
-      const destinoApp = volver && volver.startsWith("/") && !volver.startsWith("//") ? new URL(volver, publica).toString() : null;
+      const ruta = rutaInterna(volver);
+      const destinoApp = ruta ? new URL(ruta, publica).toString() : null;
       return redirigir(urlIngreso(destinoApp, vista));
     }
     if (empiezaCon(pathname, PUBLICAS)) return marcarSso(response);
@@ -147,6 +148,19 @@ export async function proxy(request: NextRequest) {
   return marcarSso(response);
 }
 
+// Las precargas de links del menú (next-router-prefetch) no pasan por el
+// proxy: antes cada una costaba 2 o 3 viajes a Supabase (10 corridas al abrir
+// el Resumen y pasar a Movimientos). Las páginas son cascarones y los datos
+// los protege RLS; la navegación real sí pasa por acá. Las APIs tampoco
+// entran (ya salían en la primera línea, ahora ni se invoca el proxy).
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|isotipo.svg|robots.txt).*)"],
+  matcher: [
+    {
+      source: "/((?!api/|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|isotipo.svg|robots.txt).*)",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
+      ],
+    },
+  ],
 };
