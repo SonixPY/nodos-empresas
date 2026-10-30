@@ -1,0 +1,26 @@
+# Control automático en cada push y PR: lint, tipos, pruebas y build.
+# No usa secretos: el build corre con un Supabase de mentira.
+name: Verificar
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx eslint src scripts
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

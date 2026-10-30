@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { User } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { requireAdmin, type CuentaAdmin } from "@/lib/nodos/adminApi";
 import { mensajeErrorAuth } from "@/lib/nodos/errores";
@@ -18,8 +19,15 @@ export async function GET() {
   if (!check.ok) return NextResponse.json({ message: check.message }, { status: check.status });
 
   const admin = createSupabaseAdminClient();
-  const { data: usersData, error: usersError } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  if (usersError) return NextResponse.json({ message: mensajeErrorAuth(usersError, "No se pudieron cargar las cuentas.") }, { status: 500 });
+  // Supabase Auth devuelve de a 1.000 cuentas como máximo: se recorren todas
+  // las páginas (antes la cuenta 1.001 en adelante no aparecía en el panel).
+  const cuentas: User[] = [];
+  for (let page = 1; page <= 100; page++) {
+    const { data, error: usersError } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (usersError) return NextResponse.json({ message: mensajeErrorAuth(usersError, "No se pudieron cargar las cuentas.") }, { status: 500 });
+    cuentas.push(...data.users);
+    if (data.users.length < 1000) break;
+  }
 
   // Si la migración de cuentas NODOS todavía no corrió, caemos a las columnas básicas.
   let migracionPendiente = false;
@@ -34,7 +42,7 @@ export async function GET() {
   }
   const porId = new Map(perfiles.map((p) => [p.id, p]));
 
-  const users: CuentaAdmin[] = usersData.users
+  const users: CuentaAdmin[] = cuentas
     .map((u) => {
       const p = porId.get(u.id);
       return {

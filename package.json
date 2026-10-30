@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "for f in scripts/probar-*.ts; do echo \"== $f\"; tsx \"$f\" || exit 1; done",
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@polar-sh/sdk": "1.0.2",
@@ -27,6 +29,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5"
   }
 }
