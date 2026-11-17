@@ -132,7 +132,7 @@ export default function CuentaPage() {
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mx-auto mb-6 max-w-2xl">
         <h1>Mi cuenta</h1>
-        <p className="mt-1 text-sm text-carbon/60">La misma cuenta para nodoscompliance.com, NODOS Finanzas, NODOS Empresas y NODOS Práctica: tus datos, tu avatar y tu plan.</p>
+        <p className="mt-1 text-sm text-carbon/60">La misma cuenta para nodoscompliance.com, NODOS Finanzas, NODOS Empresas y NODOS Aprender: tus datos y tu avatar.</p>
       </header>
 
       {cargando ? (
@@ -237,7 +237,8 @@ export default function CuentaPage() {
           <TemaSelector />
           </div>
 
-          <MiPlan />
+          {/* Con el cobro apagado (etapa gratuita) no se muestra el plan. */}
+          {process.env.NEXT_PUBLIC_SUSCRIPCIONES_ACTIVAS === "true" && <MiPlan />}
 
           <div className="mx-auto max-w-2xl">
             <DatosYBaja email={email} usuario={original.usuario} />

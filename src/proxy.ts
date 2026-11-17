@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { APP_ID } from "@/lib/nodos/app";
-import { SSO_FLAG, cookieDomainFor, rutaInterna, urlIngreso } from "@/lib/nodos/sitios";
+import { SSO_FLAG, cookieDomainFor, moduloActivo, rutaInterna, urlIngreso } from "@/lib/nodos/sitios";
 import { supabaseAnonKey as supabaseAnonKey_, supabaseUrl as supabaseUrlLimpia } from "@/lib/nodos/sitios";
 
 // Rutas que se ven sin sesión.
@@ -10,7 +10,10 @@ import { supabaseAnonKey as supabaseAnonKey_, supabaseUrl as supabaseUrlLimpia }
 const PUBLICAS = ["/login", "/signup", "/recuperar", "/nueva-clave", "/auth/callback", "/soporte", "/sin-acceso", "/vincular"];
 // Con sesión, pero sin pedir acceso a la app ni plan: NODOS Práctica es
 // gratis para cualquier cuenta NODOS (las cuentas suspendidas no entran).
-const LIBRES = ["/practica"];
+const LIBRES = ["/practica", "/aprender"];
+// Con la app cerrada (NEXT_PUBLIC_MODULOS_ACTIVOS), solo se llega a estas:
+// el aviso de cierre, la cuenta (para descargar los datos o darse de baja) y soporte.
+const CON_APP_CERRADA = ["/cerrado", "/cuenta", "/soporte", "/sin-acceso"];
 // Rutas de ingreso: con sesión abierta no tienen sentido.
 const INGRESO = ["/login", "/signup", "/recuperar"];
 // Con sesión pero sin plan vigente, solo se puede llegar a estas (si no, el
@@ -121,6 +124,12 @@ export async function proxy(request: NextRequest) {
     return redirigir("/sin-acceso");
   }
   if (libre || esAdmin) return marcarSso(response);
+
+  // App cerrada por ahora: todo lo demás va al aviso de cierre. Nada se borra;
+  // los datos siguen protegidos por RLS y se pueden descargar desde Mi cuenta.
+  if (!moduloActivo(APP_ID)) {
+    return empiezaCon(pathname, CON_APP_CERRADA) ? marcarSso(response) : redirigir("/cerrado");
+  }
 
   // Cobro de suscripciones: SOLO con SUSCRIPCIONES_ACTIVAS=true (las dos apps).
   // tiene_acceso_app decide en la base (admin, cortesía, prueba, plan vigente

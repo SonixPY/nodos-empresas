@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, ChevronDown, Globe, GraduationCap, Wallet } from "lucide-react";
+import { Building2, ChevronDown, Globe, GraduationCap, Lock, Wallet } from "lucide-react";
 import { APP_ID } from "@/lib/nodos/app";
-import { SITIOS } from "@/lib/nodos/sitios";
+import { SITIOS, moduloActivo } from "@/lib/nodos/sitios";
 import { useDesplegable } from "@/lib/nodos/useDesplegable";
 
 const PAGINAS = [
@@ -15,9 +15,10 @@ const PAGINAS = [
 
 /**
  * Logo + nombre de la app en el header. Al pasar el mouse o tocarlo despliega
- * las páginas NODOS (sitio principal, Finanzas, Empresas, Práctica) con la
- * misma sesión. `pagina` permite marcar NODOS Práctica, que vive dentro de
- * Finanzas pero tiene su propio encabezado.
+ * las páginas NODOS (sitio principal, Finanzas, Empresas, Aprender) con la
+ * misma sesión. `pagina` permite marcar NODOS Aprender, que vive dentro de
+ * Finanzas pero tiene su propio encabezado. Las apps cerradas por ahora
+ * (NEXT_PUBLIC_MODULOS_ACTIVOS) se muestran con candado y sin enlace.
  */
 export default function SitioSwitcher({ pagina }: { pagina?: "practica" } = {}) {
   const { open, rootRef, triggerRef, panelRef, onTriggerClick, onTriggerKeyDown, onPointerEnter, onPointerLeave, onBlur, onPanelClick } =
@@ -79,6 +80,22 @@ export default function SitioSwitcher({ pagina }: { pagina?: "practica" } = {}) 
                 const clase = `flex items-start gap-3 rounded-md px-3 py-2.5 transition hover:bg-marfil focus-visible:bg-marfil focus-visible:outline-none ${
                   esActual ? "bg-marfil" : ""
                 }`;
+                const cerrada = (p.id === "finanzas" || p.id === "empresas") && !moduloActivo(p.id) && !esActual;
+                if (cerrada)
+                  return (
+                    <li key={p.id} role="none">
+                      <span role="menuitem" aria-disabled="true" className="flex items-start gap-3 rounded-md px-3 py-2.5 opacity-60">
+                        <Lock size={18} className="mt-0.5 shrink-0 text-carbon/50" aria-hidden />
+                        <span className="min-w-0">
+                          <span className="flex flex-wrap items-baseline gap-x-2 text-sm font-medium text-musgo">
+                            {p.nombre}
+                            <span className="t-caption text-carbon/55">próximamente</span>
+                          </span>
+                          <span className="block text-xs leading-snug text-carbon/55">{p.detalle}</span>
+                        </span>
+                      </span>
+                    </li>
+                  );
                 return (
                   <li key={p.id} role="none">
                     {esActual ? (

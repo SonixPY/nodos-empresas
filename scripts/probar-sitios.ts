@@ -1,7 +1,7 @@
 // Pruebas de los destinos seguros (?next=) de src/lib/nodos/sitios.ts.
 // npx tsx scripts/probar-sitios.ts
 import assert from "node:assert/strict";
-import { esUrlNodos, rutaInterna } from "../src/lib/nodos/sitios";
+import { esUrlNodos, moduloActivo, rutaInterna } from "../src/lib/nodos/sitios";
 
 let ok = 0;
 function prueba(nombre: string, fn: () => void) {
@@ -47,6 +47,18 @@ prueba("esUrlNodos solo acepta https de nodoscompliance.com", () => {
   assert.ok(!esUrlNodos("https://nodoscompliance.com.evil.com/"));
   assert.ok(!esUrlNodos("https://evilnodoscompliance.com/"));
   assert.ok(!esUrlNodos("/\\evil.com"));
+});
+
+prueba("módulos activos: sin variable todo abierto; Aprender siempre abierto", () => {
+  const antes = process.env.NEXT_PUBLIC_MODULOS_ACTIVOS;
+  delete process.env.NEXT_PUBLIC_MODULOS_ACTIVOS;
+  assert.ok(moduloActivo("finanzas") && moduloActivo("empresas") && moduloActivo("aprender"));
+  process.env.NEXT_PUBLIC_MODULOS_ACTIVOS = " Aprender ";
+  assert.ok(!moduloActivo("finanzas") && !moduloActivo("empresas") && moduloActivo("aprender"));
+  process.env.NEXT_PUBLIC_MODULOS_ACTIVOS = "aprender,empresas";
+  assert.ok(!moduloActivo("finanzas") && moduloActivo("empresas"));
+  if (antes === undefined) delete process.env.NEXT_PUBLIC_MODULOS_ACTIVOS;
+  else process.env.NEXT_PUBLIC_MODULOS_ACTIVOS = antes;
 });
 
 console.log(`\n${ok} pruebas OK`);

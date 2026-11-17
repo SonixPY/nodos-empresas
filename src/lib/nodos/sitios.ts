@@ -23,14 +23,34 @@ export const SITIOS = {
     url: "https://empresas.nodoscompliance.com",
     descripcion: "Actas, vencimientos, libro de accionistas y cumplimiento SEPRELAD.",
   },
-  // NODOS 1.0: gratis para cualquier cuenta; vive en Finanzas, en /practica.
+  // Gratis para cualquier cuenta; vive en Finanzas, en /practica (la clave
+  // "practica" se mantiene para no romper enlaces ni componentes).
   practica: {
-    nombre: "NODOS Práctica",
-    corto: "Práctica",
+    nombre: "NODOS Aprender",
+    corto: "Aprender",
     url: "https://finanzas.nodoscompliance.com/practica",
-    descripcion: "Practicá finanzas y ser empresario con una empresa ficticia. Gratis.",
+    descripcion: "Aprendé a manejar tu plata jugando: un simulador de carrera, gratis con tu cuenta.",
   },
 } as const;
+
+/**
+ * Módulos abiertos al público. `NEXT_PUBLIC_MODULOS_ACTIVOS` es una lista
+ * separada por comas (por ejemplo "aprender"). Sin la variable, todo queda
+ * abierto como antes. Aprender (practica) está siempre abierto; los admins
+ * entran a todo igual (el Panel vive en Empresas).
+ */
+export type Modulo = AppId | "aprender";
+
+export function moduloActivo(m: Modulo): boolean {
+  if (m === "aprender") return true;
+  const crudo = (process.env.NEXT_PUBLIC_MODULOS_ACTIVOS ?? "").trim();
+  if (!crudo) return true;
+  return crudo
+    .toLowerCase()
+    .split(",")
+    .map((x) => x.trim())
+    .includes(m);
+}
 
 /** Correo del departamento de IT al que llegan los pedidos de soporte. */
 export const SOPORTE_EMAIL = process.env.NEXT_PUBLIC_SOPORTE_EMAIL || "soporte@nodoscompliance.com";
