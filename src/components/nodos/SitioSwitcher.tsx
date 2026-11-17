@@ -99,7 +99,7 @@ export default function SitioSwitcher({ pagina }: { pagina?: "practica" } = {}) 
                 return (
                   <li key={p.id} role="none">
                     {esActual ? (
-                      <Link href={p.id === "practica" ? "/practica" : "/"} role="menuitem" aria-current="page" className={clase}>
+                      <Link href={p.id === "practica" ? "/aprender" : "/"} role="menuitem" aria-current="page" className={clase}>
                         {contenido}
                       </Link>
                     ) : (

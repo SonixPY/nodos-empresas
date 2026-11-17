@@ -23,12 +23,12 @@ export const SITIOS = {
     url: "https://empresas.nodoscompliance.com",
     descripcion: "Actas, vencimientos, libro de accionistas y cumplimiento SEPRELAD.",
   },
-  // Gratis para cualquier cuenta; vive en Finanzas, en /practica (la clave
-  // "practica" se mantiene para no romper enlaces ni componentes).
+  // Gratis para cualquier cuenta; vive en Finanzas, en /aprender (antes
+  // /practica, que redirige). La clave "practica" se mantiene para no romper componentes.
   practica: {
     nombre: "NODOS Aprender",
     corto: "Aprender",
-    url: "https://finanzas.nodoscompliance.com/practica",
+    url: "https://finanzas.nodoscompliance.com/aprender",
     descripcion: "Aprendé a manejar tu plata jugando: un simulador de carrera, gratis con tu cuenta.",
   },
 } as const;

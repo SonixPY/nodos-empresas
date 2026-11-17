@@ -11,7 +11,7 @@ export const PANEL_SECCIONES = [
   { ruta: "/panel/contenido", label: "Contenido", corto: "Contenido", icon: CalendarDays },
   { ruta: "/panel/notas", label: "Notas", corto: "Notas", icon: Newspaper },
   { ruta: "/panel/suscripciones", label: "Suscripciones", corto: "Planes", icon: CreditCard },
-  { ruta: "/panel/practica", label: "NODOS Práctica", corto: "Práctica", icon: GraduationCap },
+  { ruta: "/panel/aprender", label: "NODOS Aprender", corto: "Aprender", icon: GraduationCap },
   { ruta: "/admin", label: "Administración de cuentas", corto: "Cuentas", icon: ShieldCheck },
 ] as const;
 

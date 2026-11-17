@@ -45,6 +45,11 @@ export async function proxy(request: NextRequest) {
   // impedía que nodoscompliance.com detectara la sesión).
   if (pathname.startsWith("/api/")) return response;
 
+  // NODOS Práctica pasó a ser NODOS Aprender: los enlaces viejos siguen sirviendo.
+  if (pathname === "/practica" || pathname.startsWith("/practica/")) {
+    return NextResponse.redirect(new URL("/aprender", request.url), 308);
+  }
+
   // Paso único al inicio de sesión compartido: borra las cookies de sesión
   // viejas de este subdominio (sin Domain) y marca el navegador. Quien tenía
   // la sesión abierta vuelve a ingresar una vez, y de ahí en más la sesión
