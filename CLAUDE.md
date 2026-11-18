@@ -38,5 +38,11 @@ Empresas (tipos S.A., EAS, S.R.L., unipersonal y RUC personal; ficha con Datos, 
 Vínculo con Finanzas: socios conectados por invitación (`/vincular#t=…`, funciones `crear/aceptar_invitacion_accionista`), dividendos con IDU estimado publicados en `eventos_entidad`; aportes y cesiones se publican solos desde `movimientos_acciones`.
 Migraciones `supabase/001…014` (012 = Finanzas 026, 013 = Finanzas 027, 014 = Finanzas 028, idénticas). Ficha sin Vencimientos ni Archivo propios: Documentos une lo generado y lo subido; el calendario está solo en `/vencimientos` (`?empresa=`). Planes públicos para el sitio en `/api/public/planes`; conectar socios requiere el Combo; RLS de equipo con `puede_acceder(user_id)` y trigger `dueno_desde_empresa()`.
 
+## NODOS Aprender (17-18/11/2026: etapa gratuita, solo Aprender abierto)
+- Juego "Carrera" en `/aprender` (vive en Finanzas; archivos compartidos idénticos en las dos apps): `src/lib/nodos/aprender/*` (motor puro y determinístico, contenido, validación, `datos.ts` con el guardado detrás de un "almacén" reemplazable), `src/components/nodos/aprender/*`, `src/app/aprender/**`. `/practica` redirige a `/aprender` (308, en el proxy). Pruebas: `npx tsx scripts/probar-aprender.ts`.
+- Tablas `aprender_carreras`, `aprender_turnos`, `aprender_lecciones`, `aprender_contenido` (migración Empresas 015 = Finanzas 029). Panel → Aprender (`/panel/aprender`, solo Empresas) edita situaciones y casos reales; los casos solo se muestran con `verificado: true`.
+- `NEXT_PUBLIC_MODULOS_ACTIVOS` (lista separada por comas, p. ej. `aprender`): las apps fuera de la lista mandan a `/cerrado` (salvo admins, `/cuenta`, `/soporte`); sin la variable todo queda abierto. "Mi plan" solo con `NEXT_PUBLIC_SUSCRIPCIONES_ACTIVAS=true`.
+- Plan y decisiones: `claude/aprender-carrera-plan.md` en el Project "Nodos".
+
 ## Suscripciones (v1)
 Cobro con Polar (checkout alojado, webhooks firmados en `empresas…/api/pagos/webhook/polar`) + pagos manuales desde Panel → Suscripciones. Acceso decidido por `tiene_acceso_app(app)`; el proxy solo corta si `SUSCRIPCIONES_ACTIVAS=true` (falla abierto si la base no responde, nunca ante firmas inválidas). Tablas de cobro sin escritura desde el navegador; `eventos_pago` inmutable. Variables: `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET`, `POLAR_SERVER` (solo Empresas), `SUSCRIPCIONES_ACTIVAS` (ambas).
