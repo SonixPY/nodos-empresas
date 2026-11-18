@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { APP_ID } from "@/lib/nodos/app";
-import { SITIOS } from "@/lib/nodos/sitios";
+import { SITIOS, moduloActivo } from "@/lib/nodos/sitios";
 
 /**
  * Marco común de las pantallas de ingreso de NODOS: panel de marca (Musgo)
@@ -17,6 +17,8 @@ export default function AuthShell({
 }) {
   const app = SITIOS[APP_ID];
   const otra = SITIOS[APP_ID === "finanzas" ? "empresas" : "finanzas"];
+  // Etapa gratuita: con la app cerrada, el panel habla de Aprender (lo único abierto).
+  const abierta = moduloActivo(APP_ID);
   return (
     <main className="grid min-h-screen grid-cols-1 bg-marfil lg:grid-cols-[1.05fr_1fr]">
       <section className="relative hidden overflow-hidden bg-musgo px-12 py-12 text-marfil lg:flex lg:flex-col">
@@ -29,9 +31,11 @@ export default function AuthShell({
         </Link>
         <div className="my-auto max-w-md">
           <p className="t-caption uppercase tracking-[0.14em] text-cobre">Una cuenta, todo NODOS</p>
-          <h2 className="t-display mt-3 !text-[40px] !leading-[46px] !text-marfil">{app.descripcion}</h2>
+          <h2 className="t-display mt-3 !text-[40px] !leading-[46px] !text-marfil">{abierta ? app.descripcion : SITIOS.practica.descripcion}</h2>
           <p className="t-body-lg mt-5 text-marfil/75">
-            Con el mismo usuario entrás a {app.nombre} y a {otra.nombre}. Cada cuenta ve solo sus propios datos.
+            {abierta
+              ? `Con el mismo usuario entrás a ${app.nombre} y a ${otra.nombre}. Cada cuenta ve solo sus propios datos.`
+              : "Con tu cuenta NODOS entrás a NODOS Aprender. Finanzas, Empresas y Proyectos llegan más adelante, con el mismo usuario."}
           </p>
         </div>
         <p className="t-caption text-marfil/50">
