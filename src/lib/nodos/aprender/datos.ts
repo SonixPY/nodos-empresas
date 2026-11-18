@@ -8,7 +8,7 @@ import { traerTodas } from "@/lib/traerTodas";
 import { armarContenido, type FilaAprender } from "./contenido";
 import { cerrarMes, nuevaCarrera } from "./motor";
 import { nuevaSemilla } from "./azar";
-import type { Arranque, Carrera, Contenido, ResumenMes } from "./tipos";
+import type { Carrera, Contenido, Perfil, ResumenMes } from "./tipos";
 import { VERSION_ESTADO } from "./tipos";
 
 export interface FilaCarrera {
@@ -77,12 +77,12 @@ export async function cargarLecciones(): Promise<{ leccion_id: string; desbloque
   return data ?? [];
 }
 
-export async function crearCarrera(arranque: Arranque, contenido: Contenido): Promise<FilaCarrera> {
+export async function crearCarrera(perfil: Perfil, contenido: Contenido): Promise<FilaCarrera> {
   const [{ data: puntos }, { count }] = await Promise.all([
     supabase.rpc("aprender_puntos_herencia"),
     supabase.from("aprender_carreras").select("id", { count: "exact", head: true }),
   ]);
-  const c = nuevaCarrera({ semilla: nuevaSemilla(), arranque, puntosHerencia: typeof puntos === "number" ? puntos : 0 }, contenido);
+  const c = nuevaCarrera({ semilla: nuevaSemilla(), perfil, puntosHerencia: typeof puntos === "number" ? puntos : 0 }, contenido);
   const { data, error } = await supabase
     .from("aprender_carreras")
     .insert({ numero: (count ?? 0) + 1, semilla: c.semilla, estado: c.estado, etapa: c.etapa, mes: c.mes, indice_salud: c.indiceSalud, datos: c })

@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, ChevronDown, Globe, GraduationCap, Lock, Wallet } from "lucide-react";
+import { Building2, ChevronDown, FolderKanban, Globe, GraduationCap, Lock, Wallet } from "lucide-react";
 import { APP_ID } from "@/lib/nodos/app";
 import { SITIOS, moduloActivo } from "@/lib/nodos/sitios";
 import { useDesplegable } from "@/lib/nodos/useDesplegable";
 
 const PAGINAS = [
   { id: "inicio", icon: Globe, nombre: "NODOS", detalle: "Sitio principal. El punto de encuentro entre finanzas, proyectos y ley.", url: SITIOS.inicio.url },
+  { id: "practica", icon: GraduationCap, nombre: SITIOS.practica.nombre, detalle: SITIOS.practica.descripcion, url: SITIOS.practica.url },
   { id: "finanzas", icon: Wallet, nombre: SITIOS.finanzas.nombre, detalle: SITIOS.finanzas.descripcion, url: SITIOS.finanzas.url },
   { id: "empresas", icon: Building2, nombre: SITIOS.empresas.nombre, detalle: SITIOS.empresas.descripcion, url: SITIOS.empresas.url },
-  { id: "practica", icon: GraduationCap, nombre: SITIOS.practica.nombre, detalle: SITIOS.practica.descripcion, url: SITIOS.practica.url },
+  // Producto futuro: siempre con candado hasta que exista.
+  { id: "proyectos", icon: FolderKanban, nombre: "NODOS Proyectos", detalle: "Planificá y seguí tus proyectos, de la idea a los números.", url: "" },
 ] as const;
 
 /**
@@ -80,7 +82,7 @@ export default function SitioSwitcher({ pagina }: { pagina?: "practica" } = {}) 
                 const clase = `flex items-start gap-3 rounded-md px-3 py-2.5 transition hover:bg-marfil focus-visible:bg-marfil focus-visible:outline-none ${
                   esActual ? "bg-marfil" : ""
                 }`;
-                const cerrada = (p.id === "finanzas" || p.id === "empresas") && !moduloActivo(p.id) && !esActual;
+                const cerrada = p.id === "proyectos" || ((p.id === "finanzas" || p.id === "empresas") && !moduloActivo(p.id) && !esActual);
                 if (cerrada)
                   return (
                     <li key={p.id} role="none">

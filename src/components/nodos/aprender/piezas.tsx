@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { CasoReal, LeccionDesbloqueada, TipoEvento, TipoSituacion } from "@/lib/nodos/aprender";
+import { BookOpen, Briefcase, Coffee, Laptop, Palette, ShoppingCart, User, Wrench, type LucideIcon } from "lucide-react";
+import type { AvatarId, CasoReal, LeccionDesbloqueada, TipoEvento, TipoSituacion } from "@/lib/nodos/aprender";
 import { AVISO_TEXTO } from "@/lib/nodos/aprender";
 
 /** Guaraníes del juego: "Gs. 1.240.000" (con signo si se pide). */
@@ -34,17 +35,30 @@ export const CHIP: Record<TipoEvento, string> = {
   vencimiento: "bg-cobre-hover text-marfil",
 };
 
-/** Isotipo NODOS sobre su placa (para el personaje NODO). */
+/** Isotipo oficial de NODOS sobre su placa (el personaje NODO). */
 export function NodoIcono({ size = 40 }: { size?: number }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/isotipo.svg" alt="" width={size} height={size} className="shrink-0 rounded-lg" />;
+}
+
+const ICONO_AVATAR: Record<AvatarId, LucideIcon> = {
+  persona: User,
+  maletin: Briefcase,
+  laptop: Laptop,
+  herramientas: Wrench,
+  paleta: Palette,
+  libro: BookOpen,
+  carrito: ShoppingCart,
+  cafe: Coffee,
+};
+
+/** Avatar del personaje: ícono de línea sobre una placa. */
+export function AvatarIcono({ avatar, size = 40 }: { avatar: AvatarId; size?: number }) {
+  const Icono = ICONO_AVATAR[avatar] ?? User;
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden className="shrink-0">
-      <rect width="32" height="32" rx="8" fill="#34483A" />
-      <path d="M16 16 L16 7 M16 16 L23 22 M16 16 L8 21" stroke="#B8734A" strokeWidth="2.2" fill="none" strokeLinecap="round" />
-      <circle cx="16" cy="6" r="2.6" fill="none" stroke="#F2EEE6" strokeWidth="1.6" />
-      <circle cx="24" cy="23" r="2.6" fill="none" stroke="#F2EEE6" strokeWidth="1.6" />
-      <circle cx="7" cy="22" r="2.6" fill="none" stroke="#F2EEE6" strokeWidth="1.6" />
-      <circle cx="16" cy="16" r="3.4" fill="#B8734A" />
-    </svg>
+    <span aria-hidden className="flex shrink-0 items-center justify-center rounded-lg bg-bosque text-marfil" style={{ width: size, height: size }}>
+      <Icono size={Math.round(size * 0.5)} strokeWidth={1.8} />
+    </span>
   );
 }
 

@@ -5,7 +5,9 @@ import { useMemo, useState } from "react";
 import { ArrowRight, BookOpen, Check, Clock, History } from "lucide-react";
 import {
   ACTIVOS,
+  METAS,
   NOMBRE_ETAPA,
+  OFICIOS,
   NOMBRE_MES,
   fechaDelMes,
   gastoMensual,
@@ -20,7 +22,7 @@ import {
   type PlanMes,
 } from "@/lib/nodos/aprender";
 import { useCarrera } from "./CarreraProvider";
-import { COLOR_POSTIT, NodoIcono, gs } from "./piezas";
+import { AvatarIcono, COLOR_POSTIT, NodoIcono, gs } from "./piezas";
 
 const ROTACIONES = [-2.5, 2, -1.5, 2.5, -2, 1.5];
 
@@ -157,9 +159,36 @@ function MonitorPlata({ c }: { c: Carrera }) {
   );
 }
 
+/** Ficha del personaje con el avance de su meta. */
+function FichaPersonaje({ c }: { c: Carrera }) {
+  if (!c.perfil) return null;
+  const meta = METAS[c.perfil.meta];
+  const avance = Math.round(meta.avance(c) * 100);
+  return (
+    <section aria-label="Tu personaje" className="flex items-center gap-4 rounded-xl bg-marfil p-4 shadow-lg">
+      <AvatarIcono avatar={c.perfil.avatar} size={52} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-display text-lg font-bold text-musgo">{c.perfil.nombre}</p>
+        <p className="truncate text-xs text-carbon/70">{c.sueldo > 0 ? `${OFICIOS[c.perfil.oficio].nombre} en ${OFICIOS[c.perfil.oficio].lugar}` : "Sin trabajo en relación de dependencia"}</p>
+        <div className="mt-2">
+          <div className="flex justify-between gap-2 text-xs">
+            <span className="font-semibold text-bosque">Meta: {meta.nombre}</span>
+            <span className="text-carbon/70">{avance} %</span>
+          </div>
+          <div className="mt-1 h-2 overflow-hidden rounded-sm bg-[var(--line)]" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={avance} aria-label={`Avance de la meta ${meta.nombre}`}>
+            <div className="h-full bg-cobre transition-all" style={{ width: `${avance}%` }} />
+          </div>
+          <p className="mt-1 text-[11px] text-carbon/60">{meta.detalle(c)}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function consejosNodo(c: Carrera, plan: PlanMes): string[] {
   const pendientes = c.abiertas.filter((a) => !a.elegida).length;
   const m: string[] = [];
+  if (c.perfil && c.mes === 1) m.push(`Hola, ${c.perfil.nombre}. Tu meta: ${METAS[c.perfil.meta].nombre.toLowerCase()}. Empezá por los post-its del corcho.`);
   if (pendientes) m.push(`Tenés ${pendientes} ${pendientes === 1 ? "cosa" : "cosas"} para decidir este mes.`);
   if (c.deudaTarjeta > 0) m.push("Vence la tarjeta el 15: pagar solo el mínimo genera intereses.");
   const meses = mesesDeEmergencia(c);
@@ -205,6 +234,7 @@ export default function Escritorio() {
         </section>
 
         <div className="flex flex-col gap-6">
+          <FichaPersonaje c={carrera} />
           <MonitorPlata c={carrera} />
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -223,7 +253,7 @@ export default function Escritorio() {
             <Link href="/aprender/biblioteca" className="rounded-[4px_10px_10px_4px] bg-cobre-hover p-3.5 text-marfil shadow-lg transition hover:-translate-y-0.5">
               <BookOpen size={18} aria-hidden />
               <span className="mt-1 block font-display font-bold">Biblioteca</span>
-              <span className="block text-xs text-marfil/85">{new Set(carrera.lecciones).size} lecciones</span>
+              <span className="block text-xs text-marfil/85">{new Set(carrera.lecciones).size === 1 ? "1 lección" : `${new Set(carrera.lecciones).size} lecciones`}</span>
             </Link>
             <Link href="/aprender/historial" className="rounded-md border-l-[10px] border-bosque bg-musgo p-3.5 text-marfil shadow-lg transition hover:-translate-y-0.5">
               <History size={18} aria-hidden />

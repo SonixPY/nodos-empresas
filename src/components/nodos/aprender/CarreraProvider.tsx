@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { decidir as decidirMotor, planMes, type Arranque, type Carrera, type Contenido, type PlanMes, type ResumenMes } from "@/lib/nodos/aprender";
+import { decidir as decidirMotor, planMes, type Carrera, type Contenido, type Perfil, type PlanMes, type ResumenMes } from "@/lib/nodos/aprender";
 import { ErrorAprender, almacenSupabase, type Almacen, type FilaCarrera } from "@/lib/nodos/aprender/datos";
 
 type Estado = "cargando" | "sin-carrera" | "jugando" | "terminada" | "error";
@@ -18,7 +18,7 @@ interface Valor {
   resumen: ResumenMes | null;
   ocupado: boolean;
   almacen: Almacen;
-  empezar: (arranque: Arranque) => Promise<void>;
+  empezar: (perfil: Perfil) => Promise<void>;
   decidir: (situacion: string, opcion: string) => Promise<void>;
   cerrar: () => Promise<void>;
   verResumen: (r: ResumenMes | null) => void;
@@ -85,10 +85,10 @@ export default function CarreraProvider({ children, almacen = almacenSupabase }:
   }, []);
 
   const empezar = useCallback(
-    (arranque: Arranque) =>
+    (perfil: Perfil) =>
       conCandado(async () => {
         if (!contenido) return;
-        const f = await almacen.crearCarrera(arranque, contenido);
+        const f = await almacen.crearCarrera(perfil, contenido);
         setFila(f);
         setResumen(null);
         setEstado("jugando");

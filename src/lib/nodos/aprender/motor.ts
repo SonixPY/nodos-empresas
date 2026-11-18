@@ -9,6 +9,7 @@ import { generador, normal, sortear } from "./azar";
 import {
   ACTIVOS,
   NOMBRE_MES,
+  OFICIOS,
   PARAMETROS,
   calcularEtapa,
   fechaDelMes,
@@ -25,6 +26,7 @@ import type {
   Efectos,
   Evento,
   LeccionDesbloqueada,
+  Perfil,
   PlanMes,
   Requisitos,
   ResumenMes,
@@ -40,10 +42,16 @@ const NUEVAS_POR_MES = { min: 1, max: 2, tope: 3 };
 
 // ── Crear ─────────────────────────────────────────────────────────────────
 
-export function nuevaCarrera(opts: { semilla: number; arranque?: Arranque; puntosHerencia?: number }, contenido: Contenido): Carrera {
-  const a = PARAMETROS.arranques[opts.arranque ?? "normal"];
+export function nuevaCarrera(
+  opts: { semilla: number; arranque?: Arranque; puntosHerencia?: number; perfil?: Perfil },
+  contenido: Contenido,
+): Carrera {
+  // Con perfil, el oficio decide el arranque.
+  const arranque = opts.perfil ? OFICIOS[opts.perfil.oficio].arranque : (opts.arranque ?? "normal");
+  const a = PARAMETROS.arranques[arranque];
   const c: Carrera = {
     version: VERSION_ESTADO,
+    ...(opts.perfil ? { perfil: { ...opts.perfil, nombre: opts.perfil.nombre.trim() } } : {}),
     semilla: opts.semilla >>> 0,
     mes: 1,
     estado: "activa",

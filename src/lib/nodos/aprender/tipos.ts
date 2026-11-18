@@ -47,8 +47,21 @@ export interface SituacionAbierta {
   decididaEn?: number;
 }
 
+/** Quién es el personaje (se elige al crear la carrera). */
+export interface Perfil {
+  nombre: string;
+  avatar: AvatarId;
+  oficio: OficioId;
+  meta: MetaId;
+}
+export type AvatarId = "persona" | "maletin" | "laptop" | "herramientas" | "paleta" | "libro" | "carrito" | "cafe";
+export type OficioId = "cajero" | "administrativo" | "analista";
+export type MetaId = "emergencia" | "auto" | "negocio" | "invertir";
+
 export interface Carrera {
   version: number;
+  /** Personaje. Opcional: las carreras creadas antes del 18/11 no lo tienen. */
+  perfil?: Perfil;
   semilla: number;
   /** Mes absoluto que se está jugando (1 = enero del año 1). */
   mes: number;

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import {
   CASOS,
+  METAS,
+  nombreValido,
   SITUACIONES,
   armarContenido,
   cerrarMes,
@@ -253,6 +255,23 @@ ok("las situaciones con día fijo caen ese día (el sueldo, el día de cobro)", 
   assert.equal(p.eventos.find((e) => e.situacion === "sueldo-ahorro")?.dia, 30);
   const feb = { ...c, mes: 2, abiertas: [{ id: "sueldo-ahorro", desde: 2 }] };
   assert.equal(planMes(feb, contenido).eventos.find((e) => e.situacion === "sueldo-ahorro")?.dia, 28, "febrero: último día");
+});
+
+ok("personaje: el oficio define el arranque y la meta mide el avance", () => {
+  const c = nuevaCarrera({ semilla: 8, perfil: { nombre: "  Sofi  ", avatar: "laptop", oficio: "analista", meta: "emergencia" } }, contenido);
+  assert.equal(c.perfil?.nombre, "Sofi");
+  assert.equal(c.sueldo, 5_000_000, "analista = holgado");
+  assert.equal(nuevaCarrera({ semilla: 8, perfil: { nombre: "Ana", avatar: "persona", oficio: "cajero", meta: "auto" } }, contenido).sueldo, 2_900_000);
+  for (const m of Object.values(METAS)) {
+    const v = m.avance(c);
+    assert.ok(v >= 0 && v <= 1, m.nombre);
+    assert.ok(m.detalle(c).length > 0);
+  }
+  const lleno = { ...c, ahorro: gastoMensual(c) * 3 };
+  assert.equal(METAS.emergencia.avance(lleno), 1);
+  assert.ok(nombreValido("María José") && nombreValido("Ñandutí 2"));
+  assert.ok(!nombreValido("a") && !nombreValido("x".repeat(25)) && !nombreValido("<script>"));
+  assert.equal(nuevaCarrera({ semilla: 8 }, contenido).perfil, undefined, "carreras viejas sin perfil siguen andando");
 });
 
 console.log(`\n${n} pruebas OK`);

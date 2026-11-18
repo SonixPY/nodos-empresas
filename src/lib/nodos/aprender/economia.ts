@@ -3,7 +3,7 @@
  * mercado: sirven para que las consecuencias se sientan reales, no para
  * predecir nada. Contenido educativo: no es asesoría de inversión.
  */
-import type { ActivoId, Arranque, Carrera, Etapa, NivelVida } from "./tipos";
+import type { ActivoId, Arranque, AvatarId, Carrera, Etapa, MetaId, NivelVida, OficioId } from "./tipos";
 
 export const PARAMETROS = {
   arranques: {
@@ -145,3 +145,54 @@ export function fechaDelMes(mesAbs: number, semilla: number) {
 }
 
 export const NOMBRE_MES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+// ── Creación del personaje ────────────────────────────────────────────────
+
+export const AVATARES: AvatarId[] = ["persona", "maletin", "laptop", "herramientas", "paleta", "libro", "carrito", "cafe"];
+
+/** Cada oficio define el arranque (sueldo y gastos). Todo ficticio. */
+export const OFICIOS: Record<OficioId, { nombre: string; lugar: string; arranque: Arranque; texto: string }> = {
+  cajero: { nombre: "Cajero/a", lugar: "un supermercado del barrio", arranque: "ajustado", texto: "Sueldo justo y casi sin colchón: cada imprevisto pesa." },
+  administrativo: { nombre: "Asistente administrativo/a", lugar: "una distribuidora", arranque: "normal", texto: "Un sueldo promedio y un poco de efectivo para arrancar." },
+  analista: { nombre: "Analista", lugar: "una empresa de servicios", arranque: "holgado", texto: "Mejor sueldo y algo ahorrado: más margen para equivocarte." },
+};
+
+/** La meta guía la carrera; el avance se calcula con el estado (0 a 1). */
+export const METAS: Record<MetaId, { nombre: string; texto: string; avance: (c: Carrera) => number; detalle: (c: Carrera) => string }> = {
+  emergencia: {
+    nombre: "Tener un colchón",
+    texto: "Juntar 3 meses de gastos para que ningún imprevisto te endeude.",
+    avance: (c) => Math.min(1, mesesDeEmergencia(c) / 3),
+    detalle: (c) => `${mesesDeEmergencia(c).toLocaleString("es-PY", { maximumFractionDigits: 1 })} de 3 meses de gastos`,
+  },
+  auto: {
+    nombre: "Comprar un auto",
+    texto: "Juntar Gs. 30.000.000 para un auto usado, sin endeudarte.",
+    avance: (c) => Math.min(1, Math.max(0, c.ahorro + totalActivos(c)) / 30_000_000),
+    detalle: (c) => `Gs. ${Math.round(Math.max(0, c.ahorro + totalActivos(c))).toLocaleString("es-PY")} de Gs. 30.000.000`,
+  },
+  negocio: {
+    nombre: "Tener tu negocio",
+    texto: "Ahorrar el aporte y abrir tu propio negocio.",
+    avance: (c) => (c.negocio ? 1 : Math.min(0.95, Math.max(0, c.ahorro) / 8_000_000)),
+    detalle: (c) => (c.negocio ? "Ya tenés tu negocio" : `Gs. ${Math.round(Math.max(0, c.ahorro)).toLocaleString("es-PY")} de Gs. 8.000.000 de aporte`),
+  },
+  invertir: {
+    nombre: "Aprender a invertir",
+    texto: "Que tus inversiones lleguen al 20 % de tu patrimonio.",
+    avance: (c) => {
+      const p = patrimonio(c);
+      return p > 0 ? Math.min(1, totalActivos(c) / (0.2 * p)) : 0;
+    },
+    detalle: (c) => {
+      const p = patrimonio(c);
+      return `${p > 0 ? Math.round((totalActivos(c) / p) * 100) : 0} % de 20 % invertido`;
+    },
+  },
+};
+
+/** Nombre del personaje: 2 a 24 letras, números, espacios, puntos o guiones. */
+export function nombreValido(n: string): boolean {
+  const t = n.trim();
+  return t.length >= 2 && t.length <= 24 && /^[\p{L}\p{N} .'-]+$/u.test(t);
+}
