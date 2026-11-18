@@ -145,6 +145,8 @@ export interface Situacion {
   requisitos?: Requisitos;
   /** Peso para el sorteo (1 = normal). */
   peso?: number;
+  /** Día fijo del calendario (por ejemplo, el día de cobro). Sin él, el día se sortea. */
+  dia?: number;
   repetible?: boolean;
   /**
    * Situación que dura varios meses: en cada cierre se aplica el siguiente

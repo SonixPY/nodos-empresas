@@ -246,4 +246,13 @@ ok("200 carreras de 10 años: sin números inválidos ni saldos imposibles", () 
   console.log(`   (jugador al azar: ${quebradas}/200 quebradas, ${(lecciones / 200).toFixed(1)} lecciones por carrera)`);
 });
 
+ok("las situaciones con día fijo caen ese día (el sueldo, el día de cobro)", () => {
+  let c = nuevaCarrera({ semilla: 4 }, contenido);
+  c = { ...c, abiertas: [{ id: "sueldo-ahorro", desde: c.mes }, { id: "imprevisto-celular", desde: c.mes }] };
+  const p = planMes(c, contenido);
+  assert.equal(p.eventos.find((e) => e.situacion === "sueldo-ahorro")?.dia, 30);
+  const feb = { ...c, mes: 2, abiertas: [{ id: "sueldo-ahorro", desde: 2 }] };
+  assert.equal(planMes(feb, contenido).eventos.find((e) => e.situacion === "sueldo-ahorro")?.dia, 28, "febrero: último día");
+});
+
 console.log(`\n${n} pruebas OK`);

@@ -153,7 +153,8 @@ export function planMes(c: Carrera, contenido: Contenido): PlanMes {
     const s = contenido.situaciones.get(a.id);
     if (!s) continue;
     let dia = 1;
-    if (a.desde === c.mes && libres.length) dia = libres.splice(Math.floor(r() * libres.length), 1)[0];
+    if (a.desde === c.mes && s.dia) dia = Math.min(s.dia, f.dias);
+    else if (a.desde === c.mes && libres.length) dia = libres.splice(Math.floor(r() * libres.length), 1)[0];
     eventos.push({ dia, tipo: s.tipo, titulo: s.titulo, situacion: s.id });
   }
   eventos.sort((x, y) => x.dia - y.dia || x.titulo.localeCompare(y.titulo));

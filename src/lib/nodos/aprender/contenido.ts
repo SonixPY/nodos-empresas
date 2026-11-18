@@ -38,6 +38,7 @@ export const SITUACIONES: Situacion[] = [
   // ── Etapa 1: empleado ─────────────────────────────────────────────────
   {
     id: "sueldo-ahorro",
+    dia: 30,
     tipo: "situacion",
     titulo: "Llegó el sueldo",
     postit: "Cobré. ¿Separo algo para ahorrar?",
@@ -161,6 +162,7 @@ export const SITUACIONES: Situacion[] = [
   },
   {
     id: "tarjeta-cuota",
+    dia: 15,
     tipo: "vencimiento",
     titulo: "Vence la tarjeta",
     postit: "Vence la tarjeta el 15. ¿Total o mínimo?",
@@ -691,6 +693,7 @@ export const SITUACIONES: Situacion[] = [
   },
   {
     id: "aguinaldo",
+    dia: 20,
     tipo: "situacion",
     titulo: "Cobraste el aguinaldo",
     postit: "Aguinaldo. ¿Ahorro, regalos o las dos?",
@@ -882,6 +885,7 @@ export function validarSituacion(x0: unknown): string[] {
   if (!txt(x.texto, 10, 500)) e.push("El texto tiene que tener entre 10 y 500 caracteres.");
   if (x.aviso !== "inversion" && x.aviso !== "legal") e.push("Elegí el aviso que corresponde.");
   if (x.peso !== undefined && !(num(x.peso, 10) && x.peso >= 0)) e.push("El peso va de 0 a 10.");
+  if (x.dia !== undefined && !(Number.isInteger(x.dia) && x.dia >= 1 && x.dia <= 31)) e.push("El día va de 1 a 31.");
   const ops = Array.isArray(x.opciones) ? x.opciones : [];
   if (ops.length < 1 || ops.length > 4) e.push("La situación necesita de 1 a 4 opciones.");
   const ids = new Set<string>();

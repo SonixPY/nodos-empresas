@@ -13,6 +13,11 @@ const ESTADO: Record<FilaCarrera["estado"], string> = {
   abandonada: "Terminada por vos",
 };
 
+function mesesJugados(c: FilaCarrera): string {
+  const n = c.mes - (c.estado === "activa" ? 1 : 0);
+  return `${n} ${n === 1 ? "mes" : "meses"}`;
+}
+
 function Grafico({ turnos }: { turnos: FilaTurno[] }) {
   if (turnos.length < 2) return <p className="text-sm text-carbon/60">El gráfico aparece después de cerrar dos meses.</p>;
   const w = 600;
@@ -96,7 +101,7 @@ export default function Historial() {
                 >
                   <span className="block font-display font-semibold text-musgo">Carrera n.º {c.numero}</span>
                   <span className="block text-sm text-carbon/70">
-                    {ESTADO[c.estado]} · {c.mes - (c.estado === "activa" ? 1 : 0)} meses · {NOMBRE_ETAPA[c.etapa]}
+                    {ESTADO[c.estado]} · {mesesJugados(c)} · {NOMBRE_ETAPA[c.etapa]}
                   </span>
                 </button>
               </li>
