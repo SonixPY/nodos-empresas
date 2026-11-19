@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { NOMBRE_MES, gastoMensual, type Evento } from "@/lib/nodos/aprender";
+import { NOMBRE_MES, gastoMensual, minutosSituacion, type Evento } from "@/lib/nodos/aprender";
 import { useCarrera } from "./CarreraProvider";
 import { CHIP, ETIQUETA_TIPO, gs } from "./piezas";
 import { estadoPostit } from "./Escritorio";
@@ -26,6 +26,12 @@ export default function CalendarioMes() {
   const entra = plan.eventos.filter((e) => e.tipo === "ingreso").reduce((s, e) => s + (e.monto ?? 0), 0);
   const sale = gastoMensual(carrera) + (carrera.deudaTarjeta > 0 ? carrera.deudaTarjeta : 0);
   const pendientes = carrera.abiertas.filter((a) => !a.elegida).length;
+  const minutos = carrera.abiertas
+    .filter((a) => !a.elegida)
+    .reduce((t, a) => {
+      const sit = contenido.situaciones.get(a.id);
+      return t + (sit ? minutosSituacion(sit) : 0);
+    }, 0);
   const delDia = porDia.get(sel) ?? [];
   const mes = NOMBRE_MES[plan.mesDelAnio - 1];
 
@@ -46,6 +52,7 @@ export default function CalendarioMes() {
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
           <h1 id="cal-titulo" className="capitalize">
             {mes} <span className="text-base font-normal text-carbon/60">· año {plan.anio}</span>
+            {minutos > 0 && <span className="ml-2 align-middle text-xs font-normal normal-case text-carbon/60">≈ {minutos} min para decidir</span>}
           </h1>
           <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs" aria-label="Referencias">
             {(["ingreso", "gasto", "situacion", "vencimiento"] as const).map((t) => (

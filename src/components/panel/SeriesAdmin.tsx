@@ -1,14 +1,57 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, ExternalLink, Info, Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarClock, ExternalLink, Info, Link2, Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ToastProvider";
 import { mensajeError } from "@/lib/nodos/errores";
-import { LIMITES, limpiarSerie, publicados, SERIE_NUEVA, validarSerie, type Episodio, type Serie } from "@/lib/series";
+import { LIMITES, limpiarSerie, publicados, SERIE_NUEVA, validarSerie, type Episodio, type Fuente, type Serie } from "@/lib/series";
 
 const SITIO = "https://nodoscompliance.com/#series";
 const fecha = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("es-PY", { day: "2-digit", month: "2-digit", year: "numeric" }) : "");
+
+/** ISO → valor de <input type="datetime-local"> en la hora del navegador. */
+function aLocal(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+/** Valor de datetime-local (hora del navegador) → ISO con zona. */
+function aIso(local: string): string {
+  if (!local) return "";
+  const d = new Date(local);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+}
+
+function Fuentes({ lista, onCambio, n }: { lista: Fuente[]; onCambio: (f: Fuente[]) => void; n: number }) {
+  return (
+    <details className="sm:col-span-full">
+      <summary className="cursor-pointer text-xs font-medium text-bosque">
+        <Link2 size={13} className="mr-1 inline" /> Fuentes del episodio {n} ({lista.length})
+      </summary>
+      <div className="mt-2 space-y-2">
+        {lista.map((f, j) => (
+          <div key={j} className="grid items-end gap-2 sm:grid-cols-[1fr_1.3fr_auto]">
+            <Campo label={`De dónde es (fuente ${j + 1})`}>
+              <input className="input" maxLength={LIMITES.tituloFuente} placeholder="BCP · Tasas de interés" value={f.titulo} onChange={(x) => onCambio(lista.map((g, k) => (k === j ? { ...g, titulo: x.target.value } : g)))} />
+            </Campo>
+            <Campo label="Link">
+              <input className="input" inputMode="url" placeholder="https://…" value={f.url} onChange={(x) => onCambio(lista.map((g, k) => (k === j ? { ...g, url: x.target.value } : g)))} />
+            </Campo>
+            <button type="button" className="btn btn-ghost !px-2.5" onClick={() => onCambio(lista.filter((_, k) => k !== j))} aria-label={`Quitar la fuente ${j + 1}`}>
+              <Trash2 size={15} />
+            </button>
+          </div>
+        ))}
+        <button type="button" className="btn btn-ghost text-xs" disabled={lista.length >= LIMITES.fuentes} onClick={() => onCambio([...lista, { titulo: "", url: "" }])}>
+          <Plus size={14} /> Agregar fuente
+        </button>
+      </div>
+    </details>
+  );
+}
 
 function Campo({ label, ayuda, children }: { label: string; ayuda?: string; children: React.ReactNode }) {
   return (
@@ -47,6 +90,25 @@ function Editor({
     [lista[i], lista[j]] = [lista[j], lista[i]];
     setS({ ...s, episodios: lista });
   };
+
+  /** Desde el primer episodio sin publicar que tenga fecha, uno cada 7 días a la misma hora. */
+  function semanal() {
+    const base = s.episodios.findIndex((e) => !e.url && e.fecha);
+    if (base < 0) return showToast("Poné la fecha de estreno del próximo episodio y volvé a tocar.", "error");
+    const t0 = Date.parse(s.episodios[base].fecha!);
+    const min = s.episodios[base].minutos || 0;
+    let k = 0;
+    setS({
+      ...s,
+      episodios: s.episodios.map((e, i) => {
+        if (i < base || e.url) return e;
+        const f = new Date(t0 + k * 7 * 86_400_000).toISOString();
+        k++;
+        return { ...e, fecha: f, minutos: e.minutos || min };
+      }),
+    });
+    showToast("Fechas cargadas: un episodio por semana. Revisalas y guardá.");
+  }
 
   async function guardar() {
     setIntento(true);
@@ -110,13 +172,19 @@ function Editor({
         </div>
         <ol className="space-y-2">
           {s.episodios.map((e, i) => (
-            <li key={i} className="grid items-end gap-2 rounded-md border border-bosque/15 p-3 sm:grid-cols-[48px_1fr_1.2fr_auto]">
+            <li key={i} className="grid items-end gap-2 rounded-md border border-bosque/15 p-3 lg:grid-cols-[48px_1fr_1.1fr_230px_84px_auto] sm:grid-cols-2">
               <span className="pb-2 font-display text-sm font-semibold text-cobre-hover">Ep. {i + 1}</span>
               <Campo label="Título">
                 <input className="input" maxLength={LIMITES.tituloEpisodio} value={e.titulo} placeholder="Próximamente" onChange={(x) => ep(i, { titulo: x.target.value })} />
               </Campo>
               <Campo label="Link del video">
                 <input className="input" inputMode="url" placeholder="https://youtu.be/…" value={e.url} onChange={(x) => ep(i, { url: x.target.value })} />
+              </Campo>
+              <Campo label="Estreno">
+                <input className="input" type="datetime-local" value={aLocal(e.fecha)} onChange={(x) => ep(i, { fecha: aIso(x.target.value) })} />
+              </Campo>
+              <Campo label="Minutos">
+                <input className="input" type="number" min={1} max={LIMITES.minutos} placeholder="10" value={e.minutos || ""} onChange={(x) => ep(i, { minutos: Math.max(0, Math.trunc(Number(x.target.value)) || 0) })} />
               </Campo>
               <div className="flex gap-1">
                 <button type="button" className="btn btn-ghost !px-2.5" onClick={() => mover(i, -1)} disabled={i === 0} aria-label={`Subir el episodio ${i + 1}`}>
@@ -129,6 +197,7 @@ function Editor({
                   <Trash2 size={15} />
                 </button>
               </div>
+              <Fuentes n={i + 1} lista={e.fuentes ?? []} onCambio={(f) => ep(i, { fuentes: f })} />
             </li>
           ))}
         </ol>
@@ -136,9 +205,12 @@ function Editor({
           type="button"
           className="btn btn-ghost mt-2"
           disabled={s.episodios.length >= LIMITES.episodios}
-          onClick={() => setS({ ...s, episodios: [...s.episodios, { titulo: "", url: "" }] })}
+          onClick={() => setS({ ...s, episodios: [...s.episodios, { titulo: "", url: "", fecha: "", minutos: 0, fuentes: [] }] })}
         >
           <Plus size={15} /> Agregar episodio
+        </button>
+        <button type="button" className="btn btn-ghost ml-2 mt-2" onClick={semanal} title="Toma la fecha del primer episodio sin publicar y pone las siguientes cada 7 días">
+          <CalendarClock size={15} /> Programar uno por semana
         </button>
       </div>
 

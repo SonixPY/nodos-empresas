@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeft, Check } from "lucide-react";
-import { ACTIVOS, puedeDecidir } from "@/lib/nodos/aprender";
+import { ACTIVOS, minutosSituacion, puedeDecidir } from "@/lib/nodos/aprender";
 import { useCarrera } from "./CarreraProvider";
 import { Aviso, COLOR_POSTIT, gs } from "./piezas";
 
@@ -59,6 +59,7 @@ export default function SituacionVista({ id }: { id: string }) {
                     ? "Vencimiento"
                     : "Situación"}
                 {abierta.desde < carrera.mes && " · sigue abierta"}
+                <span className="font-normal normal-case tracking-normal text-carbon/60"> · ≈ {minutosSituacion(s)} min</span>
               </p>
               <h1 className="mt-2 !text-carbon">{s.titulo}</h1>
               <p className="mt-3 text-[15px] leading-relaxed text-carbon">

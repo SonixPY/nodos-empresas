@@ -3,7 +3,7 @@
  * mercado: sirven para que las consecuencias se sientan reales, no para
  * predecir nada. Contenido educativo: no es asesoría de inversión.
  */
-import type { ActivoId, Arranque, AvatarId, Carrera, Etapa, MetaId, NivelVida, OficioId } from "./tipos";
+import type { ActivoId, Arranque, AvatarId, Carrera, Etapa, MetaId, NivelVida, OficioId, Situacion } from "./tipos";
 
 export const PARAMETROS = {
   arranques: {
@@ -195,4 +195,14 @@ export const METAS: Record<MetaId, { nombre: string; texto: string; avance: (c: 
 export function nombreValido(n: string): boolean {
   const t = n.trim();
   return t.length >= 2 && t.length <= 24 && /^[\p{L}\p{N} .'-]+$/u.test(t);
+}
+
+/**
+ * Minutos estimados para leer y decidir una situación: lectura a 180 palabras
+ * por minuto más un minuto para pensar la decisión. Siempre al menos 1.
+ */
+export function minutosSituacion(s: Pick<Situacion, "titulo" | "texto" | "opciones">): number {
+  const texto = [s.titulo, s.texto, ...s.opciones.flatMap((o) => [o.titulo, o.texto])].join(" ");
+  const palabras = texto.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(palabras / 180 + 1));
 }

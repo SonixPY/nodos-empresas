@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  minutosSituacion,
   CASOS,
   METAS,
   nombreValido,
@@ -272,6 +273,15 @@ ok("personaje: el oficio define el arranque y la meta mide el avance", () => {
   assert.ok(nombreValido("María José") && nombreValido("Ñandutí 2"));
   assert.ok(!nombreValido("a") && !nombreValido("x".repeat(25)) && !nombreValido("<script>"));
   assert.equal(nuevaCarrera({ semilla: 8 }, contenido).perfil, undefined, "carreras viejas sin perfil siguen andando");
+});
+
+ok("tiempo estimado: cada situación entre 1 y 10 minutos", () => {
+  for (const sit of contenido.situaciones.values()) {
+    const m = minutosSituacion(sit);
+    assert.ok(Number.isInteger(m) && m >= 1 && m <= 10, sit.id);
+  }
+  const larga = { titulo: "x", texto: "palabra ".repeat(539), opciones: [] };
+  assert.equal(minutosSituacion(larga), 4);
 });
 
 console.log(`\n${n} pruebas OK`);
